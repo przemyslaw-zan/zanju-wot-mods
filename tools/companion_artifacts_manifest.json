@@ -9,6 +9,12 @@
         "modslistapi",
         "openwg_gameface"
       ]
+    },
+    "premium-time": {
+      "description": "Gameface runtime for Premium Time's header counter. No configurator chain: the mod has no settings.",
+      "artifactIds": [
+        "openwg_gameface"
+      ]
     }
   },
   "artifacts": {

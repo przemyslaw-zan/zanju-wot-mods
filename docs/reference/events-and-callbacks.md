@@ -95,6 +95,14 @@ class MyMod(object):
   - Where one exists, a hook owned by the view is sturdier than any subscription:
     `LoadoutPresenter._updateAmmunitionGroupsController` fires on tank switch, setup switch and
     item install, and cannot outlive or fall behind the panel it belongs to.
+- **A subscription's own expiry timestamp passing does not mean the client knows it ended.**
+  The client only learns premium ended when the server pushes a new premium mask, so the
+  header view model keeps reporting `state=Active` past `expiryTime`. Measured live on EU
+  2.3.1.0: **48 seconds** between the expiry timestamp and the
+  `{'premium': {'premMask': 0, ...}}` diff landing — and the server rewrote the expiry to the
+  moment it processed the change rather than the original time. Anything counting down to a
+  subscription's end has to hold at zero across that gap; handing the label back at zero
+  repaints it from the state captured while the subscription was still running.
 - Prefer explicit unsubscribe paths in reverse order during shutdown.
 - Treat sync callbacks as noisy and diff-driven; filter them down to the specific GUI item types or cache keys you actually need.
 - Early transition events often arrive before every dependent object is ready, so keep guards around vehicle and preview state.

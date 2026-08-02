@@ -49,11 +49,6 @@ const COUNTDOWN_STYLES = {
     display: 'flex',
     alignItems: 'center',
 };
-// Debug instrumentation: heartbeat cadence for the last stretch before expiry and for
-// the hold window afterwards, so a live expiry can be traced in the log.
-const TAIL_LOG_WINDOW_SECONDS = 180;
-const HEARTBEAT_INTERVAL_MS = 10000;
-
 const overrides = {
     premium: newState(),
 };
@@ -64,10 +59,10 @@ function newState() {
         last: null,
         // Expiry passed but the game still reports the subscription as running.
         holding: false,
+        // When the hold began, so releasing it can report how far behind the game was.
         holdStartedMs: 0,
         // Last state string seen in the view model, for transition logging.
         state: null,
-        nextHeartbeatMs: 0,
     };
 }
 
@@ -252,15 +247,6 @@ function hideCountdown(key) {
     }
 }
 
-function dueForHeartbeat(st) {
-    const nowMs = Date.now();
-    if (nowMs < st.nextHeartbeatMs) {
-        return false;
-    }
-    st.nextHeartbeatMs = nowMs + HEARTBEAT_INTERVAL_MS;
-    return true;
-}
-
 function updateSubscription(key, state, isRunningState, expiry, now, cfg) {
     const st = overrides[key];
     if (st.state !== state) {
@@ -277,10 +263,6 @@ function updateSubscription(key, state, isRunningState, expiry, now, cfg) {
             log(key + ': expiry moved into the future (renewed), resuming countdown');
             st.holding = false;
         }
-        if (remaining <= TAIL_LOG_WINDOW_SECONDS && dueForHeartbeat(st)) {
-            log(key + ': ' + Math.floor(remaining) + 's left (expiry=' + expiry
-                + ' now=' + Math.floor(now) + ' state=' + state + ')');
-        }
         showCountdown(key, formatRemaining(remaining, cfg));
         return;
     }
@@ -291,13 +273,7 @@ function updateSubscription(key, state, isRunningState, expiry, now, cfg) {
         if (!st.holding) {
             st.holding = true;
             st.holdStartedMs = Date.now();
-            st.nextHeartbeatMs = 0;
-            log(key + ': expiry reached (expiry=' + expiry + ' now=' + Math.floor(now)
-                + '), holding zero until the game reports it inactive');
-        }
-        if (dueForHeartbeat(st)) {
-            log(key + ': holding for ' + Math.round((Date.now() - st.holdStartedMs) / 1000)
-                + 's, game still reports state=' + state);
+            log(key + ': expiry reached, holding zero until the game reports it inactive');
         }
         showCountdown(key, formatRemaining(0, cfg));
         return;
@@ -305,11 +281,8 @@ function updateSubscription(key, state, isRunningState, expiry, now, cfg) {
 
     if (st.holding) {
         st.holding = false;
-        const counter = counterOf(buttonOf(key));
         log(key + ': game reports state=' + state + ' after '
-            + Math.round((Date.now() - st.holdStartedMs) / 1000)
-            + 's, releasing label (currently shows "'
-            + (counter ? counter.textContent : '<missing>') + '")');
+            + Math.round((Date.now() - st.holdStartedMs) / 1000) + 's, releasing label');
         hideCountdown(key);
         return;
     }
@@ -341,7 +314,8 @@ function tick() {
 }
 
 function start() {
-    log('header_patch.js loaded');
+    // No load banner: this runs on every hangar document, and the Python side already logs
+    // "Lobby header integration installed" once when the inject is attached.
     tick();
     setInterval(tick, APPLY_INTERVAL_MS);
 }
