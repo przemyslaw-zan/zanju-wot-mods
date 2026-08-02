@@ -15,6 +15,12 @@
       "artifactIds": [
         "openwg_gameface"
       ]
+    },
+    "directives-helper": {
+      "description": "Gameface runtime for the Directives Helper window. No configurator chain: the mod has no settings.",
+      "artifactIds": [
+        "openwg_gameface"
+      ]
     }
   },
   "artifacts": {

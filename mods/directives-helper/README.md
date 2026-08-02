@@ -33,12 +33,6 @@ One thing worth knowing, because the numbers look odd otherwise: fitting a direc
 **takes it out of the depot**. A directive you own 6 of will read as 5 while one of them is
 mounted — that is the game's own accounting, not a miscount here.
 
-### Requirements
-
-The window needs the [OpenWG Gameface](https://gitlab.com/openwg/wot.gameface) library
-(`net.openwg.gameface` 1.1.6 or newer, bundled with popular modpacks such as Aslain's).
-Without it the mod loads but shows nothing.
-
 ## Translations
 
 Reference language `en` defines 11 strings. Translations are community-maintained and may lag behind; see [Translating](../../docs/translating.md) to add or update one, then regenerate this table with `zwm lint i18n`.

@@ -26,12 +26,20 @@ Planned; do it on the mainline as its own change (not on `premium-time`) once th
 
 ## Testing Backlog
 
-Scaffolding is in place (`zwm test`, `testing/`, see [Testing](docs/testing.md)); only
-`premium-time` declares tests so far.
+Scaffolding is in place (`zwm test`, `testing/`, see [Testing](docs/testing.md)). `premium-time`
+and `directives-helper` are covered; `research-progress-bar` has one suite so far.
 
-- Add `mods/research-progress-bar/tests/`. Its runtime does not import standalone the way premium-time's does — `constants.py` pulls in `gui.Scaleform.daapi.settings.views` at module scope — so the first test needs client stub modules added to `GAME_STUB_MODULES` in `testing/zwm_test_env.py`. Good first targets: the `config.py` normalizers (mode/bool coercion, legacy-key migration), `mode_state.py`, and the percent/label formatting in `scaleform/modes.py`. Skip `collector.py`: faking enough of the client to reach it would encode more assumptions than the tests verify.
-- Switch the CI step to `zwm test --all --strict` once a toolchain image containing Node has been published to `:latest`, so a missing Node fails the run instead of silently skipping the JavaScript suites.
-- When the shared `localization.py` lands (see above), move its tests to the canonical copy so the parser is covered once rather than per mod.
+- Broaden `mods/research-progress-bar/tests/`. `panel_watch.py` is tested because it keeps every
+  client import inside a function; most of the mod does not, and `constants.py` pulls in
+  `gui.Scaleform.daapi.settings.views` at module scope — so reaching the rest needs client stub
+  modules added to `GAME_STUB_MODULES` in `testing/zwm_test_env.py`. Good next targets: the
+  `config.py` normalizers (mode/bool coercion, legacy-key migration), `mode_state.py`, and the
+  percent/label formatting in `scaleform/modes.py`. Skip `collector.py`: faking enough of the
+  client to reach it would encode more assumptions than the tests verify.
+  - Worth applying deliberately when splitting modules: "no client import at module scope" is
+    what decides whether something can be tested at all.
+- When the shared `localization.py` lands (see above), move its tests to the canonical copy so the
+  parser is covered once rather than per mod.
 
 ## CI / Toolchain Backlog
 
