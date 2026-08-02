@@ -113,12 +113,41 @@ function buildRoot() {
     header.appendChild(el('span', 'zanju-dh-title', 'Directives'));
     // Only ever shown while folded, when the title bar is all there is to see: without it a
     // folded window would hide the fact that the next battle is about to cost something.
-    header.appendChild(el('span', 'zanju-dh-warn-mark zanju-dh-header-warn', '!'));
+    header.appendChild(buildWarnMark('zanju-dh-header-warn'));
     root.appendChild(header);
 
     root.appendChild(el('div', 'zanju-dh-body'));
+    // Width only: the tiles are a wrapping grid, so widening the window is what changes the
+    // layout (more icons per row) while the height simply follows the content. A height handle
+    // would have nothing to give.
+    root.appendChild(el('div', 'zanju-dh-resize zanju-dh-hot'));
     document.body.appendChild(root);
     return root;
+}
+
+function clampWidth(width) {
+    // As a fraction of the viewport rather than in pixels: WoT's UI scale is quantized per
+    // resolution bucket, so a pixel floor that is sensible at 1080p is tiny at 4K.
+    const viewport = window.innerWidth || 0;
+    if (!viewport) {
+        return Math.max(1, Math.round(width));
+    }
+    return Math.max(Math.round(viewport * 0.10),
+        Math.min(Math.round(viewport * 0.60), Math.round(width)));
+}
+
+function applyWidth(root, state) {
+    const stored = Number(unwrap(state.width)) || 0;
+    if (stored <= 0) {
+        return; // never resized: let the stylesheet size it
+    }
+    const capturedW = Number(unwrap(state.viewportWidth)) || 0;
+    const viewport = window.innerWidth || 0;
+    let width = stored;
+    if (capturedW > 0 && viewport > 0) {
+        width = (stored / capturedW) * viewport;
+    }
+    root.style.width = clampWidth(width) + 'px';
 }
 
 function getRoot() {
@@ -131,12 +160,17 @@ function iconUrl(iconName) {
     return iconName ? "url('R.images.gui.maps.icons.artefact." + iconName + "')" : '';
 }
 
-function buildTile(directive) {
-    // Only directives that fit the selected tank reach this point, so every tile is shown
-    // at full strength; the fitted one is outlined.
+function buildTile(directive, texts) {
+    // Only directives that fit the selected tank reach this point, so every tile is shown at
+    // full strength; the fitted one is outlined, and one the player owns none of is dimmed and
+    // opens the store instead of fitting.
+    const unowned = directive.owned === false;
     let className = 'zanju-dh-tile';
     if (directive.equipped) {
         className += ' zanju-dh-tile-equipped';
+    }
+    if (unowned) {
+        className += ' zanju-dh-tile-unowned';
     }
     const tile = el('div', className);
 
@@ -151,13 +185,28 @@ function buildTile(directive) {
     tile.appendChild(icon);
 
     tile.appendChild(el('span', 'zanju-dh-badge', String(directive.count)));
-    // The name only shows on hover, so a full depot stays a compact grid of icons.
-    tile.appendChild(el('span', 'zanju-dh-tip', directive.name));
+    // The name only shows on hover, so a full depot stays a compact grid of icons. An unowned
+    // one says what clicking will do, since it is the one tile that does not fit anything.
+    const tip = unowned && texts ? directive.name + ' — ' + texts.buyHint : directive.name;
+    tile.appendChild(el('span', 'zanju-dh-tip', tip));
     // Read back by the click handler; the event may land on any child of the tile.
     tile._zanjuDhIntCD = directive.intCD;
+    tile._zanjuDhBuy = unowned;
     return tile;
 }
 
+
+function buildWarnMark(extraClass) {
+    // Drawn from two boxes rather than typed as a `!`. This renderer ignores `text-indent`
+    // outright and did not move the glyph for `letter-spacing` either, so there is no reliable
+    // way to correct for the font's side bearings and centre a character in the circle. Two
+    // positioned boxes are centred by arithmetic, come out identical in both badges, and make
+    // the stroke weight ours to pick instead of the font's.
+    const mark = el('div', 'zanju-dh-warn-mark' + (extraClass ? ' ' + extraClass : ''));
+    mark.appendChild(el('div', 'zanju-dh-warn-stem'));
+    mark.appendChild(el('div', 'zanju-dh-warn-dot'));
+    return mark;
+}
 
 function buildAutoResupplyRow(snapshot, texts) {
     const row = el('div', 'zanju-dh-auto');
@@ -178,7 +227,7 @@ function buildAutoResupplyRow(snapshot, texts) {
         // Lives inside this row, which is present whatever the state, so the warning coming
         // and going never moves the sections below it.
         const warning = el('div', 'zanju-dh-warning');
-        warning.appendChild(el('span', 'zanju-dh-warn-mark', '!'));
+        warning.appendChild(buildWarnMark());
         warning.appendChild(el('span', 'zanju-dh-warn-tip', texts.resupplyWarning));
         row.appendChild(warning);
     }
@@ -191,10 +240,21 @@ function buildAutoResupplyRow(snapshot, texts) {
 }
 
 
+function buildShowUnownedRow(snapshot, texts) {
+    const row = el('div', 'zanju-dh-option zanju-dh-clickable');
+    const on = Boolean(snapshot.showUnowned);
+    row.appendChild(el('div', 'zanju-dh-check' + (on ? ' zanju-dh-check-on' : '')));
+    row.appendChild(el('span', 'zanju-dh-check-label', texts.showUnowned));
+    row._zanjuDhShowUnowned = !on;
+    return row;
+}
+
+
 function renderBody(body, snapshot, texts) {
     body.textContent = '';
 
     body.appendChild(buildAutoResupplyRow(snapshot, texts));
+    body.appendChild(buildShowUnownedRow(snapshot, texts));
 
     const groups = snapshot.categories || [];
     for (const group of groups) {
@@ -212,7 +272,7 @@ function renderBody(body, snapshot, texts) {
 
         const grid = el('div', 'zanju-dh-grid');
         for (const directive of directives) {
-            grid.appendChild(buildTile(directive));
+            grid.appendChild(buildTile(directive, texts));
         }
         body.appendChild(grid);
     }
@@ -288,11 +348,13 @@ function applyFolded(root, folded) {
 
 function clickTargetFrom(node) {
     // A click lands on whatever is under the cursor — a tile's icon, its badge or its
-    // tooltip, or one of the two spans in the auto-resupply row — so walk up to the element
-    // that says what the click means.
+    // tooltip, or one of the spans in an option row — so walk up to the element that says
+    // what the click means.
     let current = node;
     for (let depth = 0; current && depth < 4; depth += 1) {
-        if (current._zanjuDhIntCD !== undefined || current._zanjuDhAutoToggle) {
+        if (current._zanjuDhIntCD !== undefined
+            || current._zanjuDhAutoToggle
+            || current._zanjuDhShowUnowned !== undefined) {
             return current;
         }
         current = current.parentNode;
@@ -315,13 +377,22 @@ function bindTileClicks(data) {
             return; // the press that ended a drag is not a click on a tile
         }
         const target = clickTargetFrom(event.target);
-        if (!target || !root.contains(target)) {
+        if (!target || !isWithin(root, target)) {
             return;
         }
-        // Both actions go through the game's own processors on the Python side, which push a
+        // Every action goes through the game's own processors on the Python side, which push a
         // fresh snapshot when they finish; the window renders that rather than guessing here.
         if (target._zanjuDhAutoToggle) {
             invokeCommand(data, 'toggleAutoResupply', {});
+            return;
+        }
+        if (target._zanjuDhShowUnowned !== undefined) {
+            invokeCommand(data, 'setShowUnowned', { showUnowned: target._zanjuDhShowUnowned });
+            return;
+        }
+        if (target._zanjuDhBuy) {
+            // Owning none of it, so there is nothing to fit: hand the player to the store.
+            invokeCommand(data, 'buy', { intCD: target._zanjuDhIntCD });
             return;
         }
         invokeCommand(data, 'equip', { intCD: target._zanjuDhIntCD });
@@ -347,6 +418,67 @@ function bindHeader(root, data) {
     });
 }
 
+function isWithin(ancestor, node) {
+    // Walks up checking identity first, rather than using `ancestor.contains(node)`. The
+    // resize grip is the only interactive element here with no children, so a press on it
+    // targets the grip itself — and this renderer's `contains` does not report a node as
+    // containing itself, which silently made the grip inert. The header never showed the bug
+    // because its fold and title spans are always the real target. Same reason
+    // `clickTargetFrom` checks the node before walking up.
+    let current = node;
+    for (let depth = 0; ancestor && current && depth < 8; depth += 1) {
+        if (current === ancestor) {
+            return true;
+        }
+        current = current.parentNode;
+    }
+    return false;
+}
+
+function inRect(element, event) {
+    // Only ever consulted for a press already known to be inside this window, as a fallback
+    // for a renderer that reports an unexpected target: rectangles are not safe for deciding
+    // ownership between mods, but they are exact for deciding which of our own parts was hit.
+    try {
+        const rect = element.getBoundingClientRect();
+        return event.clientX >= rect.left && event.clientX <= rect.right
+            && event.clientY >= rect.top && event.clientY <= rect.bottom;
+    } catch (e) {
+        return false;
+    }
+}
+
+function startResize(root, data, event) {
+    const startX = event.clientX;
+    const startWidth = root.getBoundingClientRect().width;
+    // Suppresses the fold-on-click, exactly as a move does: a resize that ends over the
+    // header must not also collapse the window.
+    root._zanjuDhDragging = true;
+    root._zanjuDhDidDrag = true;
+
+    const onMove = function (moveEvent) {
+        root.style.width = clampWidth(startWidth + (moveEvent.clientX - startX)) + 'px';
+    };
+
+    const onUp = function () {
+        document.removeEventListener('mousemove', onMove, true);
+        document.removeEventListener('mouseup', onUp, true);
+        root._zanjuDhDragging = false;
+        invokeCommand(data, 'setSize', {
+            width: Math.round(root.getBoundingClientRect().width),
+            // Recorded so a later resolution change can rescale proportionally.
+            w: window.innerWidth || 0,
+            h: window.innerHeight || 0,
+        });
+        setTimeout(function () {
+            root._zanjuDhDidDrag = false;
+        }, 0);
+    };
+
+    document.addEventListener('mousemove', onMove, true);
+    document.addEventListener('mouseup', onUp, true);
+}
+
 function bindDrag(data) {
     if (document[DRAG_BOUND_FLAG]) {
         return;
@@ -365,9 +497,21 @@ function bindDrag(data) {
         if (!root) {
             return;
         }
+        // Ownership stays a subtree question; only which of our own parts was pressed is
+        // decided by geometry, and only once the press is known to be ours.
+        const ours = isWithin(root, event.target);
+        // Checked before the title bar: the two do not overlap, but deciding in one place
+        // keeps a press from ever being read as both.
+        const grip = root.querySelector('.zanju-dh-resize');
+        if (grip && (isWithin(grip, event.target) || (ours && inRect(grip, event)))) {
+            event.stopImmediatePropagation();
+            event.preventDefault();
+            startResize(root, data, event);
+            return;
+        }
         // Only the title bar is a drag handle; a press on the body is for the tiles.
         const header = root.querySelector('.zanju-dh-header');
-        if (!header || !header.contains(event.target)) {
+        if (!isWithin(header, event.target)) {
             return; // not ours: never stop an event belonging to another mod
         }
         event.stopImmediatePropagation();
@@ -441,6 +585,8 @@ function texts(snapshot) {
         autoResupply: labels.autoResupply || 'Auto-resupply',
         resupplyWarning: labels.resupplyWarning
             || 'Your last one. Auto-resupply will buy a replacement after the battle.',
+        showUnowned: labels.showUnowned || 'Show ones you do not own',
+        buyHint: labels.buyHint || 'click to open the store',
         noVehicle: labels.noVehicle || 'No vehicle selected',
         empty: labels.empty || 'No directives owned',
         noneAvailable: labels.noneAvailable || 'None available for this tank',
@@ -462,6 +608,7 @@ function tick() {
     if (!root) {
         root = buildRoot();
         applyFolded(root, Boolean(unwrap(data.folded)));
+        applyWidth(root, data);
         bindHeader(root, data);
         bindTileClicks(data);
         bindDrag(data);
@@ -507,9 +654,14 @@ if (typeof window !== 'undefined' && window.subViews) {
 export {
     applyFolded,
     applyHeaderWarning,
+    applyWidth,
     buildAutoResupplyRow,
+    buildShowUnownedRow,
     buildTile,
+    buildWarnMark,
+    clampWidth,
     clickTargetFrom,
+    isWithin,
     applyPosition,
     buildRoot,
     findDataModel,

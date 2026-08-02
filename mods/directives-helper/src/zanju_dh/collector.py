@@ -46,8 +46,13 @@ def empty_snapshot():
     }
 
 
-def collect(logger):
+def collect(logger, show_unowned=False):
     """Snapshot of the depot's directives plus what is fitted to the selected vehicle.
+
+    With `show_unowned` the listing also carries directives that fit the tank but that the
+    player owns none of, so they can be bought from the window. They are flagged `owned:
+    False` rather than kept in a separate section, because what a directive *does* is what the
+    sections are for -- owning it is a property of the row.
 
     Returns the `empty_snapshot()` shape when the client is not available, so callers never
     have to special-case a missing garage.
@@ -61,7 +66,7 @@ def collect(logger):
 
     grouped = dict((name, []) for name in CATEGORY_ORDER)
     for item in items:
-        entry = _describe(item, vehicle, equipped_int_cds, logger)
+        entry = _describe(item, vehicle, equipped_int_cds, show_unowned, logger)
         if entry is None:
             continue
         grouped[entry['category']].append(entry)
@@ -131,8 +136,8 @@ def _category(name, entries):
     }
 
 
-def _describe(item, vehicle, equipped_int_cds, logger):
-    """One depot row, or None for a directive the player does not actually own."""
+def _describe(item, vehicle, equipped_int_cds, show_unowned, logger):
+    """One row for the window, or None for a directive it should not list."""
     try:
         count = int(getattr(item, 'inventoryCount', 0) or 0)
         int_cd = int(item.intCD)
@@ -140,11 +145,11 @@ def _describe(item, vehicle, equipped_int_cds, logger):
         logger.exception('Failed to read a directive from the inventory')
         return None
 
-    if count <= 0 and int_cd not in equipped_int_cds:
-        # The item lists every directive that exists, including ones never bought.
+    equipped = int_cd in equipped_int_cds
+    if count <= 0 and not equipped and not show_unowned:
+        # The items cache lists every directive that exists, including ones never bought.
         return None
 
-    equipped = int_cd in equipped_int_cds
     if not equipped and not _is_usable_on(item, vehicle):
         # Directives that cannot go on this tank are left out entirely; the fitted one always
         # stays so the window never hides what is actually mounted.
@@ -155,6 +160,7 @@ def _describe(item, vehicle, equipped_int_cds, logger):
         'name': _user_name(item),
         'icon': _icon_name(item),
         'count': count,
+        'owned': count > 0 or equipped,
         'category': _category_of(item, vehicle),
         'equipped': equipped,
     }

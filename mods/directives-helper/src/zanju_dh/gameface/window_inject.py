@@ -54,7 +54,7 @@ class _WindowDataModel(ViewModel):
     def __init__(self, payload, state):
         self._payload = payload
         self._state = state
-        super(_WindowDataModel, self).__init__(properties=7, commands=4)
+        super(_WindowDataModel, self).__init__(properties=9, commands=7)
 
     def _initialize(self):
         super(_WindowDataModel, self)._initialize()
@@ -70,6 +70,10 @@ class _WindowDataModel(ViewModel):
         # the setters below address them. A view built while the loadout panel is already up
         # starts visible; otherwise the panel's own arrival turns it on.
         self._addBoolProperty('visible', loadout_panel.is_visible())
+        # Appended after `visible` on purpose: the indices above are addressed by number, so
+        # inserting anything earlier would silently repoint every setter.
+        self._addNumberProperty('width', self._state['width'])
+        self._addBoolProperty('showUnowned', self._state['showUnowned'])
         # JS -> Python. `_addCommand` takes only the name and returns a Command; the handler
         # is bound to it with `+=` (it wraps an Event), which is how the game's own generated
         # view models declare theirs. A wulf command carries exactly one map argument.
@@ -81,10 +85,17 @@ class _WindowDataModel(ViewModel):
         self.equip += self.__onEquip
         self.toggleAutoResupply = self._addCommand('toggleAutoResupply')
         self.toggleAutoResupply += self.__onToggleAutoResupply
+        self.setSize = self._addCommand('setSize')
+        self.setSize += self.__onSetSize
+        self.setShowUnowned = self._addCommand('setShowUnowned')
+        self.setShowUnowned += self.__onSetShowUnowned
+        self.buy = self._addCommand('buy')
+        self.buy += self.__onBuy
 
     # Indices matching the declaration order in _initialize.
     _SNAPSHOT_INDEX = 0
     _VISIBLE_INDEX = 6
+    _SHOW_UNOWNED_INDEX = 8
 
     def setSnapshot(self, payload):
         self._payload = payload
@@ -92,6 +103,9 @@ class _WindowDataModel(ViewModel):
 
     def setVisible(self, visible):
         self._setBool(self._VISIBLE_INDEX, bool(visible))
+
+    def setShowUnownedValue(self, value):
+        self._setBool(self._SHOW_UNOWNED_INDEX, bool(value))
 
     def __onSetPosition(self, *args):
         arg = args[0] if args else None
@@ -108,6 +122,27 @@ class _WindowDataModel(ViewModel):
 
     def __onToggleAutoResupply(self, *args):
         toggle_auto_resupply(_module_logger)
+
+    def __onSetSize(self, *args):
+        arg = args[0] if args else None
+        config.update(
+            width=_map_get(arg, 'width'),
+            viewport_width=_map_get(arg, 'w'),
+            viewport_height=_map_get(arg, 'h'),
+        )
+
+    def __onSetShowUnowned(self, *args):
+        arg = args[0] if args else None
+        value = _map_get(arg, 'showUnowned')
+        if value is None:
+            return
+        config.update(show_unowned=bool(value))
+        # The listing itself changes, not just a style, so the snapshot has to be rebuilt.
+        refresh(_module_logger)
+
+    def __onBuy(self, *args):
+        arg = args[0] if args else None
+        open_shop(_map_get(arg, 'intCD'), _module_logger)
 
     def __onSetFolded(self, *args):
         arg = args[0] if args else None
@@ -141,7 +176,9 @@ def _build_payload(logger):
     """
     import json
     try:
-        snapshot = collector.collect(logger)
+        state = config.current()
+        snapshot = collector.collect(logger, show_unowned=state['showUnowned'])
+        snapshot['showUnowned'] = state['showUnowned']
         snapshot['labels'] = {
             'title': _loc('WINDOW_TITLE'),
             'equipment': _loc('CATEGORY_EQUIPMENT'),
@@ -150,6 +187,8 @@ def _build_payload(logger):
             'noneAvailable': _loc('LABEL_NONE_AVAILABLE'),
             'autoResupply': _loc('LABEL_AUTO_RESUPPLY'),
             'resupplyWarning': _loc('LABEL_RESUPPLY_WARNING'),
+            'showUnowned': _loc('LABEL_SHOW_UNOWNED'),
+            'buyHint': _loc('LABEL_BUY_HINT'),
             'noVehicle': _loc('LABEL_NO_VEHICLE'),
             'empty': _loc('LABEL_EMPTY'),
         }
@@ -211,6 +250,29 @@ def equip_directive(int_cd, logger):
         _install(vehicle, int_cd, logger)
     except Exception:
         logger.exception('Failed to fit directive %s', int_cd)
+
+
+def open_shop(int_cd, logger):
+    """Open the game's own purchase view for a directive the player owns none of.
+
+    Deliberately not a buy-and-install: `shop.showBattleBooster` is the same call behind the
+    game's own "buy more" button, and it hands the player to the store front where they see the
+    price and confirm it themselves. This mod should never be the thing that spends someone's
+    credits or bonds on a click, and the install processor's validators reject an unowned
+    directive anyway, so fitting one was never an option.
+    """
+    try:
+        int_cd = int(int_cd)
+    except (TypeError, ValueError):
+        return
+
+    try:
+        from gui import shop
+        logger.info('Opening the store for directive %s', int_cd)
+        shop.showBattleBooster(
+            itemId=int_cd, source=shop.Source.EXTERNAL, origin=shop.Origin.BATTLE_BOOSTERS)
+    except Exception:
+        logger.exception('Failed to open the store for directive %s', int_cd)
 
 
 def toggle_auto_resupply(logger):

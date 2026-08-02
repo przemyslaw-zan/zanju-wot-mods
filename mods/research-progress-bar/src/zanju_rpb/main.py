@@ -16,6 +16,7 @@ from CurrentVehicle import g_currentVehicle
 from helpers import dependency
 from . import actions as _actions_api
 from . import collector as _collector_api
+from . import panel_watch as _panel_watch_api
 from . import mode_state as _mode_state_api
 from . import runtime_lifecycle as _runtime_lifecycle_api
 from .scaleform import sync as _scaleform_sync_api
@@ -314,8 +315,11 @@ def init():
         _on_registered_mod_settings_changed,
         _logger,
     )
+    # Diagnostic only; see panel_watch for what it watches and how to switch it off.
+    _panel_watch_api.start(_logger)
 
 
 def fini():
     global _mod
+    _panel_watch_api.stop()
     _mod = _finalize_runtime(_mod, MOD_ID, _logger)

@@ -9,6 +9,9 @@ import assert from 'node:assert/strict';
 import {
     applyFolded,
     applyHeaderWarning,
+    applyWidth,
+    clampWidth,
+    isWithin,
     applyPosition,
     buildRoot,
     findDataModel,
@@ -82,6 +85,7 @@ function snapshotFixture(overrides = {}) {
             hasVehicle: true,
             autoResupply: true,
             resupplyWarning: false,
+            showUnowned: false,
             labels: {
                 title: 'Directives',
                 equipment: 'Equipment',
@@ -90,6 +94,8 @@ function snapshotFixture(overrides = {}) {
                 noneAvailable: 'None available for this tank',
                 autoResupply: 'Auto-resupply',
                 resupplyWarning: 'Your last one. Auto-resupply will buy a replacement after the battle.',
+                showUnowned: 'Show ones you do not own',
+                buyHint: 'click to open the store',
                 noVehicle: 'No vehicle selected',
                 empty: 'No directives owned',
             },
@@ -226,6 +232,17 @@ describe('renderBody', () => {
         assert.match(warning.querySelector('.zanju-dh-warn-tip').textContent, /buy a replacement/);
     });
 
+    test('the warning mark is drawn, not typed', () => {
+        // A `!` character could not be centred in the circle: this renderer ignores
+        // text-indent, letter-spacing did not move it, and text-align behaved differently in
+        // the two badges. Two positioned boxes are centred by arithmetic instead.
+        const mark = render(snapshotFixture({ resupplyWarning: true }))
+            .querySelector('.zanju-dh-warn-mark');
+        assert.ok(mark.querySelector('.zanju-dh-warn-stem'), 'the stem should be drawn');
+        assert.ok(mark.querySelector('.zanju-dh-warn-dot'), 'the dot should be drawn');
+        assert.equal(mark.textContent, '', 'no glyph should be relied on');
+    });
+
     test('no warning when there is nothing to warn about', () => {
         const body = render(snapshotFixture());
         assert.equal(body.querySelector('.zanju-dh-warning'), null);
@@ -241,6 +258,36 @@ describe('renderBody', () => {
         assert.equal(quiet.children.length, warned.children.length);
         assert.ok(warned.querySelector('.zanju-dh-auto').contains(
             warned.querySelector('.zanju-dh-warning')), 'the warning belongs to the row');
+    });
+
+    test('offers a checkbox for listing directives you do not own', () => {
+        const row = render(snapshotFixture()).querySelector('.zanju-dh-option');
+        assert.match(row.textContent, /Show ones you do not own/);
+        assert.doesNotMatch(row.querySelector('.zanju-dh-check').className, /zanju-dh-check-on/);
+        assert.equal(row._zanjuDhShowUnowned, true, 'clicking it should turn the option on');
+    });
+
+    test('the unowned checkbox reports the opposite of its current state', () => {
+        const row = render(snapshotFixture({ showUnowned: true })).querySelector('.zanju-dh-option');
+        assert.match(row.querySelector('.zanju-dh-check').className, /zanju-dh-check-on/);
+        assert.equal(row._zanjuDhShowUnowned, false, 'clicking it should turn the option off');
+    });
+
+    test('a directive you own none of routes its click to the store', () => {
+        const snapshot = snapshotFixture();
+        snapshot.categories[1].directives[0].owned = false;
+        snapshot.categories[1].directives[0].count = 0;
+        const tile = render(snapshot).querySelectorAll('.zanju-dh-tile')[1];
+        assert.match(tile.className, /zanju-dh-tile-unowned/);
+        assert.equal(tile._zanjuDhBuy, true);
+        assert.match(tile.querySelector('.zanju-dh-tip').textContent, /click to open the store/);
+    });
+
+    test('an owned directive is never routed to the store', () => {
+        // `owned` is absent from older payloads, so the default must be "fit it", never "buy".
+        const tile = render(snapshotFixture()).querySelectorAll('.zanju-dh-tile')[0];
+        assert.doesNotMatch(tile.className, /zanju-dh-tile-unowned/);
+        assert.equal(tile._zanjuDhBuy, false);
     });
 
     test('clicking the warning toggles the setting too', () => {
@@ -278,14 +325,6 @@ describe('renderBody', () => {
         const body = render(snapshotFixture());
         const tile = body.querySelectorAll('.zanju-dh-tile')[0];
         assert.equal(tile._zanjuDhIntCD, 2);
-    });
-
-    test('never dims a tile', () => {
-        // Only directives that fit the tank are rendered at all now, so nothing is greyed.
-        const body = render(snapshotFixture());
-        const tiles = body.querySelectorAll('.zanju-dh-tile');
-        assert.ok(tiles.length > 0);
-        assert.ok(tiles.every((tile) => !/zanju-dh-tile-unusable/.test(tile.className)));
     });
 
     test('marks the fitted directive', () => {
@@ -420,11 +459,75 @@ describe('window chrome', () => {
         delete globalThis.window;
     });
 
+    test('offers a resize grip, hidden while folded by the stylesheet', () => {
+        // Width only: the tiles wrap, so widening changes how many fit per row while the
+        // height just follows the content.
+        assert.ok(root.querySelector('.zanju-dh-resize'), 'the grip should exist');
+        assert.match(root.querySelector('.zanju-dh-resize').className, /zanju-dh-hot/);
+    });
+
+    test('leaves the width alone until the player resizes it', () => {
+        globalThis.window = { innerWidth: 1920, innerHeight: 1080 };
+        applyWidth(root, { width: 0, viewportWidth: 1920 });
+        assert.equal(root.style.width, '', 'the stylesheet should decide the default');
+        delete globalThis.window;
+    });
+
+    test('restores a stored width', () => {
+        globalThis.window = { innerWidth: 1920, innerHeight: 1080 };
+        applyWidth(root, { width: 400, viewportWidth: 1920 });
+        assert.equal(root.style.width, '400px');
+        delete globalThis.window;
+    });
+
+    test('rescales a width captured at another resolution', () => {
+        globalThis.window = { innerWidth: 1920, innerHeight: 1080 };
+        applyWidth(root, { width: 800, viewportWidth: 3840 });
+        assert.equal(root.style.width, '400px');
+        delete globalThis.window;
+    });
+
+    test('clamps the width to a share of the viewport, not a pixel floor', () => {
+        // WoT's UI scale is quantized per resolution bucket, so a pixel minimum that is
+        // sensible at 1080p is unusably small at 4K.
+        globalThis.window = { innerWidth: 1000, innerHeight: 1080 };
+        assert.equal(clampWidth(10), 100);
+        assert.equal(clampWidth(99999), 600);
+        delete globalThis.window;
+    });
+
     test('never moves the window mid-drag', () => {
         root._zanjuDhDragging = true;
         root.style.left = '111px';
         applyPosition(root, { x: 900, y: 900, viewportWidth: 0, viewportHeight: 0 });
         assert.equal(root.style.left, '111px');
+    });
+});
+
+describe('isWithin', () => {
+    // The resize grip is the only interactive element with no children, so a press on it
+    // targets the grip itself. `grip.contains(grip)` returns false in the game's renderer,
+    // which made the grip render, highlight on hover, and do nothing at all.
+    test('an element is within itself', () => {
+        const node = new FakeNode();
+        assert.equal(isWithin(node, node), true);
+    });
+
+    test('finds an ancestor through nested children', () => {
+        const root = new FakeNode();
+        const mid = root.appendChild(new FakeNode());
+        const leaf = mid.appendChild(new FakeNode());
+        assert.equal(isWithin(root, leaf), true);
+    });
+
+    test('rejects a node from outside the tree', () => {
+        assert.equal(isWithin(new FakeNode(), new FakeNode()), false);
+    });
+
+    test('survives a missing ancestor or node', () => {
+        // Called against a querySelector result, which is null when the window is mid-rebuild.
+        assert.equal(isWithin(null, new FakeNode()), false);
+        assert.equal(isWithin(new FakeNode(), null), false);
     });
 });
 

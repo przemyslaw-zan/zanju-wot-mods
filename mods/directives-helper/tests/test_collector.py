@@ -78,8 +78,8 @@ class DescribeTest(unittest.TestCase):
     def setUp(self):
         self.logger = SilentLogger()
 
-    def describe(self, item, vehicle=None, equipped=frozenset()):
-        return collector._describe(item, vehicle, equipped, self.logger)
+    def describe(self, item, vehicle=None, equipped=frozenset(), show_unowned=False):
+        return collector._describe(item, vehicle, equipped, show_unowned, self.logger)
 
     def test_reads_a_directive_the_player_owns(self):
         entry = self.describe(FakeBooster(52987, 'Repairs', 75, crew=True), vehicle=object())
@@ -131,6 +131,53 @@ class DescribeTest(unittest.TestCase):
             FakeBooster(9, 'Fitted', 1, usable=False), vehicle=vehicle, equipped=frozenset([9]))
         self.assertIsNotNone(entry)
         self.assertTrue(entry['equipped'])
+
+
+class ShowUnownedTest(unittest.TestCase):
+    """Listing what the player could buy, so the window can send them to the store."""
+
+    def setUp(self):
+        self.logger = SilentLogger()
+
+    def describe(self, item, vehicle=None, equipped=frozenset(), show_unowned=True):
+        return collector._describe(item, vehicle, equipped, show_unowned, self.logger)
+
+    def test_lists_a_directive_the_player_owns_none_of(self):
+        entry = self.describe(FakeBooster(7, 'Repairs', 0), vehicle=object())
+        self.assertIsNotNone(entry)
+        self.assertEqual(entry['count'], 0)
+        self.assertFalse(entry['owned'])
+
+    def test_hidden_again_when_the_option_is_off(self):
+        self.assertIsNone(self.describe(
+            FakeBooster(7, 'Repairs', 0), vehicle=object(), show_unowned=False))
+
+    def test_still_drops_one_the_tank_cannot_take(self):
+        # "Owns none of it" is not a reason to offer something that would not fit anyway.
+        self.assertIsNone(self.describe(
+            FakeBooster(7, 'Off-Road Driving', 0, usable=False), vehicle=object()))
+
+    def test_still_needs_a_tank_selected(self):
+        self.assertIsNone(self.describe(FakeBooster(7, 'Repairs', 0)))
+
+    def test_owned_directives_are_marked_as_owned(self):
+        entry = self.describe(FakeBooster(7, 'Repairs', 3), vehicle=object())
+        self.assertTrue(entry['owned'])
+
+    def test_the_fitted_one_counts_as_owned_with_an_empty_depot(self):
+        # Fitting moves it out of the depot, so its count reads zero while it is in use --
+        # that must not turn the mounted directive into a buy button.
+        entry = self.describe(FakeBooster(7, 'Repairs', 0), vehicle=object(),
+                              equipped=frozenset([7]))
+        self.assertTrue(entry['owned'])
+        self.assertTrue(entry['equipped'])
+
+    def test_sorted_in_with_the_rest_rather_than_split_off(self):
+        # What a directive does is what the sections are for; owning it is a property of the
+        # row, so an unowned crew directive still lands in its own effect section.
+        entry = self.describe(FakeBooster(7, 'Repairs', 0, crew=True, learnt=True),
+                              vehicle=object())
+        self.assertEqual(entry['category'], collector.CATEGORY_CREW_IMPROVE)
 
 
 class CategoryTest(unittest.TestCase):

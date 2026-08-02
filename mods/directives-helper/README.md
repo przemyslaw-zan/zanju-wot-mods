@@ -18,9 +18,16 @@ This mod puts the whole picture in a small garage window and lets you act on it 
   because that is when resupply stops taking from the depot and starts buying a replacement.
   The warning also marks the title bar, so a folded window still shows it.
 
-Hover a directive to see its name. The window can be **moved** by dragging its title bar and
-**folded** away to just that bar by clicking it. Both the position and the folded state are
-remembered between sessions.
+- **Shopping list** — a second checkbox adds the directives that fit your tank but that you own
+  none of. Those are dimmed, and clicking one opens the game's own store page for it rather
+  than spending anything on your behalf.
+
+Hover a directive to see its name. The window can be **moved** by dragging its title bar,
+**resized** by dragging its right edge, and **folded** away to just the bar by clicking it.
+The position, width, folded state and both checkboxes are remembered between sessions.
+
+Resizing changes the width only: the icons are a wrapping grid, so a wider window fits more
+per row while the height simply follows what is in it.
 
 One thing worth knowing, because the numbers look odd otherwise: fitting a directive
 **takes it out of the depot**. A directive you own 6 of will read as 5 while one of them is
@@ -34,11 +41,11 @@ Without it the mod loads but shows nothing.
 
 ## Translations
 
-Reference language `en` defines 9 strings. Translations are community-maintained and may lag behind; see [Translating](../../docs/translating.md) to add or update one, then regenerate this table with `zwm lint i18n`.
+Reference language `en` defines 11 strings. Translations are community-maintained and may lag behind; see [Translating](../../docs/translating.md) to add or update one, then regenerate this table with `zwm lint i18n`.
 
 | Language | Coverage | Missing |
 | --- | --- | --- |
-| `pl` | 78% (7/9) | 2 (+3 unknown) |
+| `pl` | 64% (7/11) | 4 (+3 unknown) |
 
 ## Install And Use
 
@@ -64,8 +71,12 @@ For the wider repository workflow, see:
 (`GUI_ITEM_TYPE.BATTLE_BOOSTER`) — equipment artefacts, which is why they share the account
 inventory's equipment section rather than having one of their own.
 
-- **Depot** — `itemsCache.items.getItems(GUI_ITEM_TYPE.BATTLE_BOOSTER, ...)`, filtered to
-  what is actually owned.
+- **Depot** — `itemsCache.items.getItems(GUI_ITEM_TYPE.BATTLE_BOOSTER, ...)`, filtered to what
+  is actually owned unless the "show ones you do not own" option is on.
+- **Buying** — `shop.showBattleBooster(itemId, source, origin)`, the same call behind the game's
+  own "buy more" button. Deliberately not a buy-and-install: the player sees the price and
+  confirms it in the game's own store, and the install processor's validators reject an unowned
+  directive anyway.
 - **Crew vs equipment** — `item.isCrewBooster()`, the same test behind the game's own two
   directive tabs.
 - **Fitted** — `vehicle.battleBoosters.installed`.

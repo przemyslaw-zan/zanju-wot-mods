@@ -127,6 +127,25 @@ Confirmed by the game's own stylesheets never using them, and by live warnings:
 | `display: inline-block`, `ch` units | Never used by the game; avoid |
 | `display: flex`, `min-width`, `text-align`, `letter-spacing` | Used heavily by the game; safe |
 
+**Blockify flex items yourself.** A flex item is supposed to be blockified automatically, so a
+`<span>` child of a `display: flex` parent should behave as a block container. Do not rely on
+it: set `display: block` (or use a `div`) whenever you give a flex child a `width`, a `height`,
+`text-align`, or absolutely positioned children. The symptom of getting this wrong is nasty
+because it is silent and *asymmetric* — the identical rule works wherever something else already
+forced the element to `display: block`, so the same class centres correctly in one place and not
+another, and no amount of tuning the text properties fixes the broken one.
+
+**Prefer drawing a small mark to typing it.** `text-align: center` centres a glyph's *advance
+width*, not its ink, so a character with uneven side bearings (`!` is the classic) sits visibly
+off inside a round badge. Two positioned boxes are centred by arithmetic, come out identical
+everywhere, and put the stroke weight under your control rather than the font's — see the warning
+badge in `directives-helper`, drawn as a rounded stem plus a dot.
+
+`text-indent` and negative `letter-spacing` were both tried as nudges and neither moved the
+glyph, but that evidence is confounded: the element was an unblockified flex item at the time,
+i.e. an inline box, where neither property affects placement. Whether they work on a proper block
+container here is untested — do not treat them as known-broken.
+
 To monospace digits without a monospace font, lay each digit out in a fixed-width flex cell
 sized from a measured probe (see `header_patch.js` in `premium-time`).
 

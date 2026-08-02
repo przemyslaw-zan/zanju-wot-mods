@@ -14,6 +14,24 @@ import unittest
 from zanju_dh import config
 
 
+class ResizeAndOptionsTest(unittest.TestCase):
+
+    def test_width_starts_unset(self):
+        # 0 means "never resized", which the window reads as "use the stylesheet's size".
+        self.assertEqual(config._DEFAULTS['width'], 0)
+
+    def test_remembers_a_resize(self):
+        self.assertEqual(config.update(width=420)['width'], 420)
+
+    def test_remembers_the_unowned_toggle(self):
+        self.assertTrue(config.update(show_unowned=True)['showUnowned'])
+
+    def test_the_unowned_toggle_can_be_turned_back_off(self):
+        # False is a value, not a missing argument; a naive "skip None" filter drops it.
+        config.update(show_unowned=True)
+        self.assertFalse(config.update(show_unowned=False)['showUnowned'])
+
+
 class SanitizeTest(unittest.TestCase):
 
     def test_rounds_fractional_pixels_from_a_drag(self):

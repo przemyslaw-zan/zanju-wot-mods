@@ -25,14 +25,17 @@ _FILE_NAME = 'window.json'
 _CONFIG_VERSION = 1
 
 # x/y are the window's top-left in pixels; None means "not positioned yet", which the JS
-# side reads as "use the default corner".
+# side reads as "use the default corner". `width` is 0 until the player resizes it, which the
+# JS reads as "size to the stylesheet's default".
 _DEFAULTS = {
     'configVersion': _CONFIG_VERSION,
     'x': None,
     'y': None,
+    'width': 0,
     'viewportWidth': 0,
     'viewportHeight': 0,
     'folded': False,
+    'showUnowned': False,
 }
 
 _state = dict(_DEFAULTS)
@@ -60,14 +63,17 @@ def current():
     return dict(_state)
 
 
-def update(x=None, y=None, viewport_width=None, viewport_height=None, folded=None):
+def update(x=None, y=None, width=None, viewport_width=None, viewport_height=None,
+           folded=None, show_unowned=None):
     """Apply a change reported by the window and persist it. Returns the new state."""
     changes = {
         'x': x,
         'y': y,
+        'width': width,
         'viewportWidth': viewport_width,
         'viewportHeight': viewport_height,
         'folded': folded,
+        'showUnowned': show_unowned,
     }
     _state.update(_sanitize({k: v for k, v in changes.items() if v is not None}))
     save()
@@ -95,13 +101,14 @@ def save():
 
 def _sanitize(values):
     clean = {}
-    for key in ('x', 'y', 'viewportWidth', 'viewportHeight'):
+    for key in ('x', 'y', 'width', 'viewportWidth', 'viewportHeight'):
         if key in values:
             number = _as_int(values[key])
             if number is not None:
                 clean[key] = number
-    if 'folded' in values:
-        clean['folded'] = bool(values['folded'])
+    for key in ('folded', 'showUnowned'):
+        if key in values:
+            clean[key] = bool(values[key])
     return clean
 
 
