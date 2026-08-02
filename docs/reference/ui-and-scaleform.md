@@ -29,6 +29,31 @@ Default hangar visibility is not only a matter of one container alias.
 In practice, route changes and container-layer changes both matter.
 Some hangar-local overlays announce themselves only through lobby-state-machine route changes.
 
+## Appending To A Classic Blocks Tooltip
+
+Some lobby tooltips are still built in Python as *blocks* rather than rendered by Gameface,
+which makes them far easier to extend than their Gameface counterparts: wrap the data class's
+`_packBlocks`, call the original, and append.
+
+The header's Premium Account tooltip is one of these — `AmmunitionEmptyBlockTooltipData`,
+selected by the `#tooltips:header/premium_buy` alias. A single data class backs several
+tooltips, so **gate on the alias** or the addition shows up on unrelated ones:
+
+```python
+original = AmmunitionEmptyBlockTooltipData._packBlocks
+
+def _packBlocks_with_extra(self, *args, **kwargs):
+    blocks = original(self, *args, **kwargs)
+    if <this instance's alias is the one we want>:
+        blocks.append(<extra text block>)
+    return blocks
+```
+
+Worth knowing which side a given tooltip is on before planning any work: the Gameface *param*
+tooltip used by the WoT Plus button needs a shadowed copy of the document shell and re-diffing
+on every client update, while this costs one wrapped method. See
+[WoT Plus Subscriptions](wot-plus-subscriptions.md) for that comparison.
+
 ## Input And Focus Notes
 
 Hidden custom windows can still interfere with native UI behavior if they remain part of WoT's active window stack.

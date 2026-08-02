@@ -1,0 +1,16 @@
+name: Checks
+
+on:
+  pull_request: {}
+  push:
+    # master is excluded: the "Master Workflow" already runs these same checks
+    # as its release gate, so running them here too would double the master runs.
+    branches-ignore:
+    - master
+  workflow_dispatch: {}
+
+jobs:
+  # Named to match the release gate's caller, so both report the same check name.
+  checks:
+    name: Checks
+    uses: ./.github/workflows/checks.yml

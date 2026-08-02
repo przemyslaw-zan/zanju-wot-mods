@@ -35,9 +35,10 @@ Use this path if you want to change code, add features, or create new mods in th
 - Open the repo in VS Code → **Reopen in Container**; the `zwm` command is ready in the container terminal
 - FFDec (SWF inspection) is a separate optional tool for reverse-engineering work
 - Run `zwm help` to list the available commands
-- Run `zwm lint check` before build or deploy
+- Run `zwm lint check` before build or deploy, and `zwm test --all` to run the mods' unit tests
 
 - [Developing Mods](docs/developing-mods.md)
+- [Testing](docs/testing.md)
 - [Architecture](docs/architecture.md)
 - [Technical Reference](docs/reference/README.md)
 - [Debugging](docs/debugging.md)

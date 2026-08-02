@@ -1,0 +1,8 @@
+# Header counter units (kept short: the header buttons have little room)
+UNIT_DAY_SHORT: "d"
+UNIT_HOUR_SHORT: "h"
+UNIT_MINUTE_SHORT: "m"
+UNIT_SECOND_SHORT: "s"
+
+# Tooltips
+TOOLTIP_ENDS_ON: "Ends on:"

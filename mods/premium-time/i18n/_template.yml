@@ -1,0 +1,20 @@
+# Auto-generated translation template -- regenerate with `zwm lint i18n`; do not edit by hand.
+#
+# To start a new language, copy this file to `<language-code>.yml` (the code the WoT client
+# uses: `pl`, `de`, `fr`, `ru`, ...) and fill in the values. Each key's English source text is
+# in the `# en:` comment above it. Keys left empty ("") simply fall back to English in-game,
+# so partial translations are fine.
+
+# Header counter units (kept short: the header buttons have little room)
+# en: "d"
+UNIT_DAY_SHORT: ""
+# en: "h"
+UNIT_HOUR_SHORT: ""
+# en: "m"
+UNIT_MINUTE_SHORT: ""
+# en: "s"
+UNIT_SECOND_SHORT: ""
+
+# Tooltips
+# en: "Ends on:"
+TOOLTIP_ENDS_ON: ""

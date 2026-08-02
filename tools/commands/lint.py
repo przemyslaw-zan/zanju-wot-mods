@@ -146,7 +146,53 @@ def get_py3_targets():
 
 
 def get_py27_targets():
-    return expand_patterns([os.path.join("mods", "*", "src")])
+    # Mod tests run on Python 2.7 against the mod runtime, and testing/ holds the shared
+    # 2.7 launcher, so all three are linted with the same 2.7 rules as mods/<name>/src.
+    return expand_patterns(
+        [
+            os.path.join("mods", "*", "src"),
+            os.path.join("mods", "*", "tests"),
+            "testing",
+        ]
+    )
+
+
+def check_py27_source_encoding(targets):
+    """Fail on non-ASCII Python 2.7 sources that lack a PEP 263 encoding declaration.
+
+    Python 2 defaults to ASCII source, so such a file cannot be imported -- but this
+    slips past both other gates: flake8 does not report it, and `py_compile` (what the
+    build uses) accepts the file and emits a working .pyc. The breakage therefore only
+    appears when something imports the source, such as the mod's own unit tests.
+    """
+    offenders = []
+    for target in targets:
+        abs_target = os.path.join(REPO_ROOT, target)
+        paths = [abs_target]
+        if os.path.isdir(abs_target):
+            paths = [
+                os.path.join(dirpath, name)
+                for dirpath, _, filenames in os.walk(abs_target)
+                for name in filenames
+                if name.endswith(".py")
+            ]
+        for path in paths:
+            if not path.endswith(".py"):
+                continue
+            with io.open(path, "rb") as handle:
+                raw = handle.read()
+            if all(byte < 0x80 for byte in bytearray(raw)):
+                continue
+            first_lines = raw.split(b"\n")[:2]
+            if any(b"coding:" in line or b"coding=" in line for line in first_lines):
+                continue
+            offenders.append(os.path.relpath(path, REPO_ROOT))
+
+    if offenders:
+        raise RuntimeError(
+            "Non-ASCII Python 2.7 source without a `# -*- coding: utf-8 -*-` header "
+            "(Python 2 cannot import these):\n  " + "\n  ".join(sorted(offenders))
+        )
 
 
 def resolve_command_path(value, label):
@@ -240,6 +286,7 @@ def run_py27_lint(py27_python, verbose=False):
         return
 
     ensure_py27_lint_runtime(py27_python)
+    check_py27_source_encoding(targets)
 
     cmd = [py27_python, "-m", "tools.flake8_compat", "--config", ".flake8"]
     cmd.extend(targets)

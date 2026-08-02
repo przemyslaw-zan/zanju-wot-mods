@@ -91,11 +91,12 @@ The Python 2.7 autopep8 path is intentionally conservative. It only applies low-
 
 1. Edit source files.
 2. Run `zwm lint` or `zwm lint check`.
-3. If you want to normalize existing Python 2.7 formatting, review `zwm lint py27-format-check` before applying `zwm lint py27-format`.
-4. Close WoT, then run `zwm cycle <mod-name>`.
-5. Restart or relaunch WoT.
-6. Reproduce the scenario.
-7. Inspect `python.log`.
+3. Run `zwm test --all` if the mod has tests (see [Testing](testing.md)).
+4. If you want to normalize existing Python 2.7 formatting, review `zwm lint py27-format-check` before applying `zwm lint py27-format`.
+5. Close WoT, then run `zwm cycle <mod-name>`.
+6. Restart or relaunch WoT.
+7. Reproduce the scenario.
+8. Inspect `python.log`.
 
 ## Useful Commands
 
@@ -110,6 +111,13 @@ Python 3 auto-fixes plus Python 2.7 lint:
 
 ```powershell
 zwm lint fix
+```
+
+Run the mods' unit tests:
+
+```powershell
+zwm test --all
+zwm test premium-time
 ```
 
 Build one mod:
@@ -143,9 +151,11 @@ zwm cycle --fresh-log research-progress-bar
 - Use explicit relative imports inside the package.
 - Keep user config under `mods/configs/<mod-name>/`.
 - Treat generated SWF output and release bundles as build artifacts, not source.
+- A mod opts into unit tests by adding `tests/`; `zwm test` discovers them by convention.
 
 ## Where To Go Next
 
 - [Architecture](architecture.md) for packaging, runtime layout, and UI patterns.
+- [Testing](testing.md) for how mod unit tests are discovered and run.
 - [Debugging](debugging.md) for triage and stability rules.
 - [Technical Reference](reference/README.md) for game-facing APIs and runtime knowledge.

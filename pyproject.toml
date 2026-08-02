@@ -17,13 +17,17 @@ packages = ["tools", "tools.core", "tools.commands"]
 [tool.black]
 line-length = 120
 target-version = ["py39"]
+# Python 2.7 sources (mod runtime, its tests, and the shared 2.7 test launcher) are
+# linted by flake8 under Python 2.7 instead; see `zwm lint py27-lint`.
 extend-exclude = '''
 /(
     \.venv
   | dist
   | \.tmp
   | mods/.+/src
+  | mods/.+/tests
   | mods/.+/ui/build
+  | testing
 )/
 '''
 
@@ -35,7 +39,9 @@ extend-exclude = [
     "dist",
     ".tmp",
     "mods/*/src",
+    "mods/*/tests",
     "mods/*/ui/build",
+    "testing",
 ]
 
 [tool.ruff.lint]

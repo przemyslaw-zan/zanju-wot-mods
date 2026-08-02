@@ -1,0 +1,48 @@
+name: Checks
+
+# Reusable check definition (single source of truth for "what CI verifies"):
+# formatting, linting, localization coverage, and the mods' unit tests. Runs inside
+# the published build image, so CI and local use the exact same Python 3 +
+# Python 2.7 + Node + tooling. Called by checks-on-change.yml (every push / PR) and
+# stable-release.yml (release gate).
+#
+# Naming note: the reported status-check name is "<caller job name> / <this job's name>",
+# so both callers name their job "Checks" and this one reports "Checks / Format, Lint and
+# Test". If a required-status-check rule is ever added for master, it stores that string
+# literally: renaming either half then means dropping the old required check first, since
+# a required check that never reports leaves pull requests waiting forever.
+on:
+  workflow_call: {}
+
+jobs:
+  checks:
+    name: Format, Lint and Test
+    runs-on: ubuntu-latest
+    container:
+      # Pinned to the canonical repo's published image instead of ${{ github.repository }}:
+      # in a fork's own workflow runs that expression resolves to the fork's namespace,
+      # which has no published toolchain image and breaks outright for owners with
+      # capital letters in their name (Docker image references must be lowercase).
+      image: ghcr.io/przemyslaw-zan/zanju-wot-mods/toolchain:latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v5
+
+    - name: Python 3 format and lint (Black + Ruff)
+      run: python3 -m tools.commands.lint py3-check
+
+    - name: Python 2.7 format check (autopep8 via Python 3)
+      run: python3 -m tools.commands.lint py27-format-check
+
+    - name: Python 2.7 lint (Flake8 via Python 2.7)
+      run: python3 -m tools.commands.lint py27-lint --py27-python python2.7
+
+    - name: Localization (i18n key coverage + README coverage up to date)
+      run: python3 -m tools.commands.lint i18n-check
+
+    # Mod unit tests (Python 2.7 runtime + Gameface JavaScript). Not --strict: a
+    # toolchain image built before Node was added reports the JS suites as skipped
+    # instead of failing the run. Switch to --strict once :latest ships Node.
+    - name: Mod unit tests
+      run: python3 -m tools.commands.test --all

@@ -35,6 +35,20 @@ from Event import Event, EventManager
 from PlayerEvents import g_playerEvents
 ```
 
+Premium account state lives on the items cache stats, the same fields the game's own header
+presenter reads:
+
+```python
+stats = itemsCache.items.stats
+stats.isPremium                  # bool
+stats.activePremiumExpiryTime    # unix timestamp, 0 when not premium
+```
+
+The Gameface header has its own copy on the view model
+(`UserAccountModel.subscriptions.premiumAccount`: `expiryTime` / `state`), which is what JS
+running inside the header document should read. Note that `state` lags the timestamp — see
+[Events And Callbacks](events-and-callbacks.md).
+
 ## Items Cache Pattern
 
 The stable pattern for reading game data is dependency injection through `IItemsCache`.

@@ -12,3 +12,4 @@ Use it when you need import paths, runtime locations, API entry points, or versi
 - [In-Game Settings (ModsSettings API)](in-game-settings.md)
 - [UI And Scaleform](ui-and-scaleform.md)
 - [Research Progress Bar UI](research-progress-bar-ui.md)
+- [WoT Plus Subscriptions](wot-plus-subscriptions.md)

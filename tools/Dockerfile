@@ -6,6 +6,7 @@ ARG FLEX_SDK_VERSION=4.16.1
 ARG PLAYERGLOBAL_FILENAME=playerglobal32_0.swc
 ARG PLAYERGLOBAL_MAJOR=32
 ARG PLAYERGLOBAL_VERSION=32.0
+ARG NODE_VERSION=22.11.0
 ARG PYTHON2_VERSION=2.7.18
 
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -46,6 +47,25 @@ RUN curl -fsSL "https://www.python.org/ftp/python/${PYTHON2_VERSION}/Python-${PY
     && make install \
     && rm -rf /tmp/python2.tgz /tmp/python2-src
 
+# Node runs the Gameface/browser-side unit tests (`zwm test` -> `node --test`). Only the
+# runtime is needed: the mods declare no npm dependencies and the test runner is built in.
+# Integrity is checked against the release's own SHASUMS256.txt rather than a hash pinned
+# here, so a version bump does not need a hand-copied digest.
+RUN NODE_ARCH="$(dpkg --print-architecture)" \
+    && case "${NODE_ARCH}" in \
+        amd64) NODE_ARCH=x64 ;; \
+        arm64) NODE_ARCH=arm64 ;; \
+        *) echo "Unsupported architecture for Node: ${NODE_ARCH}" >&2; exit 1 ;; \
+    esac \
+    && NODE_TARBALL="node-v${NODE_VERSION}-linux-${NODE_ARCH}.tar.xz" \
+    && cd /tmp \
+    && curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/${NODE_TARBALL}" -o "${NODE_TARBALL}" \
+    && curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/SHASUMS256.txt" -o node-shasums.txt \
+    && grep " ${NODE_TARBALL}\$" node-shasums.txt | sha256sum -c - \
+    && mkdir -p /opt/node \
+    && tar -xJf "${NODE_TARBALL}" -C /opt/node --strip-components=1 \
+    && rm -f "${NODE_TARBALL}" node-shasums.txt
+
 RUN curl -fsSL "https://archive.apache.org/dist/flex/${FLEX_SDK_VERSION}/binaries/apache-flex-sdk-${FLEX_SDK_VERSION}-bin.tar.gz" -o /tmp/flex-sdk.tar.gz \
     && mkdir -p /opt \
     && tar -xzf /tmp/flex-sdk.tar.gz -C /opt \
@@ -69,12 +89,12 @@ RUN FLEX_SF="https://sourceforge.net/adobe/flexsdk/code/HEAD/tree/trunk/lib" \
 
 RUN printf 'env.PLAYERGLOBAL_HOME=%s\n' "${PLAYERGLOBAL_HOME}" > "${FLEX_HOME}/env.properties"
 
-ENV PATH="${FLEX_HOME}/bin:${PATH}:${PYTHON2_PREFIX}/bin"
+ENV PATH="${FLEX_HOME}/bin:/opt/node/bin:${PATH}:${PYTHON2_PREFIX}/bin"
 
 # Login shells (e.g. the VS Code dev-container terminal) re-run /etc/profile and
-# drop the ENV PATH above, which would hide mxmlc/python2.7 from compile_ui's
-# shutil.which(). Re-add the toolchain dirs for login shells too.
-RUN printf 'export PATH="%s/bin:%s/bin:$PATH"\n' "${FLEX_HOME}" "${PYTHON2_PREFIX}" \
+# drop the ENV PATH above, which would hide mxmlc/python2.7/node from shutil.which().
+# Re-add the toolchain dirs for login shells too.
+RUN printf 'export PATH="%s/bin:%s/bin:%s/bin:$PATH"\n' "${FLEX_HOME}" "/opt/node" "${PYTHON2_PREFIX}" \
         > /etc/profile.d/10-wot-toolchain.sh
 
 # `zwm` — the single dev entrypoint (zwm build | lint | cycle | deploy | cleanup | help).
@@ -94,6 +114,7 @@ RUN pip install --no-cache-dir -r /tmp/requirements-dev.txt \
 
 RUN python --version \
     && python2.7 --version \
+    && node --version \
     && test -f "${FLEX_HOME}/frameworks/libs/player/${PLAYERGLOBAL_VERSION}/playerglobal.swc" \
     && mxmlc -version \
     && compc -version \

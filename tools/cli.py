@@ -13,6 +13,7 @@ import sys
 _COMMANDS = {
     "build": "build",
     "lint": "lint",
+    "test": "test",
     "cycle": "cycle",
     "deploy": "deploy",
     "cleanup": "cleanup",

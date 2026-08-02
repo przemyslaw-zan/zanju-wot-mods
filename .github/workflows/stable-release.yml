@@ -18,10 +18,11 @@ permissions:
 # their master would otherwise attempt to publish releases and toolchain images into
 # their own namespace. Guarding the two root jobs skips the whole dependent chain.
 jobs:
-  lint:
-    name: Lint
+  # Named to match checks-on-change.yml's caller, so both report the same check name.
+  checks:
+    name: Checks
     if: github.repository == 'przemyslaw-zan/zanju-wot-mods'
-    uses: ./.github/workflows/lint.yml
+    uses: ./.github/workflows/checks.yml
 
   detect:
     name: Detect image input changes
@@ -61,10 +62,10 @@ jobs:
 
   stable-release:
     name: Build and Publish Stable Build
-    needs: [lint, detect, image]
+    needs: [checks, detect, image]
     if: >-
       always()
-      && needs.lint.result == 'success'
+      && needs.checks.result == 'success'
       && needs.detect.result == 'success'
       && (needs.image.result == 'success' || needs.image.result == 'skipped')
     runs-on: ubuntu-latest
