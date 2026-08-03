@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import os
 import re
 import sys
@@ -49,7 +50,7 @@ def main():
     dry_run, verbose = parse_args(sys.argv[1:])
     section("Update companion manifest")
     current_manifest = load_manifest()
-    candidate_manifest = _build_candidate_manifest()
+    candidate_manifest = _build_candidate_manifest(current_manifest)
     _hydrate_checksums(candidate_manifest)
 
     changed = _manifest_changed(current_manifest, candidate_manifest)
@@ -81,7 +82,7 @@ def main():
     success("Companion manifest updated: tools/companion_artifacts_manifest.json")
 
 
-def _build_candidate_manifest():
+def _build_candidate_manifest(current_manifest=None):
     modssettingsapi = _resolve_modssettingsapi_artifact()
     mods_list_project_id = _fetch_gitlab_project_id("wot-public-mods/mods-list")
     mods_list_release = fetch_json(_GITLAB_MODS_LIST_RELEASE_URL)
@@ -122,17 +123,33 @@ def _build_candidate_manifest():
     return {
         "schemaVersion": COMPANION_ARTIFACT_SCHEMA_VERSION,
         "updatedAt": "",
-        "bundles": {
-            RESEARCH_PROGRESS_BAR_BUNDLE: {
-                "description": "Standalone configurator companion chain for Research Progress Bar.",
-                "artifactIds": ["modssettingsapi", "modslistapi", "openwg_gameface"],
-            }
-        },
+        # Carried over from the file, never regenerated: which mods ship which companions is
+        # authored here, while only the artifact versions come from upstream. Rebuilding this
+        # section would silently delete every bundle added since the default was written --
+        # and because the command reports "manifest updated", the loss looks like a success.
+        "bundles": _carry_over_bundles(current_manifest),
         "artifacts": {
             "modssettingsapi": modssettingsapi,
             "modslistapi": modslistapi,
             "openwg_gameface": openwg_gameface,
         },
+    }
+
+
+def _carry_over_bundles(current_manifest):
+    """Bundles from the existing manifest, or the default one when bootstrapping.
+
+    The fallback only applies when there is no manifest yet, or it defines no bundles at all;
+    a manifest that already has bundles is authoritative and is passed through untouched.
+    """
+    bundles = (current_manifest or {}).get("bundles")
+    if isinstance(bundles, dict) and bundles:
+        return copy.deepcopy(bundles)
+    return {
+        RESEARCH_PROGRESS_BAR_BUNDLE: {
+            "description": "Standalone configurator companion chain for Research Progress Bar.",
+            "artifactIds": ["modssettingsapi", "modslistapi", "openwg_gameface"],
+        }
     }
 
 

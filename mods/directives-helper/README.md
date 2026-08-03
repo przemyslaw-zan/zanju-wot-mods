@@ -10,7 +10,9 @@ This mod puts the whole picture in a small garage window and lets you act on it 
   cannot take is left out rather than shown greyed.
 - **What each one will do** — three sections, because a crew directive's effect depends on
   the crew in the tank: **Equipment**, **Improve perk effect** (the perk is already trained
-  to 100%) and **Grant perk at 100%** (it is not).
+  to 100%) and **Boost perk to 100%** (it is not). In that last section each icon also shows
+  what it is worth on *this* crew — `+70%` when they have the perk trained to 30% — so a
+  directive that would barely move the needle is obvious at a glance.
 - **Click to fit** — clicking a directive mounts it on the currently selected loadout,
   swapping out whatever was there. The fitted one is outlined; clicking it takes it off.
 - **Auto-resupply** — a checkbox at the top of the window for whether this tank refills its
@@ -19,8 +21,10 @@ This mod puts the whole picture in a small garage window and lets you act on it 
   The warning also marks the title bar, so a folded window still shows it.
 
 - **Shopping list** — a second checkbox adds the directives that fit your tank but that you own
-  none of. Those are dimmed, and clicking one opens the game's own store page for it rather
-  than spending anything on your behalf.
+  none of. Those are dimmed, and clicking one opens the game's own purchase dialog — price,
+  quantity and all — so nothing is ever spent without you confirming it there. A reward-only
+  directive that cannot be bought is still listed, but says *purchase not available* instead
+  and does nothing when clicked.
 
 Hover a directive to see its name. The window can be **moved** by dragging its title bar,
 **resized** by dragging its right edge, and **folded** away to just the bar by clicking it.
@@ -35,11 +39,11 @@ mounted — that is the game's own accounting, not a miscount here.
 
 ## Translations
 
-Reference language `en` defines 11 strings. Translations are community-maintained and may lag behind; see [Translating](../../docs/translating.md) to add or update one, then regenerate this table with `zwm lint i18n`.
+Reference language `en` defines 12 strings. Translations are community-maintained and may lag behind; see [Translating](../../docs/translating.md) to add or update one, then regenerate this table with `zwm lint i18n`.
 
 | Language | Coverage | Missing |
 | --- | --- | --- |
-| `pl` | 64% (7/11) | 4 (+3 unknown) |
+| `pl` | 58% (7/12) | 5 (+3 unknown) |
 
 ## Install And Use
 
@@ -66,16 +70,26 @@ For the wider repository workflow, see:
 inventory's equipment section rather than having one of their own.
 
 - **Depot** — `itemsCache.items.getItems(GUI_ITEM_TYPE.BATTLE_BOOSTER, ...)`, filtered to what
-  is actually owned unless the "show ones you do not own" option is on.
-- **Buying** — `shop.showBattleBooster(itemId, source, origin)`, the same call behind the game's
-  own "buy more" button. Deliberately not a buy-and-install: the player sees the price and
-  confirms it in the game's own store, and the install processor's validators reject an unowned
-  directive anyway.
+  is actually owned unless the "show unowned" option is on.
+- **Buying** — `event_dispatcher.showBattleBoosterBuyDialog(intCD)`, which opens the client's
+  own `BoosterBuyWindowView`: price, quantity selector and auto-resupply toggle, buying through
+  `ModuleBuyer` only once the player accepts. Deliberately not a silent buy-and-install — and
+  the install processor's validators reject an unowned directive anyway, so fitting one was
+  never an option. Falls back to the store page if the dialog cannot be opened.
+  - A directive with no buy price never reaches that dialog: it divides by both the current and
+    the default price, to size the quantity selector and to work out the discount, so a
+    reward-only item would raise `ZeroDivisionError` inside the game's own view.
 - **Crew vs equipment** — `item.isCrewBooster()`, the same test behind the game's own two
   directive tabs.
 - **Fitted** — `vehicle.battleBoosters.installed`.
 - **Fits this tank** — `item.isAffectsOnVehicle(vehicle)`, which validates crew directives
   against the crew's skills and equipment directives against the mounted optional devices.
+- **What a grant-perk directive is worth** —
+  `Tankman.crewMemberRealSkillLevel(vehicle, item.getAffectedSkillName(), shouldIncrease=False)`,
+  the same averaging the game uses for its own crew readouts, subtracted from
+  `tankmen.MAX_SKILL_LEVEL`. `shouldIncrease=False` matters: the default folds a fitted
+  booster's own contribution into the level, which would measure the gain against a value that
+  already includes the thing being offered.
 - **Auto-resupply** — `vehicle.isAutoBattleBoosterEquip()`, a bit in the vehicle's inventory
   settings (`VEHICLE_SETTINGS_FLAG.AUTO_EQUIP_BOOSTER`), so it is per vehicle rather than
   account-wide. Toggling it runs `VehicleAutoBattleBoosterEquipProcessor`, the same processor

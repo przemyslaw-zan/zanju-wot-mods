@@ -110,7 +110,8 @@ function buildRoot() {
     // The only element with pointer events: dragging and folding both happen here.
     const header = el('div', 'zanju-dh-header zanju-dh-hot');
     header.appendChild(el('span', 'zanju-dh-fold', '−'));
-    header.appendChild(el('span', 'zanju-dh-title', 'Directives'));
+    // Placeholder only: replaced by the localized title on the first snapshot.
+    header.appendChild(el('span', 'zanju-dh-title', 'Directives Helper'));
     // Only ever shown while folded, when the title bar is all there is to see: without it a
     // folded window would hide the fact that the next battle is about to cost something.
     header.appendChild(buildWarnMark('zanju-dh-header-warn'));
@@ -163,8 +164,11 @@ function iconUrl(iconName) {
 function buildTile(directive, texts) {
     // Only directives that fit the selected tank reach this point, so every tile is shown at
     // full strength; the fitted one is outlined, and one the player owns none of is dimmed and
-    // opens the store instead of fitting.
+    // offers to buy it instead of fitting.
     const unowned = directive.owned === false;
+    // Reward-only directives cannot be bought. They are still listed — a tile that quietly
+    // vanished would be more confusing than one that says why — but nothing happens on click.
+    const buyable = unowned && directive.purchasable !== false;
     let className = 'zanju-dh-tile';
     if (directive.equipped) {
         className += ' zanju-dh-tile-equipped';
@@ -172,26 +176,35 @@ function buildTile(directive, texts) {
     if (unowned) {
         className += ' zanju-dh-tile-unowned';
     }
+    if (unowned && !buyable) {
+        className += ' zanju-dh-tile-inert';
+    }
     const tile = el('div', className);
 
     const icon = el('div', 'zanju-dh-icon');
-    const url = iconUrl(directive.icon);
-    if (url) {
-        icon.style.backgroundImage = url;
-    } else {
-        // No icon shipped for this directive: fall back to its initial so the tile is not blank.
-        icon.textContent = (directive.name || '?').charAt(0);
-    }
+    icon.style.backgroundImage = iconUrl(directive.icon);
     tile.appendChild(icon);
 
+    // Both numbers sit over the icon, in opposite corners so they can never meet however many
+    // digits either grows to: the gain top-right, the depot count bottom-left.
+    if (typeof directive.gain === 'number' && directive.gain > 0) {
+        tile.appendChild(el('span', 'zanju-dh-gain', '+' + directive.gain + '%'));
+    }
     tile.appendChild(el('span', 'zanju-dh-badge', String(directive.count)));
     // The name only shows on hover, so a full depot stays a compact grid of icons. An unowned
-    // one says what clicking will do, since it is the one tile that does not fit anything.
-    const tip = unowned && texts ? directive.name + ' — ' + texts.buyHint : directive.name;
+    // one also says what a click will do, since it is the one tile that does not fit anything.
+    let tip = directive.name;
+    if (unowned && texts) {
+        tip += ' — ' + (buyable ? texts.buyHint : texts.buyUnavailable);
+    }
     tile.appendChild(el('span', 'zanju-dh-tip', tip));
-    // Read back by the click handler; the event may land on any child of the tile.
-    tile._zanjuDhIntCD = directive.intCD;
-    tile._zanjuDhBuy = unowned;
+    // Read back by the click handler; the event may land on any child of the tile. Left unset
+    // on a tile with nothing to do, which is what makes the click walk up, find no marker and
+    // fall through — rather than reaching the fit path with a directive that cannot be fitted.
+    if (!unowned || buyable) {
+        tile._zanjuDhIntCD = directive.intCD;
+    }
+    tile._zanjuDhBuy = buyable;
     return tile;
 }
 
@@ -391,7 +404,7 @@ function bindTileClicks(data) {
             return;
         }
         if (target._zanjuDhBuy) {
-            // Owning none of it, so there is nothing to fit: hand the player to the store.
+            // Owning none of it, so there is nothing to fit: open the game's buy dialog.
             invokeCommand(data, 'buy', { intCD: target._zanjuDhIntCD });
             return;
         }
@@ -581,19 +594,20 @@ function texts(snapshot) {
     // Labels ride along in the snapshot so the Python side owns translation.
     const labels = (snapshot && snapshot.labels) || {};
     return {
-        title: labels.title || 'Directives',
+        title: labels.title || 'Directives Helper',
         autoResupply: labels.autoResupply || 'Auto-resupply',
         resupplyWarning: labels.resupplyWarning
             || 'Your last one. Auto-resupply will buy a replacement after the battle.',
-        showUnowned: labels.showUnowned || 'Show ones you do not own',
-        buyHint: labels.buyHint || 'click to open the store',
+        showUnowned: labels.showUnowned || 'Show unowned',
+        buyHint: labels.buyHint || 'click to buy',
+        buyUnavailable: labels.buyUnavailable || 'purchase not available',
         noVehicle: labels.noVehicle || 'No vehicle selected',
         empty: labels.empty || 'No directives owned',
         noneAvailable: labels.noneAvailable || 'None available for this tank',
         categories: {
             equipment: labels.equipment || 'Equipment',
             crewImprove: labels.crewImprove || 'Improve perk effect',
-            crewGrant: labels.crewGrant || 'Grant perk at 100%',
+            crewGrant: labels.crewGrant || 'Boost perk to 100%',
         },
     };
 }

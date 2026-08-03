@@ -20,6 +20,12 @@ outside the game and degrades to an empty snapshot instead of breaking the view 
 """
 from __future__ import print_function, unicode_literals
 
+import math
+
+# `tankmen.MAX_SKILL_LEVEL`. Kept as a plain number so the arithmetic below stays testable
+# outside the game; the client constant is only read where the crew is.
+MAX_SKILL_LEVEL = 100
+
 CATEGORY_EQUIPMENT = 'equipment'
 # A crew directive does one of two things depending on the crew currently in the tank: if the
 # perk it targets is not trained to 100%, fitting it grants that perk outright; if the perk is
@@ -126,14 +132,53 @@ def auto_resupply(vehicle, logger):
 
 
 def _category(name, entries):
-    # Sorted by name so the window's list does not reshuffle between refreshes; the total
-    # counts directives owned, not distinct types.
-    entries.sort(key=lambda entry: entry['name'].lower())
+    # The total counts directives owned, not distinct types.
+    if name == CATEGORY_CREW_GRANT:
+        entries.sort(key=_by_gain)
+    else:
+        # By name, so the list does not reshuffle between refreshes.
+        entries.sort(key=lambda entry: entry['name'].lower())
     return {
         'category': name,
         'total': sum(entry['count'] for entry in entries),
         'directives': entries,
     }
+
+
+def _is_purchasable(item):
+    """Whether the game's own buy dialog could actually price this directive.
+
+    Some directives are reward or event only and answer with an all-zero price. That is not a
+    cosmetic gap: `BoosterBuyWindowView` divides by the current price to size its quantity
+    selector, and by the default price to work out the discount percentage, so opening it for
+    an unpriced directive raises ZeroDivisionError inside the game's own view -- and being
+    wg_async, that surfaces as a broken modal rather than something this mod can catch.
+
+    The window still lists an unpurchasable directive -- a tile that quietly went missing would
+    be more confusing than one that says why it cannot be clicked -- but it says "purchase not
+    available" instead of offering the dialog, and does nothing when clicked.
+    """
+    try:
+        price = item.getBuyPrice(preferred=False)
+        currency = price.getCurrency(byWeight=True)
+        return (price.price.getSignValue(currency) > 0
+                and price.defPrice.getSignValue(currency) > 0)
+    except Exception:
+        return False
+
+
+def _by_gain(entry):
+    """Order for the "boost perk to 100%" section: biggest gain first.
+
+    In this one section the figure is the whole point, so a directive worth +80% should not sit
+    below one worth +5% because of its name. A row whose gain could not be read sorts last
+    rather than as zero -- unknown is not the same as worthless -- and the name breaks ties so
+    the order stays stable between refreshes.
+    """
+    gain = entry.get('gain')
+    if gain is None:
+        return (1, 0, entry['name'].lower())
+    return (0, -gain, entry['name'].lower())
 
 
 def _describe(item, vehicle, equipped_int_cds, show_unowned, logger):
@@ -146,7 +191,8 @@ def _describe(item, vehicle, equipped_int_cds, show_unowned, logger):
         return None
 
     equipped = int_cd in equipped_int_cds
-    if count <= 0 and not equipped and not show_unowned:
+    owned = count > 0 or equipped
+    if not owned and not show_unowned:
         # The items cache lists every directive that exists, including ones never bought.
         return None
 
@@ -155,15 +201,66 @@ def _describe(item, vehicle, equipped_int_cds, show_unowned, logger):
         # stays so the window never hides what is actually mounted.
         return None
 
+    category = _category_of(item, vehicle)
     return {
         'intCD': int_cd,
         'name': _user_name(item),
         'icon': _icon_name(item),
         'count': count,
-        'owned': count > 0 or equipped,
-        'category': _category_of(item, vehicle),
+        'owned': owned,
+        # Only asked about a directive the player owns none of, since that is the only case
+        # where the window offers to buy one. Owned rows are always actionable: they fit.
+        'purchasable': True if owned else _is_purchasable(item),
+        'category': category,
         'equipped': equipped,
+        # Only meaningful where fitting the directive takes the perk to 100%; in the other
+        # two sections there is no "distance to full" to report.
+        'gain': _skill_gain(item, vehicle) if category == CATEGORY_CREW_GRANT else None,
     }
+
+
+def skill_gain_from_level(level):
+    """Percent a "boost perk to 100%" directive would add, given the crew's current level.
+
+    `tankmen.NO_SKILL` is -1, meaning the crew has none of the skill at all rather than zero
+    percent of it; both give a full 100% gain, so a negative level is floored to zero rather
+    than added to the total.
+
+    The crew level is an average across the crew and so a float, while the badge reports whole
+    percent. Fractions round **up**, so a perk that is a hair short of trained still reads as
+    `+1%` rather than disappearing into `+0%` and looking like it does nothing.
+    """
+    if level is None:
+        return None
+    try:
+        level = float(level)
+    except (TypeError, ValueError):
+        return None
+    if level < 0:
+        level = 0.0
+    return max(0, min(MAX_SKILL_LEVEL, int(math.ceil(MAX_SKILL_LEVEL - level))))
+
+
+def _skill_gain(item, vehicle):
+    """How much of the targeted perk this directive would add, in percent.
+
+    `crewMemberRealSkillLevel` is the same call the game uses for its own crew readouts: it
+    averages the skill across the crew members it applies to. `shouldIncrease=False` asks for
+    the crew as it stands, without any fitted booster's own contribution folded in -- otherwise
+    the gain would be measured against a value that already includes the thing being offered.
+    """
+    if vehicle is None:
+        return None
+    try:
+        from gui.shared.gui_items.Tankman import crewMemberRealSkillLevel
+        skill_name = item.getAffectedSkillName()
+        if not skill_name:
+            return None
+        return skill_gain_from_level(
+            crewMemberRealSkillLevel(vehicle, skill_name, shouldIncrease=False))
+    except Exception:
+        # Reported as "no figure" rather than a wrong one; the tile still renders.
+        return None
 
 
 def _battle_booster_items(logger):

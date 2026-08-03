@@ -90,12 +90,13 @@ function snapshotFixture(overrides = {}) {
                 title: 'Directives',
                 equipment: 'Equipment',
                 crewImprove: 'Improve perk effect',
-                crewGrant: 'Grant perk at 100%',
+                crewGrant: 'Boost perk to 100%',
                 noneAvailable: 'None available for this tank',
                 autoResupply: 'Auto-resupply',
                 resupplyWarning: 'Your last one. Auto-resupply will buy a replacement after the battle.',
-                showUnowned: 'Show ones you do not own',
-                buyHint: 'click to open the store',
+                showUnowned: 'Show unowned',
+                buyHint: 'click to buy',
+                buyUnavailable: 'purchase not available',
                 noVehicle: 'No vehicle selected',
                 empty: 'No directives owned',
             },
@@ -155,7 +156,7 @@ describe('texts', () => {
     test('uses the labels the Python side supplied', () => {
         const labels = texts(snapshotFixture());
         assert.equal(labels.categories.crewImprove, 'Improve perk effect');
-        assert.equal(labels.categories.crewGrant, 'Grant perk at 100%');
+        assert.equal(labels.categories.crewGrant, 'Boost perk to 100%');
         assert.equal(labels.autoResupply, 'Auto-resupply');
     });
 
@@ -163,7 +164,7 @@ describe('texts', () => {
         // Translation lives on the Python side; if the payload arrives without labels the
         // window still has to render something readable.
         const labels = texts({});
-        assert.equal(labels.title, 'Directives');
+        assert.equal(labels.title, 'Directives Helper');
         assert.equal(labels.categories.equipment, 'Equipment');
     });
 });
@@ -197,17 +198,10 @@ describe('renderBody', () => {
         assert.match(icon.style.backgroundImage, /R\.images\.gui\.maps\.icons\.artefact\.improvedSights/);
     });
 
-    test('falls back to an initial when a directive has no icon', () => {
-        const snapshot = snapshotFixture();
-        snapshot.categories[0].directives[0].icon = '';
-        const body = render(snapshot);
-        assert.equal(body.querySelector('.zanju-dh-icon').textContent, 'I');
-    });
-
     test('shows every category heading', () => {
         const body = render(snapshotFixture());
         const headings = body.querySelectorAll('.zanju-dh-category-name').map((n) => n.textContent);
-        assert.deepEqual(headings, ['Equipment', 'Improve perk effect', 'Grant perk at 100%']);
+        assert.deepEqual(headings, ['Equipment', 'Improve perk effect', 'Boost perk to 100%']);
         assert.equal(body.querySelectorAll('.zanju-dh-category-total').length, 0,
             'the per-category sum was dropped');
     });
@@ -262,7 +256,7 @@ describe('renderBody', () => {
 
     test('offers a checkbox for listing directives you do not own', () => {
         const row = render(snapshotFixture()).querySelector('.zanju-dh-option');
-        assert.match(row.textContent, /Show ones you do not own/);
+        assert.match(row.textContent, /Show unowned/);
         assert.doesNotMatch(row.querySelector('.zanju-dh-check').className, /zanju-dh-check-on/);
         assert.equal(row._zanjuDhShowUnowned, true, 'clicking it should turn the option on');
     });
@@ -280,7 +274,20 @@ describe('renderBody', () => {
         const tile = render(snapshot).querySelectorAll('.zanju-dh-tile')[1];
         assert.match(tile.className, /zanju-dh-tile-unowned/);
         assert.equal(tile._zanjuDhBuy, true);
-        assert.match(tile.querySelector('.zanju-dh-tip').textContent, /click to open the store/);
+        assert.match(tile.querySelector('.zanju-dh-tip').textContent, /click to buy/);
+    });
+
+    test('a directive that cannot be bought says so and does nothing', () => {
+        // Reward-only ones stay visible rather than vanishing, but a click must not reach the
+        // buy dialog (it would divide by their zero price) nor the fit path (nothing to fit).
+        const snapshot = snapshotFixture();
+        Object.assign(snapshot.categories[1].directives[0],
+            { owned: false, count: 0, purchasable: false });
+        const tile = render(snapshot).querySelectorAll('.zanju-dh-tile')[1];
+        assert.match(tile.className, /zanju-dh-tile-inert/);
+        assert.match(tile.querySelector('.zanju-dh-tip').textContent, /purchase not available/);
+        assert.equal(tile._zanjuDhBuy, false);
+        assert.equal(tile._zanjuDhIntCD, undefined, 'nothing for the click handler to act on');
     });
 
     test('an owned directive is never routed to the store', () => {
@@ -325,6 +332,38 @@ describe('renderBody', () => {
         const body = render(snapshotFixture());
         const tile = body.querySelectorAll('.zanju-dh-tile')[0];
         assert.equal(tile._zanjuDhIntCD, 2);
+    });
+
+    test('shows how much a grant-perk directive would add', () => {
+        const snapshot = snapshotFixture();
+        snapshot.categories[2].directives[0].gain = 70;
+        const tile = render(snapshot).querySelectorAll('.zanju-dh-tile')[2];
+        assert.equal(tile.querySelector('.zanju-dh-gain').textContent, '+70%');
+    });
+
+    test('no gain badge where there is nothing to gain', () => {
+        // Equipment and already-trained perks carry gain: null, and a perk at 100% would be
+        // in the other section anyway — a "+0%" badge would be noise.
+        const snapshot = snapshotFixture();
+        snapshot.categories[2].directives[0].gain = 0;
+        const body = render(snapshot);
+        assert.equal(body.querySelectorAll('.zanju-dh-gain').length, 0);
+    });
+
+    test('no gain badge when the level could not be read', () => {
+        const body = render(snapshotFixture());
+        assert.equal(body.querySelectorAll('.zanju-dh-gain').length, 0);
+    });
+
+    test('both numbers overlay the icon in opposite corners', () => {
+        // Diagonally opposite so they can never meet, however many digits either grows to.
+        const snapshot = snapshotFixture();
+        snapshot.categories[2].directives[0].gain = 70;
+        const tile = render(snapshot).querySelectorAll('.zanju-dh-tile')[2];
+        assert.ok(tile.querySelector('.zanju-dh-gain'), 'gain belongs to the tile');
+        assert.ok(tile.querySelector('.zanju-dh-badge'), 'count belongs to the tile');
+        assert.equal(tile.querySelector('.zanju-dh-icon').children.length, 0,
+            'neither is nested inside the icon');
     });
 
     test('marks the fitted directive', () => {

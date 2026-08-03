@@ -6,13 +6,13 @@
 # so partial translations are fine.
 
 # Window
-# en: "Directives"
+# en: "Directives Helper"
 WINDOW_TITLE: ""
 
 # Categories
 # en: "Improve perk effect"
 CATEGORY_CREW_IMPROVE: ""
-# en: "Grant perk at 100%"
+# en: "Boost perk to 100%"
 CATEGORY_CREW_GRANT: ""
 # en: "Equipment"
 CATEGORY_EQUIPMENT: ""
@@ -22,10 +22,12 @@ CATEGORY_EQUIPMENT: ""
 LABEL_AUTO_RESUPPLY: ""
 # en: "Your last one. Auto-resupply will buy a replacement after the battle."
 LABEL_RESUPPLY_WARNING: ""
-# en: "Show ones you do not own"
+# en: "Show unowned"
 LABEL_SHOW_UNOWNED: ""
-# en: "click to open the store"
+# en: "click to buy"
 LABEL_BUY_HINT: ""
+# en: "purchase not available"
+LABEL_BUY_UNAVAILABLE: ""
 # en: "No vehicle selected"
 LABEL_NO_VEHICLE: ""
 # en: "No directives owned"

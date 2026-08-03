@@ -35,16 +35,40 @@ class FakeVehicle(object):
         return self._auto
 
 
+class FakeMoney(object):
+
+    def __init__(self, value):
+        self._value = value
+
+    def getSignValue(self, currency):
+        return self._value
+
+
+class FakePrice(object):
+    """Stands in for an ItemPrice. A reward-only directive answers with zeroes."""
+
+    def __init__(self, value):
+        self.price = FakeMoney(value)
+        self.defPrice = FakeMoney(value)
+
+    def getCurrency(self, byWeight=False):
+        return 'credits'
+
+
 class FakeBooster(object):
     """Stands in for a BattleBooster GUI item."""
 
-    def __init__(self, int_cd, name, count, crew=False, usable=True, learnt=False):
+    def __init__(self, int_cd, name, count, crew=False, usable=True, learnt=False, price=200):
         self.intCD = int_cd
         self.userName = name
         self.inventoryCount = count
         self._crew = crew
         self._usable = usable
         self._learnt = learnt
+        self._price = price
+
+    def getBuyPrice(self, preferred=True):
+        return FakePrice(self._price)
 
     def isCrewBooster(self):
         return self._crew
@@ -119,6 +143,16 @@ class DescribeTest(unittest.TestCase):
         entry = self.describe(FakeBooster(1, 'Repairs', 3, crew=True, learnt=False), vehicle=vehicle)
         self.assertEqual(entry['category'], collector.CATEGORY_CREW_GRANT)
 
+    def test_only_the_grant_section_carries_a_gain_figure(self):
+        # There is no "distance to full" to report for a perk already at 100%, nor for an
+        # equipment directive. The key is always present so the window can test for a number.
+        vehicle = object()
+        improve = self.describe(FakeBooster(1, 'Repairs', 3, crew=True, learnt=True), vehicle=vehicle)
+        equipment = self.describe(FakeBooster(2, 'Improved Aiming', 3), vehicle=vehicle)
+        self.assertIn('gain', improve)
+        self.assertIsNone(improve['gain'])
+        self.assertIsNone(equipment['gain'])
+
     def test_drops_directives_that_do_not_fit_the_tank(self):
         vehicle = object()
         self.assertIsNone(self.describe(FakeBooster(2, 'Off-Road Driving', 3, usable=False), vehicle=vehicle))
@@ -159,6 +193,33 @@ class ShowUnownedTest(unittest.TestCase):
 
     def test_still_needs_a_tank_selected(self):
         self.assertIsNone(self.describe(FakeBooster(7, 'Repairs', 0)))
+
+    def test_still_lists_one_that_cannot_be_bought(self):
+        # Reward-only directives answer with a zero price. They stay in the list -- a tile that
+        # quietly vanished is more confusing than one that says why -- but are flagged so the
+        # window can say "purchase not available" and ignore the click. Offering the dialog
+        # would divide by that zero price inside the game's own view.
+        entry = self.describe(FakeBooster(7, 'Event only', 0, price=0), vehicle=object())
+        self.assertIsNotNone(entry)
+        self.assertFalse(entry['owned'])
+        self.assertFalse(entry['purchasable'])
+
+    def test_a_buyable_one_is_flagged_purchasable(self):
+        entry = self.describe(FakeBooster(7, 'Repairs', 0, price=200), vehicle=object())
+        self.assertTrue(entry['purchasable'])
+
+    def test_an_unpriced_directive_the_player_owns_is_actionable(self):
+        # Owning it means it can be fitted, whether or not the shop will sell another, so the
+        # price is never consulted and the row must not be flagged unusable.
+        entry = self.describe(FakeBooster(7, 'Event only', 4, price=0), vehicle=object())
+        self.assertTrue(entry['owned'])
+        self.assertTrue(entry['purchasable'])
+
+    def test_an_unpriced_directive_that_is_fitted_is_actionable(self):
+        entry = self.describe(FakeBooster(7, 'Event only', 0, price=0), vehicle=object(),
+                              equipped=frozenset([7]))
+        self.assertTrue(entry['equipped'])
+        self.assertTrue(entry['purchasable'])
 
     def test_owned_directives_are_marked_as_owned(self):
         entry = self.describe(FakeBooster(7, 'Repairs', 3), vehicle=object())
@@ -204,6 +265,37 @@ class CategoryTest(unittest.TestCase):
         self.assertEqual(group['directives'], [])
 
 
+class GrantOrderTest(unittest.TestCase):
+    """The grant section is ordered by what each directive is worth, not by name: the figure
+    is the whole point of that section."""
+
+    def entries(self, *pairs):
+        return [{'name': name, 'count': 1, 'gain': gain} for name, gain in pairs]
+
+    def order(self, entries):
+        group = collector._category(collector.CATEGORY_CREW_GRANT, entries)
+        return [entry['name'] for entry in group['directives']]
+
+    def test_biggest_gain_first(self):
+        order = self.order(self.entries(('Repairs', 5), ('Adrenaline', 80), ('Sixth Sense', 40)))
+        self.assertEqual(order, ['Adrenaline', 'Sixth Sense', 'Repairs'])
+
+    def test_an_unreadable_gain_sorts_last(self):
+        # Unknown is not the same as worthless, so it goes to the end rather than to zero.
+        order = self.order(self.entries(('Unknown', None), ('Repairs', 5)))
+        self.assertEqual(order, ['Repairs', 'Unknown'])
+
+    def test_equal_gains_fall_back_to_the_name(self):
+        # Otherwise the section reshuffles between refreshes.
+        order = self.order(self.entries(('Repairs', 40), ('Adrenaline', 40)))
+        self.assertEqual(order, ['Adrenaline', 'Repairs'])
+
+    def test_the_other_sections_stay_alphabetical(self):
+        entries = self.entries(('Repairs', 5), ('Adrenaline', 80))
+        group = collector._category(collector.CATEGORY_EQUIPMENT, entries)
+        self.assertEqual([e['name'] for e in group['directives']], ['Adrenaline', 'Repairs'])
+
+
 class AutoResupplyTest(unittest.TestCase):
     """None means "nothing to report", and the window must be able to tell that from False:
     a failed read that looked like "disabled" would offer a toggle acting on a guess."""
@@ -237,6 +329,46 @@ class AutoResupplyTest(unittest.TestCase):
 
         self.assertIsNone(collector.auto_resupply(BrokenVehicle(), self.logger))
         self.assertTrue(self.logger.exceptions, 'the failure should be reported')
+
+
+class SkillGainTest(unittest.TestCase):
+    """What a "boost perk to 100%" directive is actually worth on this crew: the distance
+    between how far they have trained the perk and the 100% the directive would set it to."""
+
+    def test_a_partly_trained_perk_reports_the_remainder(self):
+        self.assertEqual(collector.skill_gain_from_level(30), 70)
+
+    def test_an_untrained_perk_is_worth_the_whole_hundred(self):
+        self.assertEqual(collector.skill_gain_from_level(0), 100)
+
+    def test_no_skill_at_all_is_worth_the_whole_hundred(self):
+        # tankmen.NO_SKILL is -1, meaning "the crew has none of it" rather than "0% of it".
+        # Subtracting it directly would report 101.
+        self.assertEqual(collector.skill_gain_from_level(-1), 100)
+
+    def test_a_fully_trained_perk_gains_nothing(self):
+        # Reachable in the moment before the client re-sorts it into the other section.
+        self.assertEqual(collector.skill_gain_from_level(100), 0)
+
+    def test_rounds_a_fractional_gain_up(self):
+        # The level is averaged across the crew, so it arrives as a float. 30.6 leaves 69.4,
+        # which nearest-rounding would report as 69 -- rounding up keeps the figure from
+        # understating what fitting the directive is worth.
+        self.assertEqual(collector.skill_gain_from_level(30.6), 70)
+        self.assertEqual(collector.skill_gain_from_level(30.4), 70)
+        self.assertEqual(collector.skill_gain_from_level(30.0), 70)
+
+    def test_an_almost_trained_perk_still_reads_as_a_gain(self):
+        # 0.4% short is not nothing; nearest-rounding would show "+0%" and read as useless.
+        self.assertEqual(collector.skill_gain_from_level(99.6), 1)
+
+    def test_reports_nothing_when_the_level_is_unreadable(self):
+        self.assertIsNone(collector.skill_gain_from_level(None))
+        self.assertIsNone(collector.skill_gain_from_level('?'))
+
+    def test_never_reports_more_than_a_full_perk(self):
+        self.assertEqual(collector.skill_gain_from_level(-500), 100)
+        self.assertEqual(collector.skill_gain_from_level(250), 0)
 
 
 class ResupplyWarningTest(unittest.TestCase):

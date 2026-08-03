@@ -142,7 +142,7 @@ class _WindowDataModel(ViewModel):
 
     def __onBuy(self, *args):
         arg = args[0] if args else None
-        open_shop(_map_get(arg, 'intCD'), _module_logger)
+        offer_purchase(_map_get(arg, 'intCD'), _module_logger)
 
     def __onSetFolded(self, *args):
         arg = args[0] if args else None
@@ -189,6 +189,7 @@ def _build_payload(logger):
             'resupplyWarning': _loc('LABEL_RESUPPLY_WARNING'),
             'showUnowned': _loc('LABEL_SHOW_UNOWNED'),
             'buyHint': _loc('LABEL_BUY_HINT'),
+            'buyUnavailable': _loc('LABEL_BUY_UNAVAILABLE'),
             'noVehicle': _loc('LABEL_NO_VEHICLE'),
             'empty': _loc('LABEL_EMPTY'),
         }
@@ -252,14 +253,17 @@ def equip_directive(int_cd, logger):
         logger.exception('Failed to fit directive %s', int_cd)
 
 
-def open_shop(int_cd, logger):
-    """Open the game's own purchase view for a directive the player owns none of.
+def offer_purchase(int_cd, logger):
+    """Offer to buy a directive the player owns none of, through the game's own dialog.
 
-    Deliberately not a buy-and-install: `shop.showBattleBooster` is the same call behind the
-    game's own "buy more" button, and it hands the player to the store front where they see the
-    price and confirm it themselves. This mod should never be the thing that spends someone's
-    credits or bonds on a click, and the install processor's validators reject an unowned
-    directive anyway, so fitting one was never an option.
+    `showBattleBoosterBuyDialog` opens `BoosterBuyWindowView`: the client's purchase dialog for
+    directives, with the price, a quantity selector and the auto-resupply toggle. Nothing is
+    spent until the player accepts it there, so this mod never buys anything off a single click
+    -- the same rule research-progress-bar follows for its own purchases.
+
+    Falls back to the store page if the dialog cannot be started. That fallback only covers a
+    failure to *start* it: the call is `wg_async`, so anything that goes wrong once the dialog
+    is running surfaces in the client rather than here.
     """
     try:
         int_cd = int(int_cd)
@@ -267,8 +271,16 @@ def open_shop(int_cd, logger):
         return
 
     try:
+        from gui.shared.event_dispatcher import showBattleBoosterBuyDialog
+        logger.info('Opening the purchase dialog for directive %s', int_cd)
+        showBattleBoosterBuyDialog(int_cd)
+        return
+    except Exception:
+        logger.exception(
+            'Could not open the purchase dialog for directive %s; using the store page', int_cd)
+
+    try:
         from gui import shop
-        logger.info('Opening the store for directive %s', int_cd)
         shop.showBattleBooster(
             itemId=int_cd, source=shop.Source.EXTERNAL, origin=shop.Origin.BATTLE_BOOSTERS)
     except Exception:

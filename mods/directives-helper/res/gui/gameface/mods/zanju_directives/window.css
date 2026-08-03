@@ -226,7 +226,7 @@
     display: flex;
     align-items: center;
     margin-top: 6rem;
-    font-size: 13rem;
+    font-size: 15rem;
     color: #98a1aa;
     letter-spacing: 0.03em;
 }
@@ -243,8 +243,10 @@
 
 .zanju-dh-tile {
     position: relative;
-    width: 44rem;
-    height: 44rem;
+    /* Square, and exactly the icon box: the numbers are overlaid rather than laid out, so the
+       tile has no reason to be any bigger than the art it shows. */
+    width: 48rem;
+    height: 48rem;
     margin: 2rem;
     cursor: pointer;
     /* Every tile carries the border, transparent until it is the fitted one. Adding the
@@ -253,27 +255,48 @@
     border-radius: 3rem;
 }
 
+/* 48x48 is what `gui/maps/icons/artefact` ships for all but a couple of directives, and it is
+ * the only size they ship: the larger `gui/maps/shop/artefacts` assets are 4:3 marketing art
+ * rather than square icons, so there is no higher-resolution source to scale up from. The box
+ * is therefore fixed at the native size of the overwhelming majority.
+ *
+ * `contain` fits the handful of outliers to it -- 43x43 up, 52x52 down -- rather than leaving
+ * them centred at odd sizes. A uniform grid is worth more than pixel-exactness on a few tiles,
+ * and the scaling is small in either direction; everything else is drawn 1:1.
+ *
+ * rem still scales the whole window with the interface-scale setting; this only fixes what the
+ * mod itself asks for. */
 .zanju-dh-icon {
-    width: 44rem;
-    height: 44rem;
+    width: 48rem;
+    height: 48rem;
     background-repeat: no-repeat;
     background-position: center;
-    /* `contain` keeps the game's own artefact art from being cropped at this size. */
     background-size: contain;
-    text-align: center;
-    line-height: 44rem;
-    color: #d7dbe0;
 }
 
-/* Count sits in the corner of the tile, like the game's own stack counters. */
-.zanju-dh-badge {
+/* How much of the perk this directive would add, on tiles in the "boost perk to 100%"
+   section. Top-right, diagonally opposite the count. */
+.zanju-dh-gain {
     position: absolute;
     right: 0;
-    bottom: 0;
-    min-width: 16rem;
+    top: 0;
     padding: 0 3rem;
-    text-align: right;
-    font-size: 13rem;
+    font-size: 15rem;
+    line-height: 18rem;
+    color: #9ccb68;
+    background: rgba(0, 0, 0, 0.78);
+    border-radius: 3rem;
+}
+
+/* Depot stock, bottom-left. Both numbers carry a backing panel so they stay legible over
+   whatever the artwork happens to be behind them. */
+.zanju-dh-badge {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    padding: 0 3rem;
+    font-size: 15rem;
+    line-height: 18rem;
     color: #ffffff;
     background: rgba(0, 0, 0, 0.78);
     border-radius: 3rem;
@@ -286,11 +309,12 @@
     display: none;
     position: absolute;
     left: 50%;
-    bottom: 46rem;
+    /* Clears the tile it belongs to (48rem plus its 2rem border). */
+    bottom: 52rem;
     transform: translateX(-50%);
     padding: 2rem 6rem;
     white-space: nowrap;
-    font-size: 13rem;
+    font-size: 15rem;
     color: #e8ebee;
     background: rgba(0, 0, 0, 0.93);
     border: 1rem solid rgba(255, 255, 255, 0.2);
@@ -304,6 +328,12 @@
 .zanju-dh-tile-equipped {
     border-color: #ffffff;
     background: rgba(255, 255, 255, 0.14);
+}
+
+/* Reward-only, so there is nothing a click can do: no pointer, to match. The art still
+   brightens on hover so it stays identifiable. */
+.zanju-dh-tile-inert {
+    cursor: default;
 }
 
 /* Owned none of it: dimmed, because it is the one tile that cannot be fitted. Clicking it
@@ -324,7 +354,7 @@
 /* Placeholder for a section with nothing usable on the current tank. */
 .zanju-dh-empty {
     opacity: 0.45;
-    font-size: 13rem;
+    font-size: 15rem;
     padding: 2rem 0 2rem 2rem;
 }
 
