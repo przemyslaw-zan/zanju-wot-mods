@@ -1,0 +1,8 @@
+﻿# Сокращения едениц времени (укороченные, так как мало места)
+UNIT_DAY_SHORT: "д"
+UNIT_HOUR_SHORT: "ч"
+UNIT_MINUTE_SHORT: "м"
+UNIT_SECOND_SHORT: "с"
+
+# Подсказки
+TOOLTIP_ENDS_ON: "Заканчивается:"
