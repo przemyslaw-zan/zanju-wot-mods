@@ -91,7 +91,11 @@ def run_js_suite(mod_name, tests_dir, verbose, strict):
         warning(message)
         return SKIPPED
 
-    cmd = [node, "--test", tests_dir]
+    # Explicit file list rather than the tests/ directory. Node 18 reads a directory argument
+    # as "discover test files here", but Node 20+ reads it as a module path and dies with
+    # MODULE_NOT_FOUND before running a single test. Naming the files works on every version,
+    # and they are already discovered to decide whether this suite runs at all.
+    cmd = [node, "--test"] + find_test_files(tests_dir, JS_TEST_PATTERN)
     return PASSED if run_command(cmd, cwd=os.path.join(MODS_DIR, mod_name), verbose=verbose) == 0 else FAILED
 
 
