@@ -16,6 +16,7 @@ Reference language `en` defines 5 strings. Translations are community-maintained
 | Language | Coverage | Missing |
 | --- | --- | --- |
 | `pl` | 100% (5/5) | 0 |
+| `ru` | 100% (5/5) | 0 |
 
 ## Install And Use
 

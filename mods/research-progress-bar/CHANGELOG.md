@@ -1,6 +1,10 @@
 Changelog
 =========
 
+## 1.3.1 (4 August 2026)
+
+- Updated Russian translations. Thank you [@AVPromo](https://github.com/AVPromo)!
+
 ## 1.3.0 (26 July 2026)
 
 - New **"Click to research or purchase"** setting (on by default) makes the bar interactive: clicking a marker performs the matching action for that item.
