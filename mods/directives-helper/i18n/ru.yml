@@ -8,7 +8,7 @@ CATEGORY_EQUIPMENT: "Оборудование"
 
 # Надписи
 LABEL_AUTO_RESUPPLY: "Автоматическое пополнение"
-LABEL_RESUPPLY_WARNING: "Последняя инструкцмя.После боя сработает автопополнение"
+LABEL_RESUPPLY_WARNING: "Последняя инструкцмя. После боя сработает автопополнение"
 LABEL_SHOW_UNOWNED: "Показывать неподходящие"
 LABEL_BUY_HINT: "кликните, чтобы купить"
 LABEL_BUY_UNAVAILABLE: "покупка недоступна"
