@@ -1,0 +1,17 @@
+# Окно
+WINDOW_TITLE: "Помощник по предбоевым инструкциям"
+
+# Категории
+CATEGORY_CREW_IMPROVE: "Усиление эффекта от навыка"
+CATEGORY_CREW_GRANT: "Увеличение навыка до 100%"
+CATEGORY_EQUIPMENT: "Оборудование"
+
+# Надписи
+LABEL_AUTO_RESUPPLY: "Автоматическое пополнение"
+LABEL_RESUPPLY_WARNING: "Последняя инструкцмя.После боя сработает автопополнение"
+LABEL_SHOW_UNOWNED: "Показывать неподходящие"
+LABEL_BUY_HINT: "кликните, чтобы купить"
+LABEL_BUY_UNAVAILABLE: "покупка недоступна"
+LABEL_NO_VEHICLE: "Танк не выбран"
+LABEL_EMPTY: "Нет инструкций"
+LABEL_NONE_AVAILABLE: "Нет доступных для этого танка"
