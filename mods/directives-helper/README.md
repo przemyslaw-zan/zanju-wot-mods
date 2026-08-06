@@ -1,5 +1,7 @@
 # Zanju's Directives Helper
 
+![Mod showcase image](./images/mod.png)
+
 ### Fit any directive your tank can take, from one small garage window.
 
 The game will happily tell you about directives one panel at a time, several clicks deep.
@@ -39,11 +41,11 @@ mounted — that is the game's own accounting, not a miscount here.
 
 ## Translations
 
-Reference language `en` defines 12 strings. Translations are community-maintained and may lag behind; see [Translating](../../docs/translating.md) to add or update one, then regenerate this table with `zwm lint i18n`.
+Reference language `en` defines 10 strings. Translations are community-maintained and may lag behind; see [Translating](../../docs/translating.md) to add or update one, then regenerate this table with `zwm lint i18n`.
 
 | Language | Coverage | Missing |
 | --- | --- | --- |
-| `pl` | 58% (7/12) | 5 (+3 unknown) |
+| `pl` | 100% (10/10) | 0 |
 
 ## Install And Use
 
@@ -84,30 +86,89 @@ inventory's equipment section rather than having one of their own.
 - **Fitted** — `vehicle.battleBoosters.installed`.
 - **Fits this tank** — `item.isAffectsOnVehicle(vehicle)`, which validates crew directives
   against the crew's skills and equipment directives against the mounted optional devices.
-- **What a grant-perk directive is worth** —
-  `Tankman.crewMemberRealSkillLevel(vehicle, item.getAffectedSkillName(), shouldIncrease=False)`,
-  the same averaging the game uses for its own crew readouts, subtracted from
-  `tankmen.MAX_SKILL_LEVEL`. `shouldIncrease=False` matters: the default folds a fitted
-  booster's own contribution into the level, which would measure the gain against a value that
-  already includes the thing being offered.
+- **What a grant-perk directive is worth** — how far short of a full perk the crew currently
+  is, since fitting one takes it the rest of the way. See below; it is the one figure here the
+  mod works out rather than reads.
 - **Auto-resupply** — `vehicle.isAutoBattleBoosterEquip()`, a bit in the vehicle's inventory
   settings (`VEHICLE_SETTINGS_FLAG.AUTO_EQUIP_BOOSTER`), so it is per vehicle rather than
   account-wide. Toggling it runs `VehicleAutoBattleBoosterEquipProcessor`, the same processor
   behind the game's own checkbox on the tank setup screen.
 
+### Working out the `+N%`
+
+A perk does not belong to a tankman as far as the readout is concerned — it belongs to the
+crew. `Tankman.crewMemberRealSkillLevel` averages the perk over every seat it applies to, and
+a seat that has not trained it counts as a zero in that average rather than being left out.
+Two loaders where one has Melee Master at 100% and the other has never touched it is a crew at
+50%, not 100%.
+
+That is the number the mod starts from, read with `shouldIncrease=False`. The flag matters:
+the default folds a fitted booster's own contribution into the level, which would measure the
+gain against a value that already includes the thing being offered.
+
+Fitting the directive takes that average to a full 100%, so the gain is simply the remainder —
+`MAX_SKILL_LEVEL` minus the current level, rounded up.
+
+The tempting mistake is to think the directive only reaches the seats that could learn the perk
+themselves, and so scales down on a crew where some tankmen are already carrying the maximum
+number of perks. It does not: the effect is full whatever the crew looks like. The client's own
+code says the same thing — follow `crewMemberRealSkillLevel` into `_boostSkill` with a booster
+installed and it takes the branch `MAX_SKILL_LEVEL if skillLevel <= 0 else skillLevel`, which
+promotes *every* seat sitting at zero to a full perk, gated only on at least one seat being able
+to use the booster at all (`tankmansCantUseBoosterCnt != len(tankmenSkillLevels)`).
+
+The perk cap does still decide whether a directive is worth anything on this tank, but that
+question is asked and answered before the gain is: `isAffectsOnVehicle` is
+`any(TankmanDescr.validateSkillEquipment(...))` across the crew, and `validateSkill` raises on
+`len(self.skills) >= NPS.MAX_MAJOR_PERKS` — so a directive no tankman has room for is filtered
+out of the window entirely rather than listed with a reduced figure.
+
 ### When the window shows
 
-It follows the garage's loadout panel — the bar holding shells, consumables, optional devices
-and directives — by patching `LoadoutPresenter`, which every mode's panel subclasses. The
-panel's presenter is alive exactly while the bar is on screen, and its groups controller
-(`_getGroupController._getGroups()`) lists the sections the bar carries. The window appears
-when a panel is up and `battleBoosters` is one of its sections.
+Three conditions, from three different sources, and the window needs all of them.
 
-That is deliberately not a check against the lobby's route. Routes are mode-prefixed —
-Onslaught's garage is `subScope/subLayer/comp7Light/hangar/{root}` — so a route allowlist
-silently omits every mode nobody thought to add, and says nothing about whether that mode
-offers directives at all. Asking the panel covers modes that decide at runtime: Fun Random
-enables directives per sub-mode, Last Stand per panel preset.
+**Does this mode offer directives at all?** It follows the garage's loadout panel — the bar
+holding shells, consumables, optional devices and directives — by patching `LoadoutPresenter`,
+which every mode's panel subclasses. The panel's presenter is alive exactly while the bar is on
+screen, and its groups controller (`_getGroupController._getGroups()`) lists the sections the
+bar carries; the answer is yes when a panel is up and `battleBoosters` is one of its sections.
+This covers modes that decide at runtime: Fun Random enables directives per sub-mode, Last
+Stand per panel preset.
+
+**Is the garage what the player is actually looking at?** The panel cannot answer this, and
+that is not a flaw in it — opening the playlist editor, the directives screen or the equipment
+screen does not tear the garage down, so the panel underneath stays alive and quite correctly
+goes on reporting that this mode offers directives. What changes is the lobby's visible route,
+which is the client's own record of the current screen:
+`LobbyStateMachine.onVisibleRouteChanged` carries the state that just became visible, and its
+`getStateID()` is the route path — the same string the client writes to `python.log` as
+"Visible route changed to: …". The window shows when nothing is layered over the garage:
+
+| Route | |
+| --- | --- |
+| `subScope/subLayer/hangar/{root}` | shown |
+| `subScope/subLayer/comp7Light/hangar/{root}` | shown — Onslaught |
+| `subScope/subLayer/hangar/editVehiclePlaylists` | hidden |
+| `subScope/subLayer/hangar/loadout/instructions` | hidden |
+| `subScope/subLayer/hangar/loadout/equipment` | hidden |
+
+Read as a suffix rather than matched against a list. An allowlist would silently omit every
+mode nobody thought to add, since each one prefixes the route with its own subtree; and the
+client's own consumers of this event compare against `getStateByCls(DefaultHangarState)`, which
+has the same problem from the other end — each mode's garage is a separately generated state
+class, so that test answers False everywhere but the default hangar.
+
+**Is there a tank to describe?** Everything in the window is about the selected vehicle, so a
+snapshot without one — no tank in the garage, or a client that would not answer yet — has
+nothing true to draw and the window stays hidden rather than showing a frame of placeholders.
+It is written to `python.log` when it happens, once per transition, because in practice it
+should only ever be the moment before the garage finishes assembling; a line that is not
+immediately followed by the window appearing is a bug.
+
+All three default to "shown" until their source first reports, so the window is never stranded
+hidden by a signal that has not arrived yet — the lobby state machine in particular belongs to
+the lobby app, so it is a different object after every teardown and the subscription is
+re-made on each hangar build.
 
 ### How the window is drawn
 

@@ -91,14 +91,12 @@ function snapshotFixture(overrides = {}) {
                 equipment: 'Equipment',
                 crewImprove: 'Improve perk effect',
                 crewGrant: 'Boost perk to 100%',
-                noneAvailable: 'None available for this tank',
+                sectionEmpty: 'No directives meeting criteria',
                 autoResupply: 'Auto-resupply',
-                resupplyWarning: 'Your last one. Auto-resupply will buy a replacement after the battle.',
+                resupplyWarning: 'Your last one. Auto-resupply will buy another after the battle.',
                 showUnowned: 'Show unowned',
                 buyHint: 'click to buy',
                 buyUnavailable: 'purchase not available',
-                noVehicle: 'No vehicle selected',
-                empty: 'No directives owned',
             },
             categories: [
                 {
@@ -223,7 +221,7 @@ describe('renderBody', () => {
         const body = render(snapshotFixture({ resupplyWarning: true }));
         const warning = body.querySelector('.zanju-dh-warning');
         assert.ok(warning, 'the warning should be shown');
-        assert.match(warning.querySelector('.zanju-dh-warn-tip').textContent, /buy a replacement/);
+        assert.match(warning.querySelector('.zanju-dh-warn-tip').textContent, /buy another/);
     });
 
     test('the warning mark is drawn, not typed', () => {
@@ -315,7 +313,7 @@ describe('renderBody', () => {
         const row = render(snapshotFixture({ autoResupply: null })).querySelector('.zanju-dh-auto');
         assert.equal(row._zanjuDhAutoToggle, undefined);
         assert.doesNotMatch(row.className, /zanju-dh-clickable/);
-        assert.match(row.textContent, /No vehicle selected/);
+        assert.equal(row.textContent, '');
     });
 
     test('keeps an empty section visible with a placeholder', () => {
@@ -325,7 +323,7 @@ describe('renderBody', () => {
         snapshot.categories[2].total = 0;
         const body = render(snapshot);
         assert.equal(body.querySelectorAll('.zanju-dh-category-name').length, 3);
-        assert.match(body.querySelector('.zanju-dh-empty').textContent, /None available/);
+        assert.match(body.querySelector('.zanju-dh-empty').textContent, /No directives meeting criteria/);
     });
 
     test('tiles carry the id needed to fit them', () => {
@@ -372,14 +370,16 @@ describe('renderBody', () => {
         assert.match(tile.className, /zanju-dh-tile-equipped/);
     });
 
-    test('says so when no vehicle is selected', () => {
+    test('draws no auto-resupply state when no vehicle is selected', () => {
+        // Python hides the window outright in this case, so the row only has to stay silent
+        // rather than say anything: it is on screen for at most one frame.
         const body = render(snapshotFixture({ hasVehicle: false, autoResupply: null }));
-        assert.match(body.querySelector('.zanju-dh-auto').textContent, /No vehicle selected/);
+        assert.equal(body.querySelector('.zanju-dh-auto').textContent, '');
     });
 
-    test('says so when the depot is empty', () => {
+    test('says so when the snapshot could not be built', () => {
         const body = render(snapshotFixture({ categories: [] }));
-        assert.match(body.textContent, /No directives owned/);
+        assert.match(body.textContent, /Directives unavailable/);
     });
 
     test('re-rendering replaces the previous rows', () => {
@@ -596,5 +596,36 @@ describe('model lookup', () => {
     test('tick does nothing without a model', () => {
         globalThis.window = { subViews: { ids: () => [], get: () => null } };
         assert.doesNotThrow(() => tick());
+    });
+
+    test('re-finding it does not rescan every sub-view', () => {
+        // Once model pushes are wired up this runs on every write anywhere in the document,
+        // so the repeat lookup has to stay a single get() rather than a full scan.
+        const data = { snapshot: '{}' };
+        let scans = 0;
+        globalThis.window = {
+            subViews: {
+                ids: () => { scans += 1; return [1, 2, 3]; },
+                get: (id) => (id === 3 ? { model: { zanjuDhWindow: data } } : { model: {} }),
+            },
+        };
+        assert.equal(findDataModel(), data);
+        assert.equal(scans, 1);
+        assert.equal(findDataModel(), data);
+        assert.equal(scans, 1, 'the second lookup must not enumerate the sub-views again');
+    });
+
+    test('falls back to a scan when the remembered sub-view loses it', () => {
+        const data = { snapshot: '{}' };
+        let carrier = 3;
+        globalThis.window = {
+            subViews: {
+                ids: () => [1, 2, 3],
+                get: (id) => (id === carrier ? { model: { zanjuDhWindow: data } } : { model: {} }),
+            },
+        };
+        assert.equal(findDataModel(), data);
+        carrier = 1;
+        assert.equal(findDataModel(), data, 'a moved model must still be found');
     });
 });

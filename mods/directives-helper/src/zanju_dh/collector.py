@@ -222,6 +222,11 @@ def _describe(item, vehicle, equipped_int_cds, show_unowned, logger):
 def skill_gain_from_level(level):
     """Percent a "boost perk to 100%" directive would add, given the crew's current level.
 
+    The perk's level is an average across the seats it applies to, and fitting the directive
+    takes that average to a full 100% however many of those seats were contributing to it --
+    so the gain is simply the remainder. It does not matter how many crew members already have
+    the perk, nor whether any of them has room to learn another one.
+
     `tankmen.NO_SKILL` is -1, meaning the crew has none of the skill at all rather than zero
     percent of it; both give a full 100% gain, so a negative level is floored to zero rather
     than added to the total.

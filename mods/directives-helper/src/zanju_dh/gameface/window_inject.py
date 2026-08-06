@@ -21,7 +21,7 @@ import logging
 
 from frameworks.wulf import ViewModel
 
-from .. import collector, config, loadout_panel
+from .. import collector, config, loadout_panel, route_gate
 from ..localization import get_text as _loc
 
 _MODULE_URL = 'coui://gui/gameface/mods/zanju_directives/window.js'
@@ -47,6 +47,17 @@ _patched = []
 # updates, which is how a torn-down view leaves the list.
 _models = []
 
+# The window is shown only when all three of these hold: the loadout bar currently offers the
+# directives slot, the garage is what the player is actually looking at, and the snapshot
+# describes a tank we could actually read. They arrive from unrelated callbacks, so each is
+# remembered and the pushed value is their conjunction -- otherwise whichever fired last would
+# decide on its own. The first two are genuinely different questions: the panel stays alive
+# underneath a screen drawn over the garage and keeps answering yes, which is why it cannot
+# also serve as the second test.
+_panel_visible = True
+_route_visible = True
+_snapshot_usable = True
+
 
 class _WindowDataModel(ViewModel):
     """Snapshot plus remembered window state, read by window.js."""
@@ -68,8 +79,11 @@ class _WindowDataModel(ViewModel):
         self._addBoolProperty('folded', self._state['folded'])
         # Property indices are assigned in declaration order across every type, which is how
         # the setters below address them. A view built while the loadout panel is already up
-        # starts visible; otherwise the panel's own arrival turns it on.
-        self._addBoolProperty('visible', loadout_panel.is_visible())
+        # and a tank is readable starts visible; otherwise whichever of the two is still
+        # missing turns it on when it arrives.
+        self._addBoolProperty(
+            'visible',
+            loadout_panel.is_visible() and route_gate.is_visible() and _snapshot_usable)
         # Appended after `visible` on purpose: the indices above are addressed by number, so
         # inserting anything earlier would silently repoint every setter.
         self._addNumberProperty('width', self._state['width'])
@@ -173,6 +187,10 @@ def _build_payload(logger):
 
     The labels travel with the data so translation stays on the Python side, where the
     localization bundle lives; the JS only ever renders what it is handed.
+
+    Returns `(payload, usable)`. Unusable means there is no tank to describe -- no vehicle
+    selected, a client that would not answer yet, or a snapshot that failed to serialise -- and
+    the caller hides the window rather than draw a frame with nothing true in it.
     """
     import json
     try:
@@ -184,19 +202,40 @@ def _build_payload(logger):
             'equipment': _loc('CATEGORY_EQUIPMENT'),
             'crewImprove': _loc('CATEGORY_CREW_IMPROVE'),
             'crewGrant': _loc('CATEGORY_CREW_GRANT'),
-            'noneAvailable': _loc('LABEL_NONE_AVAILABLE'),
+            'sectionEmpty': _loc('LABEL_SECTION_EMPTY'),
             'autoResupply': _loc('LABEL_AUTO_RESUPPLY'),
             'resupplyWarning': _loc('LABEL_RESUPPLY_WARNING'),
             'showUnowned': _loc('LABEL_SHOW_UNOWNED'),
             'buyHint': _loc('LABEL_BUY_HINT'),
             'buyUnavailable': _loc('LABEL_BUY_UNAVAILABLE'),
-            'noVehicle': _loc('LABEL_NO_VEHICLE'),
-            'empty': _loc('LABEL_EMPTY'),
         }
-        return json.dumps(snapshot)
+        # `autoResupply` is a bool for any tank sitting in the garage and None otherwise, which
+        # makes it the single field that says whether a vehicle was read at all -- every part
+        # of the window is about the selected tank, so without one there is nothing to show.
+        usable = isinstance(snapshot.get('autoResupply'), bool)
+        if not usable:
+            _log_unusable(snapshot, logger)
+        return json.dumps(snapshot), usable
     except Exception:
         logger.exception('Failed to serialise the directives snapshot')
-        return '{}'
+        return '{}', False
+
+
+def _log_unusable(snapshot, logger):
+    """Record why a snapshot cannot be drawn, at the transition into that state.
+
+    Only ever expected while the garage is still assembling, so a line here that is not
+    immediately followed by the window coming back is the thing worth chasing. Kept to the
+    transition because a stuck state would otherwise write one of these per refresh.
+    """
+    if not _snapshot_usable:
+        return
+    if not snapshot.get('hasVehicle'):
+        reason = 'no vehicle in the garage'
+    else:
+        reason = 'the auto-resupply setting could not be read for {0!r}'.format(
+            snapshot.get('vehicleName'))
+    logger.warning('Hiding the window: %s', reason)
 
 
 def _is_claimed(model, logger):
@@ -389,13 +428,29 @@ def _find_booster(vehicle, int_cd, logger):
 
 def refresh(logger):
     """Rebuild the snapshot and push it to every live window model."""
+    global _snapshot_usable
     if not _models:
         return
-    payload = _build_payload(logger)
+    payload, usable = _build_payload(logger)
     _push(lambda model: model.setSnapshot(payload), logger)
+    _snapshot_usable = usable
+    _apply_visibility(logger)
 
 
 def set_visible(visible, logger):
+    global _panel_visible
+    _panel_visible = bool(visible)
+    _apply_visibility(logger)
+
+
+def set_route_visible(visible, logger):
+    global _route_visible
+    _route_visible = bool(visible)
+    _apply_visibility(logger)
+
+
+def _apply_visibility(logger):
+    visible = _panel_visible and _route_visible and _snapshot_usable
     _push(lambda model: model.setVisible(visible), logger)
 
 
@@ -418,6 +473,11 @@ def _forget(model):
 
 def _on_panel_visibility(visible):
     set_visible(visible, _module_logger)
+
+
+def _on_route_visibility(visible):
+    _module_logger.info('Garage is the visible route: %s', visible)
+    set_route_visible(visible, _module_logger)
 
 
 def _on_panel_update():
@@ -456,6 +516,10 @@ def _bind_events(logger):
             logger.info('Subscribed to vehicle changes')
     except Exception:
         logger.exception('Failed to subscribe to vehicle changes')
+
+    # The lobby state machine belongs to the lobby app, so it is a different object after every
+    # teardown; `install` compares identity and only re-subscribes when it actually changed.
+    route_gate.install(logger, _on_route_visibility)
 
 
 def _unbind_events(logger):
@@ -502,6 +566,9 @@ def install(logger):
     # before our view models do, and missing its arrival would leave the window hidden for the
     # rest of the session.
     loadout_panel.install(logger, _on_panel_visibility, _on_panel_update)
+    # Almost certainly a no-op here -- the lobby app that owns the state machine does not exist
+    # this early -- but it costs nothing and `_bind_events` retries on every hangar build.
+    route_gate.install(logger, _on_route_visibility)
 
     for module_path, class_name in _CANDIDATE_MODELS:
         model_class = _import_model(module_path, class_name, logger)
@@ -530,6 +597,7 @@ def _patch(model_class, gf_mod_inject, logger):
     original = model_class._initialize
 
     def _initialize_with_window(self):
+        global _snapshot_usable
         original(self)
         try:
             if _is_claimed(self, logger):
@@ -542,7 +610,10 @@ def _patch(model_class, gf_mod_inject, logger):
                 styles=[str(_STYLE_URL)],
                 modules=[str(_MODULE_URL)],
             )
-            data_model = _WindowDataModel(_build_payload(logger), config.current())
+            # Seeded before the model is built: `_initialize` reads it to decide whether this
+            # view starts visible, and a hangar that is still assembling has no vehicle yet.
+            payload, _snapshot_usable = _build_payload(logger)
+            data_model = _WindowDataModel(payload, config.current())
             self._addViewModelProperty(str(_DATA_PROPERTY), data_model)
             _models.append(data_model)
             _bind_events(logger)
@@ -554,9 +625,16 @@ def _patch(model_class, gf_mod_inject, logger):
 
 
 def uninstall(logger):
+    global _panel_visible, _route_visible, _snapshot_usable
     _unbind_events(logger)
     loadout_panel.uninstall(logger)
+    route_gate.uninstall(logger)
     del _models[:]
+    # Back to the starting assumption, so a reinstall is not held hidden by what the last
+    # session happened to end on.
+    _panel_visible = True
+    _route_visible = True
+    _snapshot_usable = True
     while _patched:
         model_class, original = _patched.pop()
         try:

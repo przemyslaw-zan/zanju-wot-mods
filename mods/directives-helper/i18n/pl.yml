@@ -1,15 +1,15 @@
 # Window
-WINDOW_TITLE: "Dyrektywy"
+WINDOW_TITLE: "Asystent Dyrektyw"
 
 # Categories
-CATEGORY_CREW_IMPROVE: "Wzmocnij efekt umiejętności"
-CATEGORY_CREW_GRANT: "Przyznaj umiejętność na 100%"
+CATEGORY_CREW_IMPROVE: "Wzmocnij efekt atutu"
+CATEGORY_CREW_GRANT: "Zwiększ atut do 100%"
 CATEGORY_EQUIPMENT: "Wyposażenie"
 
 # Labels
-LABEL_EQUIPPED: "Założona:"
-LABEL_NONE_EQUIPPED: "Brak założonej"
-LABEL_NO_VEHICLE: "Nie wybrano pojazdu"
-LABEL_EMPTY: "Brak dyrektyw"
-LABEL_NONE_AVAILABLE: "Brak dostępnych dla tego pojazdu"
-HINT_DRAG: "Ctrl + przeciągnij, aby przesunąć"
+LABEL_AUTO_RESUPPLY: "Auto-zakup"
+LABEL_RESUPPLY_WARNING: "Twoja ostatnia. Auto-zakup kupi kolejną po bitwie."
+LABEL_SHOW_UNOWNED: "Pokaż nieposiadane"
+LABEL_BUY_HINT: "kliknij aby zakupić"
+LABEL_BUY_UNAVAILABLE: "zakup niedostępny"
+LABEL_SECTION_EMPTY: "Brak dyrektyw spełniających kryteria"

@@ -19,16 +19,23 @@
 
 const ROOT_ID = 'zanju-dh-root';
 const DATA_PROPERTY = 'zanjuDhWindow';
+// The snapshot normally arrives by push (see bindModelPush): this is the backstop for the
+// case where that channel could not be established, and the rate it drops to then.
 const POLL_INTERVAL_MS = 1000;
+const UNPUSHED_POLL_INTERVAL_MS = 250;
 // Flag on the document so the document-level drag listener is registered once, even if this
 // module is evaluated again for another sub-view.
 const DRAG_BOUND_FLAG = '__zanjuDhDragBound';
 const CLICK_BOUND_FLAG = '__zanjuDhClickBound';
+const PUSH_BOUND_FLAG = '__zanjuDhPushBound';
 const DEFAULT_MARGIN_PX = 24;
 // Pointer travel before a press counts as a drag rather than a click on the header.
 const DRAG_THRESHOLD_PX = 4;
 
 let lastSnapshotJson = null;
+// Which sub-view turned out to carry our data model, so the push subscription can name it.
+let dataResId = null;
+let pollTimer = null;
 
 function log(message) {
     // console.log is not forwarded to python.log by the Gameface host; console.error is.
@@ -39,21 +46,66 @@ function unwrap(value) {
     return value && typeof value === 'object' && 'value' in value ? value.value : value;
 }
 
+function modelOn(id) {
+    const view = window.subViews.get(id);
+    const model = view && view.model;
+    return model && model[DATA_PROPERTY] ? model[DATA_PROPERTY] : null;
+}
+
 function findDataModel() {
     // The inject lands on whichever hangar sub-view was free, so locate it by scanning
     // rather than assuming one.
     if (typeof window === 'undefined' || !window.subViews) {
         return null;
     }
-    const ids = window.subViews.ids();
-    for (const id of ids) {
-        const view = window.subViews.get(id);
-        const model = view && view.model;
-        if (model && model[DATA_PROPERTY]) {
-            return model[DATA_PROPERTY];
+    if (dataResId !== null) {
+        // Once pushes are wired up this runs on every model write anywhere in the document,
+        // not just ours, so it has to stay a single lookup rather than a scan of every
+        // sub-view. Falls back to the scan the moment that view stops carrying our model.
+        const known = modelOn(dataResId);
+        if (known) {
+            return known;
         }
     }
+    const ids = window.subViews.ids();
+    for (const id of ids) {
+        const model = modelOn(id);
+        if (model) {
+            dataResId = id;
+            return model;
+        }
+    }
+    dataResId = null;
     return null;
+}
+
+function bindModelPush() {
+    // Python writes the snapshot the moment the depot or the selected tank changes, but a
+    // property write is not an event on this side: without this the window would only notice
+    // on its next poll, which is a visible lag on something as ordinary as switching tanks.
+    // `viewEnv.onDataChanged` is the engine's own signal that a model in this document was
+    // written, and it is what OpenWG's own ModelObserver subscribes to.
+    if (document[PUSH_BOUND_FLAG] || dataResId === null) {
+        return false;
+    }
+    if (typeof engine === 'undefined' || typeof viewEnv === 'undefined') {
+        return false;
+    }
+    try {
+        engine.on('viewEnv.onDataChanged', tick);
+        // Third argument asks for descendants too: the snapshot lives on our child model, not
+        // on the sub-view's own model.
+        viewEnv.addDataChangedCallback('model', dataResId, true);
+        document[PUSH_BOUND_FLAG] = true;
+        // Pushes now carry the updates, so the timer drops back to being a safety net.
+        setPollRate(POLL_INTERVAL_MS);
+        log('subscribed to model updates on sub-view ' + dataResId);
+        return true;
+    } catch (e) {
+        // Never fatal: the poll below still gets there, just later.
+        log('could not subscribe to model updates, falling back to polling (' + e + ')');
+        return false;
+    }
 }
 
 function invokeCommand(data, name, arg) {
@@ -224,9 +276,9 @@ function buildWarnMark(extraClass) {
 function buildAutoResupplyRow(snapshot, texts) {
     const row = el('div', 'zanju-dh-auto');
     if (typeof snapshot.autoResupply !== 'boolean') {
-        // No tank in the garage, or the setting could not be read: state it plainly and offer
-        // no toggle rather than show a guess the click would then act on.
-        row.appendChild(el('span', 'zanju-dh-muted', texts.noVehicle));
+        // No tank in the garage, or the setting could not be read. Python hides the whole
+        // window in that case and logs why, so this is only ever the frame or so before that
+        // reaches us: leave the row empty rather than offer a toggle over a guessed state.
         return row;
     }
 
@@ -279,7 +331,7 @@ function renderBody(body, snapshot, texts) {
         if (!directives.length) {
             // Kept visible so the three sections stay in the same order and place, whatever
             // the selected tank can take.
-            body.appendChild(el('div', 'zanju-dh-empty', texts.noneAvailable));
+            body.appendChild(el('div', 'zanju-dh-empty', texts.sectionEmpty));
             continue;
         }
 
@@ -291,7 +343,11 @@ function renderBody(body, snapshot, texts) {
     }
 
     if (!groups.length) {
-        body.appendChild(el('div', 'zanju-dh-muted', texts.empty));
+        // A real snapshot always carries all three categories, empty ones included, so this is
+        // only reached when the payload has none at all: Python failed to build it and logged
+        // why. Deliberately not localised — that same failure drops the labels too, so a
+        // translated string here could never be the one displayed.
+        body.appendChild(el('div', 'zanju-dh-muted', 'Directives unavailable'));
     }
 }
 
@@ -597,13 +653,11 @@ function texts(snapshot) {
         title: labels.title || 'Directives Helper',
         autoResupply: labels.autoResupply || 'Auto-resupply',
         resupplyWarning: labels.resupplyWarning
-            || 'Your last one. Auto-resupply will buy a replacement after the battle.',
+            || 'Your last one. Auto-resupply will buy another after the battle.',
         showUnowned: labels.showUnowned || 'Show unowned',
         buyHint: labels.buyHint || 'click to buy',
         buyUnavailable: labels.buyUnavailable || 'purchase not available',
-        noVehicle: labels.noVehicle || 'No vehicle selected',
-        empty: labels.empty || 'No directives owned',
-        noneAvailable: labels.noneAvailable || 'None available for this tank',
+        sectionEmpty: labels.sectionEmpty || 'No directives meeting criteria',
         categories: {
             equipment: labels.equipment || 'Equipment',
             crewImprove: labels.crewImprove || 'Improve perk effect',
@@ -628,9 +682,11 @@ function tick() {
         bindDrag(data);
     }
 
+    bindModelPush();
+
     applyPosition(root, data);
 
-    // Only shown on the default garage view, the same rule the research progress bar uses.
+    // Three conditions decide this, all on the Python side; see window_inject.py.
     const visible = unwrap(data.visible);
     root.style.display = visible === false ? 'none' : 'flex';
 
@@ -653,10 +709,20 @@ function tick() {
     renderBody(root.querySelector('.zanju-dh-body'), snapshot, labels);
 }
 
+function setPollRate(intervalMs) {
+    if (pollTimer !== null) {
+        clearInterval(pollTimer);
+    }
+    pollTimer = setInterval(tick, intervalMs);
+}
+
 function start() {
     log('window.js loaded');
+    // Starts at the faster rate and drops to the backstop rate the moment pushes are wired
+    // up, which is usually on the first tick — but not if the sub-views are not up yet, and
+    // that is exactly the case a rate fixed at start-up would get wrong.
+    setPollRate(UNPUSHED_POLL_INTERVAL_MS);
     tick();
-    setInterval(tick, POLL_INTERVAL_MS);
 }
 
 // Auto-start only inside the game document; under the test runner there is no Gameface view

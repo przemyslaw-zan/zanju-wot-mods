@@ -63,6 +63,28 @@ and `directives-helper` are covered; `research-progress-bar` has one suite so fa
   - Needs an in-game test cycle per target language.
 - Keep the Malgun Gothic fallback as the shipped baseline until the WoT-font approach is validated.
 
+## Hangar Loadout Bar Blanking (unfinished investigation)
+
+The original symptom is still unexplained: researching a field modification from the progress
+bar's overlay makes the hangar's ammo/loadout bar disappear until the vehicle is switched. The
+existing refresh recipe (see [Events And Callbacks](docs/reference/events-and-callbacks.md))
+ran and reported success in the log, and the panel blanked anyway — so the recipe is either
+insufficient for that flow or fixing the wrong thing.
+
+- `zanju_rpb/panel_watch.py` was written to settle it and has never produced a reading. It
+  samples the panel either side of a repair and on a 1s timer, and logs only when its answer
+  changes; a `WARNING` line names which of three stories is true (stale vehicle copy / sections
+  emptied / sections gone). **Reproduce the blanking once with it enabled and read the log.**
+- `ENABLED = True` at the top of that module is the switch. It ships enabled today. Decide
+  deliberately: leave it on until the bug is caught, or flip it off and lose the diagnostic.
+  It only discovers panels at repair time, so it costs nothing outside a garage.
+- Candidate lead if the probe exonerates the stale copy: the repair fires
+  `wrapper.onItemUpdated(None)`, which lands on `_updateAmmunitionGroupsController(recreate=False)`
+  and updates the section models *in place*. `InteractingItem` also has `onAcceptComplete`,
+  whose handler passes `recreate=True` and rebuilds them — the path the game itself uses after
+  an accepted change. A field-mod research can change the panel's shape (it is how the second
+  loadout is unlocked), so a full recreate may be the correct repair.
+
 ## Research Progress Bar Dynamic Coloring
 
 - Done so far: marker **icons**, Field Mods **level labels**, and tooltip **prerequisite icons** are recoloured at runtime to their marker's state via a single per-state colour table in `ResearchProgressBarIconTint.as` (multiply `ColorTransform` on each `Bitmap`, not the shared `BitmapData`; prestige badges excluded). The exact-vs-brighter design question is settled as **exact dash colour** (constants sampled from the dash PNGs: default `0x9CA4AB`, green `0x9CCB68`, yellow `0xE4B55A`, white `0xF6F1E7`).

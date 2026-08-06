@@ -42,6 +42,38 @@ its unwrapped value differs across builds, so try both.
 That is how a widget persists state: the JS reports e.g. its dragged position through a
 command, Python stores it, and the next push re-applies the same coordinates.
 
+## Hearing about changes from Python
+
+The other direction has a trap. Python writing a view-model property does **not** raise an
+event on the JS side, so the obvious implementation is a `setInterval` that re-reads the model
+— and that is a poll, with the latency to match. A widget on a one-second timer looks visibly
+broken next to the game's own panels: the player switches tank, the ammo bar updates at once,
+and the widget follows a beat later.
+
+The engine does have a push signal. Register interest in a sub-view's model and listen for the
+document's data-changed event:
+
+```js
+engine.on('viewEnv.onDataChanged', onChanged);
+// Third argument covers descendants — a mod's own child model, not just the sub-view's.
+viewEnv.addDataChangedCallback('model', resId, true);
+```
+
+This is what `net.openwg.gameface`'s own `res/gui/gameface/mods/libs/model.js` (`ModelObserver`)
+does, and it is the reference for the exact call shapes. Two things it does not spell out:
+
+- **The event is document-wide.** The callback registration names one `resId`, but the
+  `engine.on` handler fires for *any* registered write in that document, at whatever rate the
+  document happens to change. So the handler must be cheap. Anything that scans every sub-view
+  to locate its own model has to remember which one it found and re-check that one directly,
+  falling back to the scan only when it comes up empty — otherwise the push costs more than the
+  poll it replaced.
+- **Keep the interval as a backstop, and make its rate adaptive.** `engine` and `viewEnv` are
+  not guaranteed to be there, and the subscription cannot be made until the sub-view carrying
+  the model exists — which is often *not* true on the first tick. Poll fast until the
+  subscription succeeds, then drop to a slow safety-net rate. A rate decided once at start-up
+  gets this backwards and stays fast forever.
+
 ## Pointer events: the big one
 
 **The widget root must be `pointer-events: none`.** The garage listens for drag-to-rotate on
