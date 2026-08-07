@@ -14,3 +14,4 @@ Use it when you need import paths, runtime locations, API entry points, or versi
 - [Research Progress Bar UI](research-progress-bar-ui.md)
 - [Gameface Mod Widgets](gameface-mod-widgets.md)
 - [WoT Plus Subscriptions](wot-plus-subscriptions.md)
+- [Directives And Battle Boosters](directives-and-battle-boosters.md)
