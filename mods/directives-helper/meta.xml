@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<root>
+    <name>Zanju's Directives Helper</name>
+    <id>zanju.directiveshelper</id>
+    <version>1.0.0</version>
+    <description>A movable garage window listing every directive your selected tank can take, grouped by what it will do, with click to fit or remove one and a toggle for automatic resupply.</description>
+</root>

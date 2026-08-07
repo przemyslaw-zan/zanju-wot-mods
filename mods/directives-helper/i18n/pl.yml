@@ -1,0 +1,15 @@
+# Window
+WINDOW_TITLE: "Asystent Dyrektyw"
+
+# Categories
+CATEGORY_CREW_IMPROVE: "Wzmocnij efekt atutu"
+CATEGORY_CREW_GRANT: "Zwiększ atut do 100%"
+CATEGORY_EQUIPMENT: "Wyposażenie"
+
+# Labels
+LABEL_AUTO_RESUPPLY: "Auto-zakup"
+LABEL_RESUPPLY_WARNING: "Twoja ostatnia. Auto-zakup kupi kolejną po bitwie."
+LABEL_SHOW_UNOWNED: "Pokaż nieposiadane"
+LABEL_BUY_HINT: "kliknij aby zakupić"
+LABEL_BUY_UNAVAILABLE: "zakup niedostępny"
+LABEL_SECTION_EMPTY: "Brak dyrektyw spełniających kryteria"

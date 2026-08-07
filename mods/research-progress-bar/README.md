@@ -43,7 +43,7 @@ Reference language `en` defines 83 strings. Translations are community-maintaine
 | Language | Coverage | Missing |
 | --- | --- | --- |
 | `pl` | 100% (83/83) | 0 |
-| `ru` | 77% (64/83) | 19 |
+| `ru` | 100% (83/83) | 0 |
 
 ## Install And Use
 

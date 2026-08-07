@@ -82,6 +82,19 @@ class MyMod(object):
 
 ## Notes
 
+- **`g_currentVehicle` throws your subscription away on every lobby teardown.** It extends
+  `_CachedVehicle`, whose `destroy()` calls `self._eManager.clear()` — that empties `onChanged`
+  and `onChangeStarted` for *every* listener, mods included, and the singleton is then re-`init()`ed
+  for the next lobby. A handler attached once at mod load is silently gone afterwards, so
+  subscribe on each hangar build rather than behind a "bound once" latch. `Event.__iadd__`
+  ignores a delegate it already holds, so re-binding is free; `x not in event` works too, since
+  `Event` subclasses `list`, and is worth logging when it fires.
+  - The failure is quietly asymmetric and easy to misread: `g_playerEvents` survives, so
+    inventory-driven refreshes keep working while vehicle-switch refreshes stop. The symptom
+    reads as "switching tanks doesn't update, but touching an item does".
+  - Where one exists, a hook owned by the view is sturdier than any subscription:
+    `LoadoutPresenter._updateAmmunitionGroupsController` fires on tank switch, setup switch and
+    item install, and cannot outlive or fall behind the panel it belongs to.
 - **A subscription's own expiry timestamp passing does not mean the client knows it ended.**
   The client only learns premium ended when the server pushes a new premium mask, so the
   header view model keeps reporting `state=Active` past `expiryTime`. Measured live on EU

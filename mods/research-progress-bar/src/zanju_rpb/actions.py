@@ -44,6 +44,7 @@ from helpers import dependency
 from skeletons.gui.shared import IItemsCache
 
 from . import collector as _collector_api
+from . import panel_watch
 from .constants import (
     MARKER_CLICK_ACTION_FIELD_MOD,
     MARKER_CLICK_ACTION_FIELD_MOD_PICK,
@@ -509,6 +510,11 @@ def _refresh_hangar_loadout_bar(current_vehicle):
     only wrappers holding the current vehicle are touched.
     """
     try:
+        # Bracketing the repair is the point: this is the moment the panel is known to blank,
+        # and the probe logs only on a change, so a line here means this call did it. The only
+        # place the probe is allowed to look for panels, since it is already click frequency --
+        # the same reason the wrapper scan below is affordable here.
+        panel_watch.note_all('before loadout bar repair', _logger, discover=True)
         items = dependency.instance(IItemsCache).items
         refreshed = 0
         for wrapper in _get_loadout_wrappers():
@@ -529,6 +535,7 @@ def _refresh_hangar_loadout_bar(current_vehicle):
                 _logger.exception('Failed to refresh an InteractingItem wrapper')
 
         _logger.info('Refresh: refreshed %s loadout bar wrapper(s)', refreshed)
+        panel_watch.note_all('after loadout bar repair', _logger)
     except Exception:
         _logger.exception('Failed to refresh hangar loadout bar')
 

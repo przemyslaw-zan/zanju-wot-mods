@@ -26,12 +26,20 @@ Planned; do it on the mainline as its own change (not on `premium-time`) once th
 
 ## Testing Backlog
 
-Scaffolding is in place (`zwm test`, `testing/`, see [Testing](docs/testing.md)); only
-`premium-time` declares tests so far.
+Scaffolding is in place (`zwm test`, `testing/`, see [Testing](docs/testing.md)). `premium-time`
+and `directives-helper` are covered; `research-progress-bar` has one suite so far.
 
-- Add `mods/research-progress-bar/tests/`. Its runtime does not import standalone the way premium-time's does — `constants.py` pulls in `gui.Scaleform.daapi.settings.views` at module scope — so the first test needs client stub modules added to `GAME_STUB_MODULES` in `testing/zwm_test_env.py`. Good first targets: the `config.py` normalizers (mode/bool coercion, legacy-key migration), `mode_state.py`, and the percent/label formatting in `scaleform/modes.py`. Skip `collector.py`: faking enough of the client to reach it would encode more assumptions than the tests verify.
-- Switch the CI step to `zwm test --all --strict` once a toolchain image containing Node has been published to `:latest`, so a missing Node fails the run instead of silently skipping the JavaScript suites.
-- When the shared `localization.py` lands (see above), move its tests to the canonical copy so the parser is covered once rather than per mod.
+- Broaden `mods/research-progress-bar/tests/`. `panel_watch.py` is tested because it keeps every
+  client import inside a function; most of the mod does not, and `constants.py` pulls in
+  `gui.Scaleform.daapi.settings.views` at module scope — so reaching the rest needs client stub
+  modules added to `GAME_STUB_MODULES` in `testing/zwm_test_env.py`. Good next targets: the
+  `config.py` normalizers (mode/bool coercion, legacy-key migration), `mode_state.py`, and the
+  percent/label formatting in `scaleform/modes.py`. Skip `collector.py`: faking enough of the
+  client to reach it would encode more assumptions than the tests verify.
+  - Worth applying deliberately when splitting modules: "no client import at module scope" is
+    what decides whether something can be tested at all.
+- When the shared `localization.py` lands (see above), move its tests to the canonical copy so the
+  parser is covered once rather than per mod.
 
 ## CI / Toolchain Backlog
 
@@ -54,6 +62,35 @@ Scaffolding is in place (`zwm test`, `testing/`, see [Testing](docs/testing.md))
   - Add a graceful chain (WoT font -> Malgun Gothic -> `_sans`) so a wrong/missing name degrades instead of showing boxes.
   - Needs an in-game test cycle per target language.
 - Keep the Malgun Gothic fallback as the shipped baseline until the WoT-font approach is validated.
+
+## Hangar Loadout Bar Blanking (unfinished investigation)
+
+The original symptom is still unexplained: researching a field modification from the progress
+bar's overlay makes the hangar's ammo/loadout bar disappear until the vehicle is switched. The
+existing refresh recipe (see [Events And Callbacks](docs/reference/events-and-callbacks.md))
+ran and reported success in the log, and the panel blanked anyway — so the recipe is either
+insufficient for that flow or fixing the wrong thing.
+
+- `zanju_rpb/panel_watch.py` was written to settle it and has never produced a reading. It
+  samples the panel either side of a repair and on a 1s timer, and logs only when its answer
+  changes; a `WARNING` line names which of three stories is true (stale vehicle copy / sections
+  emptied / sections gone). **Reproduce the blanking once with it enabled and read the log.**
+- The probe ships **off** — it is a diagnostic for a bug nobody is actively hunting, and a
+  release should not carry its timer and log stream idling. **Arm it before attempting a
+  reproduction**, or the steps above produce nothing at all. Arming needs no code change:
+
+      %APPDATA%\zanju_wot_mods_cache\research-progress-bar\probe.on
+
+  Create that file (empty — only its existence is read), restart the client, and `Loadout bar
+  probe armed by probe.on` appears in `python.log`. Delete it to disarm. The build stays
+  byte-identical to the one users get, and nothing is left sitting in the working tree waiting
+  to be committed by accident. `ShippedStateTest` pins the source default off.
+- Candidate lead if the probe exonerates the stale copy: the repair fires
+  `wrapper.onItemUpdated(None)`, which lands on `_updateAmmunitionGroupsController(recreate=False)`
+  and updates the section models *in place*. `InteractingItem` also has `onAcceptComplete`,
+  whose handler passes `recreate=True` and rebuilds them — the path the game itself uses after
+  an accepted change. A field-mod research can change the panel's shape (it is how the second
+  loadout is unlocked), so a full recreate may be the correct repair.
 
 ## Research Progress Bar Dynamic Coloring
 
