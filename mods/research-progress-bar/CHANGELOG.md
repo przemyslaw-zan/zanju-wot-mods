@@ -1,7 +1,7 @@
 Changelog
 =========
 
-## 1.3.1 (4 August 2026)
+## 1.3.1 (7 August 2026)
 
 - The settings menu's Reset button now always restores the mod's current defaults.
 - Updated Russian translations. Thank you [@AVPromo](https://github.com/AVPromo)!

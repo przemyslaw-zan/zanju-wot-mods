@@ -11,6 +11,9 @@ here at all -- the rest of this mod reaches BigWorld at import time.
 from __future__ import unicode_literals
 
 import logging
+import os
+import shutil
+import tempfile
 import unittest
 
 from zanju_rpb import panel_watch
@@ -206,6 +209,12 @@ class NoteTest(unittest.TestCase):
         model = FakeModel([FakeGroup([FakeSection('battleBoosters', 1)])])
         controller = FakeController([FakeControllerGroup('battleBoosters')])
         self.panel = FakePresenter(model, controller)
+        # The probe ships disabled, so what it reports has to be tested with it armed.
+        self.shipped_enabled = panel_watch.ENABLED
+        panel_watch.ENABLED = True
+
+    def tearDown(self):
+        panel_watch.ENABLED = self.shipped_enabled
 
     def test_logs_the_first_reading(self):
         panel_watch.note(self.panel, 'poll', self.logger)
@@ -259,12 +268,67 @@ class NoteTest(unittest.TestCase):
 
     def test_disabling_the_probe_silences_it(self):
         panel_watch.ENABLED = False
-        try:
-            panel_watch.note(self.panel, 'poll', self.logger)
-            self.assertEqual(self.logger.infos, [])
-            self.assertEqual(self.logger.warnings, [])
-        finally:
-            panel_watch.ENABLED = True
+        panel_watch.note(self.panel, 'poll', self.logger)
+        self.assertEqual(self.logger.infos, [])
+        self.assertEqual(self.logger.warnings, [])
+
+
+class ShippedStateTest(unittest.TestCase):
+    """The probe is a diagnostic, not a feature: a release must not carry its timer or its
+    log stream. Pinned because the source default is what every user gets -- arming it for a
+    hunt is meant to happen through the marker file, which leaves this untouched."""
+
+    def test_the_probe_ships_disabled(self):
+        self.assertFalse(panel_watch.ENABLED)
+
+
+class ArmingTest(unittest.TestCase):
+    """Arming happens through a file in AppData rather than an edit here, so a developer's
+    build stays identical to the shipped one and nothing is left in the working tree."""
+
+    def setUp(self):
+        self.data_dir = tempfile.mkdtemp()
+        self.shipped_enabled = panel_watch.ENABLED
+        self.real_data_dir = panel_watch._data_dir
+        panel_watch._data_dir = lambda: self.data_dir
+
+    def tearDown(self):
+        panel_watch._data_dir = self.real_data_dir
+        panel_watch.ENABLED = self.shipped_enabled
+        shutil.rmtree(self.data_dir, ignore_errors=True)
+
+    def marker(self):
+        return os.path.join(self.data_dir, panel_watch.MARKER_NAME)
+
+    def test_no_marker_leaves_the_probe_off(self):
+        self.assertFalse(panel_watch.is_armed())
+
+    def test_an_empty_marker_arms_it(self):
+        # Existence only: the file's contents are never read.
+        open(self.marker(), 'w').close()
+        self.assertTrue(panel_watch.is_armed())
+
+    def test_a_directory_named_like_the_marker_does_not_arm_it(self):
+        os.mkdir(self.marker())
+        self.assertFalse(panel_watch.is_armed())
+
+    def test_an_unresolvable_data_dir_leaves_it_off(self):
+        # No AppData to look in must answer "off", never raise: the caller runs at mod init.
+        panel_watch._data_dir = lambda: None
+        self.assertIsNone(panel_watch.marker_path())
+        self.assertFalse(panel_watch.is_armed())
+
+    def test_start_arms_the_flag_from_the_marker(self):
+        open(self.marker(), 'w').close()
+        logger = SilentLogger()
+        # No BigWorld under the test runner, so start() bails after arming -- which is exactly
+        # the half being tested here.
+        panel_watch.start(logger)
+        self.assertTrue(panel_watch.ENABLED)
+
+    def test_start_without_the_marker_leaves_it_off(self):
+        panel_watch.start(SilentLogger())
+        self.assertFalse(panel_watch.ENABLED)
 
 
 if __name__ == '__main__':

@@ -75,9 +75,16 @@ insufficient for that flow or fixing the wrong thing.
   samples the panel either side of a repair and on a 1s timer, and logs only when its answer
   changes; a `WARNING` line names which of three stories is true (stale vehicle copy / sections
   emptied / sections gone). **Reproduce the blanking once with it enabled and read the log.**
-- `ENABLED = True` at the top of that module is the switch. It ships enabled today. Decide
-  deliberately: leave it on until the bug is caught, or flip it off and lose the diagnostic.
-  It only discovers panels at repair time, so it costs nothing outside a garage.
+- The probe ships **off** — it is a diagnostic for a bug nobody is actively hunting, and a
+  release should not carry its timer and log stream idling. **Arm it before attempting a
+  reproduction**, or the steps above produce nothing at all. Arming needs no code change:
+
+      %APPDATA%\zanju_wot_mods_cache\research-progress-bar\probe.on
+
+  Create that file (empty — only its existence is read), restart the client, and `Loadout bar
+  probe armed by probe.on` appears in `python.log`. Delete it to disarm. The build stays
+  byte-identical to the one users get, and nothing is left sitting in the working tree waiting
+  to be committed by accident. `ShippedStateTest` pins the source default off.
 - Candidate lead if the probe exonerates the stale copy: the repair fires
   `wrapper.onItemUpdated(None)`, which lands on `_updateAmmunitionGroupsController(recreate=False)`
   and updates the section models *in place*. `InteractingItem` also has `onAcceptComplete`,

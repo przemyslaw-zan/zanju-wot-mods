@@ -20,7 +20,14 @@ What is sampled, and why each field earns its place:
 Read-only throughout, and every read is guarded individually: this runs inside the client's own
 view lifecycle, where raising would break the very panel it is watching.
 
-Set `ENABLED` to False to switch the probe and its timer off once the bug is closed.
+The probe ships **off**: it is a diagnostic for a bug that has not been reproduced with it
+running, and a release should not carry a timer and a log stream for something nobody is
+watching.
+
+It is armed without touching this file, by creating an empty marker file in the mod's AppData
+directory (see `MARKER_NAME`). That keeps the developer's build byte-identical to the one users
+get -- the difference lives entirely on the machine doing the hunting -- and, unlike editing
+`ENABLED` here, leaves nothing in the working tree to forget about and commit by accident.
 
 No client module is imported at import time, so this stays importable under the test runner.
 """
@@ -28,7 +35,16 @@ from __future__ import print_function, unicode_literals
 
 import weakref
 
-ENABLED = True
+# Off in shipped builds; see the module docstring. Everything below is gated on it, so this
+# single flag takes the timer, the gc discovery and the logging out together. `start` raises it
+# when the marker file is present -- the source default stays False either way, which is what
+# `ShippedStateTest` pins.
+ENABLED = False
+
+# Empty file in %APPDATA%/zanju_wot_mods_cache/research-progress-bar/. That directory already
+# holds the config and the mode cache, so it survives a modpack reinstall and is nowhere near
+# the source tree.
+MARKER_NAME = 'probe.on'
 
 # The panel can be rewritten from paths that do not run through this mod at all
 # (`LoadoutPresenter.__onCacheResync` calls its private `__updateModel` directly), so
@@ -47,9 +63,49 @@ _presenter_cache = []
 _poll_id = None
 
 
+def _data_dir():
+    """The mod's AppData directory, imported late.
+
+    `storage` reaches `constants`, which imports a client module, so pulling it in at module
+    scope would break the promise in the docstring above that this file stays importable
+    outside the game. Kept as its own function so a test can stand in for it without having to
+    import `storage` at all.
+    """
+    from .storage import resolve_mod_data_dir
+    return resolve_mod_data_dir()
+
+
+def marker_path():
+    """Where the arming marker is looked for, or None without a resolvable AppData."""
+    import os
+    data_dir = _data_dir()
+    return os.path.join(data_dir, MARKER_NAME) if data_dir else None
+
+
+def is_armed():
+    """Whether a developer has asked for the probe on this machine.
+
+    Existence only -- the file's contents are never read, so `type nul > probe.on` arms it and
+    deleting the file disarms it. Any failure answers no: a probe that cannot tell must stay
+    off, since the shipped default is the safe one.
+    """
+    try:
+        import os
+        path = marker_path()
+        return bool(path) and os.path.isfile(path)
+    except Exception:
+        return False
+
+
 def start(logger):
     """Begin polling the panel. Safe to call more than once."""
-    global _poll_id
+    global _poll_id, ENABLED
+    if not ENABLED and is_armed():
+        # Checked once per session rather than per sample: this runs at mod init, and a probe
+        # that re-stats a file on a 1s timer would be its own small version of the cost the
+        # whole thing is meant to avoid.
+        ENABLED = True
+        logger.info('Loadout bar probe armed by %s', MARKER_NAME)
     if not ENABLED or _poll_id is not None:
         return
 

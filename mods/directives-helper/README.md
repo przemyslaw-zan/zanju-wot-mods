@@ -125,7 +125,7 @@ out of the window entirely rather than listed with a reduced figure.
 
 ### When the window shows
 
-Three conditions, from three different sources, and the window needs all of them.
+Two conditions, from two different sources, and the window needs both.
 
 **Does this mode offer directives at all?** It follows the garage's loadout panel — the bar
 holding shells, consumables, optional devices and directives — by patching `LoadoutPresenter`,
@@ -158,17 +158,20 @@ client's own consumers of this event compare against `getStateByCls(DefaultHanga
 has the same problem from the other end — each mode's garage is a separately generated state
 class, so that test answers False everywhere but the default hangar.
 
-**Is there a tank to describe?** Everything in the window is about the selected vehicle, so a
-snapshot without one — no tank in the garage, or a client that would not answer yet — has
-nothing true to draw and the window stays hidden rather than showing a frame of placeholders.
-It is written to `python.log` when it happens, once per transition, because in practice it
-should only ever be the moment before the garage finishes assembling; a line that is not
-immediately followed by the window appearing is a bug.
+There is deliberately no third test for "is there a vehicle". The panel already answers it —
+`_getGroupController` is None until a tank is in the garage — and asking separately means
+answering the same question twice from two places that can disagree. An earlier version did
+exactly that, gating on whether the snapshot described a tank, and it could strand the window
+hidden: the data model is built a second or two *before* the garage finishes assembling, so
+that gate started out false on every entry and only cleared if some later event happened to
+trigger a rebuild.
 
-All three default to "shown" until their source first reports, so the window is never stranded
-hidden by a signal that has not arrived yet — the lobby state machine in particular belongs to
-the lobby app, so it is a different object after every teardown and the subscription is
-re-made on each hangar build.
+For the same reason neither answer is mirrored into a local flag. Both are read live at the
+moment visibility is applied, so a callback firing from one source can never push a decision
+made from a stale copy of the other. The lobby state machine belongs to the lobby app, so it
+is a different object after every teardown and its subscription is re-made on each hangar
+build; until it has reported, the route half answers "shown" rather than holding the window
+back.
 
 ### How the window is drawn
 

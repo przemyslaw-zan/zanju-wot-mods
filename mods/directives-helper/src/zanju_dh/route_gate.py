@@ -68,14 +68,18 @@ def is_visible():
 def install(logger, on_change):
     """Subscribe to the lobby's visible-route changes, replacing any earlier subscription.
 
-    Safe to call repeatedly, and it has to be: the state machine belongs to the lobby app, so a
-    lobby teardown takes the subscription with it and the next session gets a new machine.
+    Safe to call repeatedly, and it has to be, for two reasons that need different handling.
+    The state machine belongs to the lobby app, so after a teardown it may be a different
+    object -- but it may also be the *same* object with our handler already gone, because the
+    lobby clears the `EventManager` that owns this event. `Event` is a list subclass whose
+    `__iadd__` refuses a delegate it already holds, so the reliable test is whether the event
+    still carries our handler, not whether the machine changed. Comparing machine identity
+    looks equivalent and silently stops delivering routes for the rest of the session.
     """
     global _callback, _machine, _route
     _callback = on_change
     try:
-        from gui.Scaleform.lobby_entry import getLobbyStateMachine
-        machine = getLobbyStateMachine()
+        machine = _get_machine()
     except Exception:
         logger.exception('Failed to reach the lobby state machine; route gating is off')
         return
@@ -85,17 +89,44 @@ def install(logger, on_change):
         # again, and until one succeeds `is_visible()` stays True rather than hiding the window.
         return
 
-    if machine is _machine:
+    try:
+        event = machine.onVisibleRouteChanged
+    except Exception:
+        logger.exception('Failed to reach the lobby route event; route gating is off')
         return
 
+    # Re-read every time, subscribed or not. A teardown leaves `_route` naming the FINAL state
+    # the lobby passes through on its way out, which is not a garage route -- so a stale copy
+    # would keep the window hidden for the whole of the next session.
+    was_visible = is_visible()
     _machine = machine
     _route = _read_route(machine, logger)
-    try:
-        machine.onVisibleRouteChanged += _on_route_changed
-        logger.info('Subscribed to lobby route changes (at %s)', _route)
-    except Exception:
-        logger.exception('Failed to subscribe to lobby route changes; route gating is off')
-        _machine = None
+
+    if _on_route_changed not in event:
+        try:
+            machine.onVisibleRouteChanged += _on_route_changed
+            logger.info('Subscribed to lobby route changes (at %s)', _route)
+        except Exception:
+            logger.exception('Failed to subscribe to lobby route changes; route gating is off')
+            _machine = None
+            return
+
+    visible = is_visible()
+    if visible != was_visible and _callback is not None:
+        # Re-reading the route above can change the answer on its own, and no route change is
+        # coming to announce it: the navigation that would have done so happened while the
+        # subscription was dropped.
+        _callback(visible)
+
+
+def _get_machine():
+    """The lobby's state machine, or None outside the lobby.
+
+    Its own function so a test can stand in for it: `lobby_entry` is a client module, and this
+    file is meant to stay importable under the test runner.
+    """
+    from gui.Scaleform.lobby_entry import getLobbyStateMachine
+    return getLobbyStateMachine()
 
 
 def uninstall(logger):

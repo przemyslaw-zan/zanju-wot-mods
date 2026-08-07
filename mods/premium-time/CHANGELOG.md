@@ -1,7 +1,7 @@
 Changelog
 =========
 
-## 1.0.1 (4 August 2026)
+## 1.0.1 (7 August 2026)
 
 - New Russian translation. Thank you [@AVPromo](https://github.com/AVPromo)!
 
