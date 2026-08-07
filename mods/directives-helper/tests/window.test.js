@@ -81,8 +81,6 @@ class FakeNode {
 function snapshotFixture(overrides = {}) {
     return Object.assign(
         {
-            vehicleName: 'Object 260',
-            hasVehicle: true,
             autoResupply: true,
             resupplyWarning: false,
             showUnowned: false,
@@ -138,7 +136,7 @@ describe('parseSnapshot', () => {
     });
 
     test('reads a JSON payload', () => {
-        assert.deepEqual(parseSnapshot('{"hasVehicle":true}'), { hasVehicle: true });
+        assert.deepEqual(parseSnapshot('{"autoResupply":true}'), { autoResupply: true });
     });
 
     test('returns null for an empty payload', () => {
@@ -320,7 +318,6 @@ describe('renderBody', () => {
         // The three sections stay in the same order and place whatever the tank can take.
         const snapshot = snapshotFixture();
         snapshot.categories[2].directives = [];
-        snapshot.categories[2].total = 0;
         const body = render(snapshot);
         assert.equal(body.querySelectorAll('.zanju-dh-category-name').length, 3);
         assert.match(body.querySelector('.zanju-dh-empty').textContent, /No directives meeting criteria/);
@@ -373,7 +370,7 @@ describe('renderBody', () => {
     test('draws no auto-resupply state when no vehicle is selected', () => {
         // Python hides the window outright in this case, so the row only has to stay silent
         // rather than say anything: it is on screen for at most one frame.
-        const body = render(snapshotFixture({ hasVehicle: false, autoResupply: null }));
+        const body = render(snapshotFixture({ autoResupply: null }));
         assert.equal(body.querySelector('.zanju-dh-auto').textContent, '');
     });
 

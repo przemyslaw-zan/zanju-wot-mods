@@ -42,12 +42,10 @@ CATEGORY_ORDER = (CATEGORY_EQUIPMENT, CATEGORY_CREW_IMPROVE, CATEGORY_CREW_GRANT
 def empty_snapshot():
     """The shape `collect()` returns, with nothing in it."""
     return {
-        'vehicleName': '',
-        'hasVehicle': False,
         'autoResupply': None,
         'resupplyWarning': False,
         'categories': [
-            {'category': name, 'total': 0, 'directives': []} for name in CATEGORY_ORDER
+            {'category': name, 'directives': []} for name in CATEGORY_ORDER
         ],
     }
 
@@ -80,8 +78,6 @@ def collect(logger, show_unowned=False):
     categories = [_category(name, grouped[name]) for name in CATEGORY_ORDER]
     auto = auto_resupply(vehicle, logger)
     return {
-        'vehicleName': _vehicle_name(vehicle),
-        'hasVehicle': vehicle is not None,
         'autoResupply': auto,
         'resupplyWarning': warns_about_resupply(auto, categories),
         'categories': categories,
@@ -132,7 +128,6 @@ def auto_resupply(vehicle, logger):
 
 
 def _category(name, entries):
-    # The total counts directives owned, not distinct types.
     if name == CATEGORY_CREW_GRANT:
         entries.sort(key=_by_gain)
     else:
@@ -140,7 +135,6 @@ def _category(name, entries):
         entries.sort(key=lambda entry: entry['name'].lower())
     return {
         'category': name,
-        'total': sum(entry['count'] for entry in entries),
         'directives': entries,
     }
 
@@ -367,12 +361,3 @@ def _user_name(item):
         except Exception:
             continue
     return ''
-
-
-def _vehicle_name(vehicle):
-    if vehicle is None:
-        return ''
-    try:
-        return '{0}'.format(vehicle.userName or '')
-    except Exception:
-        return ''

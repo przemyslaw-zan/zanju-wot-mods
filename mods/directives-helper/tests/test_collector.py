@@ -86,7 +86,7 @@ class EmptySnapshotTest(unittest.TestCase):
         snapshot = collector.empty_snapshot()
         self.assertEqual(
             sorted(snapshot),
-            ['autoResupply', 'categories', 'hasVehicle', 'resupplyWarning', 'vehicleName'],
+            ['autoResupply', 'categories', 'resupplyWarning'],
         )
         self.assertEqual([group['category'] for group in snapshot['categories']],
                          list(collector.CATEGORY_ORDER))
@@ -250,18 +250,16 @@ class CategoryTest(unittest.TestCase):
             {'name': 'brothers in arms', 'count': 9},
         ]
 
-    def test_totals_count_directives_not_types(self):
-        group = collector._category(collector.CATEGORY_CREW_GRANT, self.entries())
-        self.assertEqual(group['total'], 86)
-
     def test_sorts_case_insensitively_so_the_list_does_not_reshuffle(self):
         group = collector._category(collector.CATEGORY_CREW_GRANT, self.entries())
         self.assertEqual([entry['name'] for entry in group['directives']],
                          ['Adrenaline', 'brothers in arms', 'Repairs'])
 
-    def test_empty_category_totals_zero(self):
+    def test_an_empty_category_still_produces_a_section(self):
+        # The window draws all three whatever the tank can take, so an empty one is a section
+        # with nothing in it rather than a missing section.
         group = collector._category(collector.CATEGORY_EQUIPMENT, [])
-        self.assertEqual(group['total'], 0)
+        self.assertEqual(group['category'], collector.CATEGORY_EQUIPMENT)
         self.assertEqual(group['directives'], [])
 
 
@@ -376,7 +374,7 @@ class ResupplyWarningTest(unittest.TestCase):
     with nothing left in the depot the client buys a replacement after the battle."""
 
     def categories(self, count, equipped=True):
-        return [{'category': collector.CATEGORY_EQUIPMENT, 'total': count, 'directives': [
+        return [{'category': collector.CATEGORY_EQUIPMENT, 'directives': [
             {'name': 'Improved Aiming', 'count': count, 'equipped': equipped},
         ]}]
 

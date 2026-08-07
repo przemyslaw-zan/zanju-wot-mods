@@ -731,23 +731,19 @@ if (typeof window !== 'undefined' && window.subViews) {
     start();
 }
 
+// Exported for the test suite only: the game loads this module for its side effect,
+// via the auto-start above. Anything not imported by window.test.js stays internal.
 export {
     applyFolded,
     applyHeaderWarning,
     applyWidth,
-    buildAutoResupplyRow,
-    buildShowUnownedRow,
-    buildTile,
-    buildWarnMark,
     clampWidth,
-    clickTargetFrom,
     isWithin,
     applyPosition,
     buildRoot,
     findDataModel,
     parseSnapshot,
     renderBody,
-    start,
     texts,
     tick,
     ROOT_ID,
