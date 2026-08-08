@@ -4,12 +4,23 @@ Source repository for World of Tanks mods, build tooling, and game-facing techni
 
 ## Included Mods
 
-- [Zanju's Research Progress Bar](mods/research-progress-bar/README.md) [![release](https://img.shields.io/github/v/release/przemyslaw-zan/zanju-wot-mods?filter=research-progress-bar%40*)](https://github.com/przemyslaw-zan/zanju-wot-mods/releases/latest)  
-  Custom hangar progress bar covering research, field modifications, Tier XI upgrade-tree progress, and elite progress modes.
-- [Zanju's Premium Time](mods/premium-time/README.md) [![release](https://img.shields.io/github/v/release/przemyslaw-zan/zanju-wot-mods?filter=premium-time%40*)](https://github.com/przemyslaw-zan/zanju-wot-mods/releases/latest)  
-  Precise premium account countdown in the lobby header, with the exact end time in its tooltip.
-- [Zanju's Directives Helper](mods/directives-helper/README.md) [![release](https://img.shields.io/github/v/release/przemyslaw-zan/zanju-wot-mods?filter=directives-helper%40*)](https://github.com/przemyslaw-zan/zanju-wot-mods/releases/latest)  
-  Garage window for fitting directives, showing what each is worth on the current crew and warning before auto-resupply spends anything.
+### [Zanju's Directives Helper](mods/directives-helper/README.md)
+
+[![release](https://img.shields.io/github/v/release/przemyslaw-zan/zanju-wot-mods?filter=directives-helper%40*)](https://github.com/przemyslaw-zan/zanju-wot-mods/releases/latest)
+
+Garage window for fitting directives and warning before auto-resupply spends any resources.
+
+### [Zanju's Premium Time](mods/premium-time/README.md)
+
+[![release](https://img.shields.io/github/v/release/przemyslaw-zan/zanju-wot-mods?filter=premium-time%40*)](https://github.com/przemyslaw-zan/zanju-wot-mods/releases/latest)
+
+Precise premium account countdown in the lobby header, with the exact end time in its tooltip.
+
+### [Zanju's Research Progress Bar](mods/research-progress-bar/README.md)
+
+[![release](https://img.shields.io/github/v/release/przemyslaw-zan/zanju-wot-mods?filter=research-progress-bar%40*)](https://github.com/przemyslaw-zan/zanju-wot-mods/releases/latest)
+
+Custom hangar progress bar covering research, field modifications, Tier XI upgrade-tree progress, and elite progress modes.
 
 ## Install And Use
 
