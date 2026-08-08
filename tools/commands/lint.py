@@ -8,7 +8,7 @@ import subprocess
 import sys
 
 from ..core.console import detail, section, success, warning
-from ..core.env import load_env
+from ..core.env import load_env, subprocess_env
 from ..core.i18n_audit import (
     audit_code_key_coverage,
     check_readme_coverage,
@@ -83,10 +83,12 @@ def _to_text(value):
 
 def execute_command(cmd, verbose=False):
     if verbose:
-        returncode = subprocess.call(cmd, cwd=REPO_ROOT)
+        returncode = subprocess.call(cmd, cwd=REPO_ROOT, env=subprocess_env())
         return {"returncode": returncode, "stdout": "", "stderr": ""}
 
-    process = subprocess.Popen(cmd, cwd=REPO_ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    process = subprocess.Popen(
+        cmd, cwd=REPO_ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=subprocess_env()
+    )
     stdout, stderr = process.communicate()
     return {
         "returncode": process.returncode,
@@ -141,6 +143,10 @@ def get_py3_targets():
         [
             os.path.join("tools", "*.py"),
             os.path.join("mods", "*", "ui", "compile_ui.py"),
+            # Release automation runs on the CI host's Python 3 rather than in the toolchain
+            # image, but it is maintained like the rest of the Python 3 tooling, so it is
+            # held to the same formatting and lint rules.
+            os.path.join(".github", "scripts", "*.py"),
         ]
     )
 
@@ -220,7 +226,9 @@ def python_has_module(python_executable, module_name):
     cmd = [python_executable, "-c", "import {0}".format(module_name)]
     try:
         with io.open(os.devnull, "wb") as devnull:
-            return subprocess.call(cmd, cwd=REPO_ROOT, stdout=devnull, stderr=devnull) == 0
+            return subprocess.call(
+                cmd, cwd=REPO_ROOT, stdout=devnull, stderr=devnull, env=subprocess_env()
+            ) == 0
     except OSError:
         return False
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sys
 
+from ..core.mod_cli import run_entrypoint
 from ..core.companion_artifacts import CompanionArtifactError, fetch_manifest_artifacts, load_manifest
 from ..core.console import detail, section, success
 
@@ -22,7 +23,7 @@ def parse_args(argv):
     return force, verbose
 
 
-def main():
+def _main():
     force, verbose = parse_args(sys.argv[1:])
     section("Fetch companion artifacts")
     manifest = load_manifest()
@@ -48,8 +49,12 @@ def main():
     )
 
 
+def main():
+    # run_entrypoint, not a guard under `if __name__`: zwm imports this module and calls
+    # main() directly, so anything handled only in the __main__ block never ran for the
+    # command's actual users -- domain errors reached them as tracebacks.
+    return run_entrypoint(_main)
+
+
 if __name__ == "__main__":
-    try:
-        main()
-    except CompanionArtifactError as exc:
-        raise SystemExit(str(exc)) from exc
+    sys.exit(main())

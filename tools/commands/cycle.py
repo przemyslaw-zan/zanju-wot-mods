@@ -55,7 +55,16 @@ def fresh_log(dry_run):
 
 def run_cmd(cmd, verbose=False):
     detail("Running: {}".format(" ".join(cmd)), verbose=verbose)
-    subprocess.check_call(cmd)
+    try:
+        subprocess.check_call(cmd)
+    except subprocess.CalledProcessError as exc:
+        # The sub-command has already printed why it failed; repeating its traceback here
+        # buries that under a stack from this process, which did nothing wrong.
+        # cmd is [python, "-m", <module>, ...]; name the step, not the interpreter.
+        step = cmd[2] if len(cmd) > 2 and cmd[1] == "-m" else cmd[0]
+        raise RuntimeError(
+            "cycle stopped: {} failed (exit {})".format(step, exc.returncode)
+        ) from None
 
 
 def parse_args(argv):

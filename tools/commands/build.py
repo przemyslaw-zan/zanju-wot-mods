@@ -52,6 +52,7 @@ from ..core.mod_assets import (
     directory_has_entries,
 )
 from ..core.mod_cli import parse_companion_targeting_args, resolve_mod_targets, run_entrypoint
+from ..core.env import subprocess_env
 from ..core.mod_meta import read_meta
 from ..core.paths import DIST_DIR, LICENSE_PATH, MODS_DIR
 from ..core.wot_version import resolve_target_wot_version
@@ -69,7 +70,7 @@ def compile_py2_to_pyc(py2_exe, src_path, out_pyc_path):
         src_path,
         out_pyc_path,
     ]
-    subprocess.check_call(cmd)
+    subprocess.check_call(cmd, env=subprocess_env())
 
 
 def run_optional_prebuild(mod_dir, verbose=False):
