@@ -120,22 +120,24 @@ def render_notes(repo, releases, now):
         "The current release of each mod. Each row links straight to the download and to "
         "that mod's own release page, where its changelog lives.",
         "",
-        "| Mod | Version | Download |",
-        "| --- | --- | --- |",
+        "| Mod | Version | Download | Notes |",
+        "| --- | --- | --- | --- |",
     ]
 
     for release in releases:
         release_url = "https://github.com/{}/releases/tag/{}".format(repo, release["tag"])
         asset = find_zip_asset(repo, release["tag"])
         if asset:
-            cell = "[{}](https://github.com/{}/releases/download/{}/{}) · [notes]({})".format(
-                asset, repo, release["tag"], asset, release_url
-            )
+            download = "[{}](https://github.com/{}/releases/download/{}/{})".format(asset, repo, release["tag"], asset)
         else:
-            # No zip attached (an interrupted upload, say) -- one link to the release page
-            # is honest about that rather than dressing it up as a download.
-            cell = "[release page]({})".format(release_url)
-        lines.append("| {} | `{}` | {} |".format(release["display_name"], release["version"], cell))
+            # No zip attached (an interrupted upload, say) -- an empty cell is honest about
+            # that rather than dressing the release page up as a download.
+            download = "—"
+        lines.append(
+            "| {} | `{}` | {} | [release notes]({}) |".format(
+                release["display_name"], release["version"], download, release_url
+            )
+        )
 
     wot_version = read_wot_version()
     lines.append("")
