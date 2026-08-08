@@ -14,13 +14,13 @@ Garage window for fitting directives and warning before auto-resupply spends any
 
 [![release](https://img.shields.io/github/v/release/przemyslaw-zan/zanju-wot-mods?filter=premium-time%40*)](https://github.com/przemyslaw-zan/zanju-wot-mods/releases/latest)
 
-Precise premium account countdown in the lobby header, with the exact end time in its tooltip.
+Shows actual remaining premium account time in the lobby header, with the exact end time in its tooltip.
 
 ### [Zanju's Research Progress Bar](mods/research-progress-bar/README.md)
 
 [![release](https://img.shields.io/github/v/release/przemyslaw-zan/zanju-wot-mods?filter=research-progress-bar%40*)](https://github.com/przemyslaw-zan/zanju-wot-mods/releases/latest)
 
-Custom hangar progress bar covering research, field modifications, Tier XI upgrade-tree progress, and elite progress modes.
+Hangar progress bar covering research, field modifications, Tier XI upgrades, and elite progress modes.
 
 ## Install And Use
 
