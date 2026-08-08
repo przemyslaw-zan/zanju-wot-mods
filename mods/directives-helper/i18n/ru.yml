@@ -12,6 +12,4 @@ LABEL_RESUPPLY_WARNING: "Последняя инструкцмя. После б�
 LABEL_SHOW_UNOWNED: "Показывать неподходящие"
 LABEL_BUY_HINT: "кликните, чтобы купить"
 LABEL_BUY_UNAVAILABLE: "покупка недоступна"
-LABEL_NO_VEHICLE: "Танк не выбран"
-LABEL_EMPTY: "Нет инструкций"
-LABEL_NONE_AVAILABLE: "Нет доступных для этого танка"
+LABEL_SECTION_EMPTY: "Нет подходящих инструкций"
