@@ -6,19 +6,19 @@ Source repository for World of Tanks mods, build tooling, and game-facing techni
 
 ### [Zanju's Directives Helper](mods/directives-helper/README.md)
 
-[![release](https://img.shields.io/github/v/release/przemyslaw-zan/zanju-wot-mods?filter=DH%40*&color=green)](https://github.com/przemyslaw-zan/zanju-wot-mods/releases/latest)
+[![release](https://img.shields.io/github/v/release/przemyslaw-zan/zanju-wot-mods?filter=DH%40*&color=green&style=flat)](https://github.com/przemyslaw-zan/zanju-wot-mods/releases/latest)
 
 Garage window for fitting directives and warning before auto-resupply spends any resources.
 
 ### [Zanju's Premium Time](mods/premium-time/README.md)
 
-[![release](https://img.shields.io/github/v/release/przemyslaw-zan/zanju-wot-mods?filter=PT%40*&color=green)](https://github.com/przemyslaw-zan/zanju-wot-mods/releases/latest)
+[![release](https://img.shields.io/github/v/release/przemyslaw-zan/zanju-wot-mods?filter=PT%40*&color=green&style=flat)](https://github.com/przemyslaw-zan/zanju-wot-mods/releases/latest)
 
 Shows actual remaining premium account time in the lobby header, with the exact end time in its tooltip.
 
 ### [Zanju's Research Progress Bar](mods/research-progress-bar/README.md)
 
-[![release](https://img.shields.io/github/v/release/przemyslaw-zan/zanju-wot-mods?filter=RPB%40*&color=green)](https://github.com/przemyslaw-zan/zanju-wot-mods/releases/latest)
+[![release](https://img.shields.io/github/v/release/przemyslaw-zan/zanju-wot-mods?filter=RPB%40*&color=green&style=flat)](https://github.com/przemyslaw-zan/zanju-wot-mods/releases/latest)
 
 Hangar progress bar covering research, field modifications, Tier XI upgrades, and elite progress modes.
 
