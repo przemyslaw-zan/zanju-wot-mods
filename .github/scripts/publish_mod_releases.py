@@ -49,7 +49,16 @@ def parse_args(argv=None):
 
 
 def render_notes(mod, repo, commit):
-    sections = [extract_changelog_section(mod["changelog_path"], mod["version"]), "", "---", ""]
+    # The title and tag are both acronyms, so the body carries the full name -- otherwise
+    # nothing on the release page would say which mod this is.
+    sections = [
+        "**{}**".format(mod["display_name"]),
+        "",
+        extract_changelog_section(mod["changelog_path"], mod["version"]),
+        "",
+        "---",
+        "",
+    ]
 
     wot_version = read_wot_version()
     if wot_version:
@@ -89,7 +98,7 @@ def publish(mod, repo, commit, notes_path):
     args.extend(
         [
             "--title",
-            release_title(mod["display_name"], mod["version"]),
+            release_title(mod["acronym"], mod["version"]),
             "--notes-file",
             notes_path,
             # Every per-mod release must opt out explicitly: make_latest defaults to true,

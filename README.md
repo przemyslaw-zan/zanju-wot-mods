@@ -6,19 +6,19 @@ Source repository for World of Tanks mods, build tooling, and game-facing techni
 
 ### [Zanju's Directives Helper](mods/directives-helper/README.md)
 
-[![release](https://img.shields.io/github/v/release/przemyslaw-zan/zanju-wot-mods?filter=directives-helper%40*)](https://github.com/przemyslaw-zan/zanju-wot-mods/releases/latest)
+[![release](https://img.shields.io/github/v/release/przemyslaw-zan/zanju-wot-mods?filter=DH%40*&color=green)](https://github.com/przemyslaw-zan/zanju-wot-mods/releases/latest)
 
 Garage window for fitting directives and warning before auto-resupply spends any resources.
 
 ### [Zanju's Premium Time](mods/premium-time/README.md)
 
-[![release](https://img.shields.io/github/v/release/przemyslaw-zan/zanju-wot-mods?filter=premium-time%40*)](https://github.com/przemyslaw-zan/zanju-wot-mods/releases/latest)
+[![release](https://img.shields.io/github/v/release/przemyslaw-zan/zanju-wot-mods?filter=PT%40*&color=green)](https://github.com/przemyslaw-zan/zanju-wot-mods/releases/latest)
 
 Shows actual remaining premium account time in the lobby header, with the exact end time in its tooltip.
 
 ### [Zanju's Research Progress Bar](mods/research-progress-bar/README.md)
 
-[![release](https://img.shields.io/github/v/release/przemyslaw-zan/zanju-wot-mods?filter=research-progress-bar%40*)](https://github.com/przemyslaw-zan/zanju-wot-mods/releases/latest)
+[![release](https://img.shields.io/github/v/release/przemyslaw-zan/zanju-wot-mods?filter=RPB%40*&color=green)](https://github.com/przemyslaw-zan/zanju-wot-mods/releases/latest)
 
 Hangar progress bar covering research, field modifications, Tier XI upgrades, and elite progress modes.
 
@@ -27,9 +27,7 @@ Hangar progress bar covering research, field modifications, Tier XI upgrades, an
 Use this path if you want to install a prepared mod package and keep it updated.
 
 - [Installing Mods](docs/installing-mods.md)
-- Each mod version is published as its own GitHub release, tagged `<mod-name>@<version>`. The
-  [Latest Releases](https://github.com/przemyslaw-zan/zanju-wot-mods/releases/latest) index always lists the current
-  release of every mod, so that one link stays correct as mods update independently.
+- Each mod version is published as its own GitHub release, tagged `<ACRONYM>@<version>` (for example `PT@1.0.1`). The [Latest Releases](https://github.com/przemyslaw-zan/zanju-wot-mods/releases/latest) index always lists the current release of every mod, so that one link stays correct as mods update independently.
 
 ## Build From Source
 
