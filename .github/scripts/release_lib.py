@@ -2,9 +2,9 @@
 
 Release model:
 
-- Each mod version gets its own write-once release, tagged ``<mod-dir>@<version>``
-  (for example ``premium-time@1.0.1``). Once published it is never edited; a version
-  bump in ``meta.xml`` is what produces the next one.
+- Each mod version gets its own write-once release, tagged ``<ACRONYM>@<version>``
+  (for example ``PT@1.0.1``). Once published it is never edited; a version bump in
+  ``meta.xml`` is what produces the next one.
 - A single "Latest Releases" index release holds GitHub's ``Latest`` badge, so the
   repository sidebar and ``/releases/latest`` always point at it. It carries no assets
   and only links to the per-mod releases.
@@ -30,14 +30,23 @@ MODS_DIR = os.path.join(REPO_ROOT, "mods")
 DIST_DIR = os.path.join(REPO_ROOT, "dist")
 WOT_VERSION_MANIFEST_PATH = os.path.join(REPO_ROOT, "tools", "wot_version_manifest.json")
 
-# Separator between mod name and version in a release tag. '@' rather than '-v' because
-# every mod directory name already contains hyphens, and rather than '/' because a tag
-# named "premium-time" could then never coexist with "premium-time/..." in the ref
-# namespace, foreclosing a rolling per-mod tag later.
+# Separator between acronym and version in a release tag. '@' rather than '-v' because it
+# never occurs in an acronym, and rather than '/' because a tag named "PT" could then
+# never coexist with "PT/..." in the ref namespace, foreclosing a rolling per-mod tag.
 TAG_SEPARATOR = "@"
 
 # Prefix for the rotating index tag; the date and time are appended per publish. A trial
 # run needs no special prefix, since every run burns a fresh dated name anyway.
+#
+# Being *lowercase* is load-bearing. Every release published from one master merge shares a
+# created_at (GitHub takes it from the target commit, not from publish time), and the
+# releases page breaks that tie by tag name descending -- so the index sorts above the
+# per-mod releases only if its tag outranks every "<ACRONYM>@..." tag. Acronyms are
+# uppercase (ASCII 65-90) and every lowercase letter is 97 or above, so any lowercase
+# prefix wins for every possible mod name.
+#
+# The invariant that matters: no other release tag may begin with a lowercase letter
+# sorting after this one.
 HUB_TAG_PREFIX = "index"
 
 
@@ -92,12 +101,33 @@ def is_published_version(version):
     return version_tuple(version)[:1] >= (1,)
 
 
-def release_tag(mod_name, version):
-    return "{}{}{}".format(mod_name, TAG_SEPARATOR, version)
+def release_tag(acronym, version):
+    return "{}{}{}".format(acronym, TAG_SEPARATOR, version)
 
 
-def release_title(display_name, version):
-    return "{} {}".format(display_name, version)
+def release_acronym(display_name):
+    """Initials of a mod's name, dropping a leading possessive author prefix.
+
+    "Zanju's Research Progress Bar" -> "RPB".
+    """
+
+    words = [word for word in re.split(r"[\s\-]+", display_name) if word]
+    if words and words[0].lower().endswith("'s"):
+        words = words[1:]
+    return "".join(word[0].upper() for word in words)
+
+
+def release_title(acronym, version):
+    """Short title for a per-mod release, e.g. "RPB 1.3.1".
+
+    Both the release list in GitHub's sidebar and the tag shown on the releases page
+    truncate at roughly twenty characters, which hides the version behind any full mod
+    name. An acronym keeps the version -- the part that actually distinguishes one release
+    from the next -- visible in both. The full name still appears in the index table and
+    at the top of the release body.
+    """
+
+    return "{} {}".format(acronym, version)
 
 
 def iter_mods():
@@ -106,6 +136,7 @@ def iter_mods():
     if not os.path.isdir(MODS_DIR):
         return
 
+    mods = []
     for mod_name in sorted(os.listdir(MODS_DIR)):
         mod_dir = os.path.join(MODS_DIR, mod_name)
         if not os.path.isfile(os.path.join(mod_dir, "meta.xml")):
@@ -115,17 +146,38 @@ def iter_mods():
         if not meta["id"] or not meta["version"]:
             raise RuntimeError("{} has missing id or version in meta.xml".format(mod_name))
 
+        display_name = meta["name"] or mod_name
+        acronym = release_acronym(display_name)
         bundle_name = "{}_{}".format(meta["id"], meta["version"])
-        yield {
-            "mod_name": mod_name,
-            "display_name": meta["name"] or mod_name,
-            "mod_id": meta["id"],
-            "version": meta["version"],
-            "bundle_name": bundle_name,
-            "zip_path": os.path.join(DIST_DIR, bundle_name, "{}.zip".format(bundle_name)),
-            "changelog_path": os.path.join(mod_dir, "CHANGELOG.md"),
-            "tag": release_tag(mod_name, meta["version"]),
-        }
+        mods.append(
+            {
+                "mod_name": mod_name,
+                "display_name": display_name,
+                "mod_id": meta["id"],
+                "acronym": acronym,
+                "version": meta["version"],
+                "bundle_name": bundle_name,
+                "zip_path": os.path.join(DIST_DIR, bundle_name, "{}.zip".format(bundle_name)),
+                "changelog_path": os.path.join(mod_dir, "CHANGELOG.md"),
+                "tag": release_tag(acronym, meta["version"]),
+            }
+        )
+
+    # Acronyms namespace the release tags, so two mods sharing one would collide: the
+    # second would look already-released at the first's version and silently never
+    # publish. Directory names cannot collide, acronyms can, so this is checked rather
+    # than assumed.
+    by_acronym = {}
+    for mod in mods:
+        clash = by_acronym.get(mod["acronym"])
+        if clash:
+            raise RuntimeError(
+                "{} and {} both produce the release acronym '{}'. Rename one in its "
+                "meta.xml <name> so their tags stay distinct.".format(clash, mod["mod_name"], mod["acronym"])
+            )
+        by_acronym[mod["acronym"]] = mod["mod_name"]
+
+    yield from mods
 
 
 def extract_changelog_section(changelog_path, version):

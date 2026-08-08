@@ -67,16 +67,17 @@ image itself is rebuilt and pushed to GHCR only when `tools/Dockerfile` or the
 `requirements-*.txt` files change.
 
 Publishing follows a single rule: a mod at version `1.0.0` or higher whose `meta.xml`
-version has no release yet gets one, tagged `<mod-name>@<version>` (for example
-`premium-time@1.0.1`). Releases are never edited afterwards, so a push with no version
+version has no release yet gets one, tagged `<ACRONYM>@<version>`, where the acronym is
+built from the mod's `meta.xml` name minus the author prefix — "Zanju's Premium Time"
+becomes `PT@1.0.1`. Releases are never edited afterwards, so a push with no version
 bump publishes nothing. Versions below `1.0.0` are treated as internal and are not
 released.
 
 Whenever at least one mod is released, the `Latest Releases` index release is republished
-under a fresh dated tag and marked as GitHub's latest release, so
-`/releases/latest` always resolves to a current list of every mod's newest download. The
-index carries no assets of its own and is rendered from the releases that actually exist,
-so a partly failed run self-corrects on the next one.
+under a fresh dated tag and marked as GitHub's latest release, so `/releases/latest` always
+resolves to a current list of every mod's newest download. The index carries no assets of
+its own and is rendered from the releases that actually exist, so a partly failed run
+self-corrects on the next one.
 
 Release notes for each mod are taken from its `mods/<name>/CHANGELOG.md` section matching
 the version being released, so that section must exist before the version can ship.

@@ -74,13 +74,13 @@ def hub_tag(now):
     # Minute resolution: runs are serialised by the workflow's concurrency group and a
     # build takes minutes, so this cannot collide in practice -- and it never needs to,
     # because a fresh tag each time is the point.
-    return "{}-{}".format(HUB_TAG_PREFIX, now.strftime("%Y-%m-%d-%H%M"))
+    return "{}-{}".format(HUB_TAG_PREFIX, now.strftime("%Y-%m-%d-%H-%M"))
 
 
 def find_current_releases(repo):
     """Map each mod to its highest published release, as seen on GitHub."""
 
-    known_mods = {mod["mod_name"]: mod for mod in iter_mods()}
+    known_mods = {mod["acronym"]: mod for mod in iter_mods()}
     current = {}
 
     for release in list_releases(repo):
@@ -88,20 +88,21 @@ def find_current_releases(repo):
         if TAG_SEPARATOR not in tag:
             continue
 
-        mod_name, _, version = tag.partition(TAG_SEPARATOR)
-        if mod_name not in known_mods or not version:
+        acronym, _, version = tag.partition(TAG_SEPARATOR)
+        if acronym not in known_mods or not version:
             continue
 
-        existing = current.get(mod_name)
+        existing = current.get(acronym)
         if existing is None or version_tuple(version) > version_tuple(existing["version"]):
-            current[mod_name] = {
-                "mod_name": mod_name,
-                "display_name": known_mods[mod_name]["display_name"],
+            current[acronym] = {
+                "mod_name": known_mods[acronym]["mod_name"],
+                "display_name": known_mods[acronym]["display_name"],
                 "version": version,
                 "tag": tag,
             }
 
-    return [current[name] for name in sorted(current)]
+    # Sorted by full name so the index table matches the order the README lists mods in.
+    return sorted(current.values(), key=lambda release: release["display_name"])
 
 
 def find_zip_asset(repo, tag):
@@ -161,10 +162,14 @@ def create_hub(repo, tag, commit, notes_path):
     run_command(gh_command(args, repo))
 
 
+def is_index_tag(tag):
+    return tag.startswith("{}-".format(HUB_TAG_PREFIX))
+
+
 def delete_stale_hubs(repo, keep_tag):
     for release in list_releases(repo):
         tag = release.get("tagName") or ""
-        if not tag.startswith("{}-".format(HUB_TAG_PREFIX)) or tag == keep_tag:
+        if not is_index_tag(tag) or tag == keep_tag:
             continue
         # --cleanup-tag removes the dated tag too, so the tag list does not grow one
         # entry per release forever.
