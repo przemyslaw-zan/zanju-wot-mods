@@ -1,0 +1,15 @@
+# Window
+WINDOW_TITLE: "Directives Helper"
+
+# Categories
+CATEGORY_CREW_IMPROVE: "Improve perk effect"
+CATEGORY_CREW_GRANT: "Boost perk to 100%"
+CATEGORY_EQUIPMENT: "Equipment"
+
+# Labels
+LABEL_AUTO_RESUPPLY: "Auto-resupply"
+LABEL_RESUPPLY_WARNING: "Your last one. Auto-resupply will buy another after the battle."
+LABEL_SHOW_UNOWNED: "Show unowned"
+LABEL_BUY_HINT: "click to buy"
+LABEL_BUY_UNAVAILABLE: "purchase not available"
+LABEL_SECTION_EMPTY: "No directives meeting criteria"

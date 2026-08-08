@@ -41,8 +41,9 @@ jobs:
     - name: Localization (i18n key coverage + README coverage up to date)
       run: python3 -m tools.commands.lint i18n-check
 
-    # Mod unit tests (Python 2.7 runtime + Gameface JavaScript). Not --strict: a
-    # toolchain image built before Node was added reports the JS suites as skipped
-    # instead of failing the run. Switch to --strict once :latest ships Node.
+    # Mod unit tests (Python 2.7 runtime + Gameface JavaScript). --strict turns a missing
+    # Node into a failure instead of a silent skip: the runner degrades gracefully for local
+    # use on an older toolchain image, but in CI a skipped JavaScript suite is
+    # indistinguishable from a passing one, so a broken widget would merge unnoticed.
     - name: Mod unit tests
-      run: python3 -m tools.commands.test --all
+      run: python3 -m tools.commands.test --all --strict

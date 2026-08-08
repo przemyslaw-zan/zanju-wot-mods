@@ -424,6 +424,34 @@ def _mods_settings_native_key(value):
     return '{0}'.format(native_value)
 
 
+def _declare_mod_settings_defaults(api, native_mod_id):
+    """Tell the API what this mod's factory defaults are, where it supports being told.
+
+    Without this the API derives them from the template's `value` fields, which is why
+    `_build_mod_settings_template` builds from `_DEFAULT_CONFIG`. That derivation is no longer
+    repeated on every registration: ModsSettings 1.7.0 stopped re-deriving defaults when a
+    re-registered template differs from the cached one without a *structural* change. Changing
+    a value in `_DEFAULT_CONFIG` is exactly such a change, so from 1.7.0 on it would leave the
+    menu's per-mod Reset restoring the previous default indefinitely -- for existing users only,
+    which makes it the kind of bug that never shows up in testing.
+
+    Declaring them explicitly makes Reset track `_DEFAULT_CONFIG` whatever the API does with
+    templates. It is deliberately *not* a reason to start setting `settingsVersion`; see
+    docs/reference/in-game-settings.md for why that stays omitted.
+
+    Feature-detected: this mod bundles 1.7.0, but a player may be running an older
+    `gui.aslainMenu` from a modpack, where the derived defaults remain the only mechanism.
+    """
+    declare = getattr(api, 'setModDefaults', None)
+    if not callable(declare):
+        return
+    try:
+        declare(native_mod_id, _mods_settings_native(_build_mod_settings_state(_DEFAULT_CONFIG)))
+    except Exception:
+        # Reset targeting is a convenience; never let it stop the menu from registering.
+        _logger.exception('Failed to declare ModsSettingsApi defaults')
+
+
 def _build_mod_settings_template():
     # Build the template from factory defaults so the menu's per-mod Reset target is the real
     # defaults; the user's saved values are pushed separately via updateModSettings.
@@ -575,6 +603,7 @@ def _register_mod_settings(mod_id, on_config_changed=None):
 
     try:
         api.setModTemplate(native_mod_id, _build_mod_settings_template(), _on_mod_settings_changed)
+        _declare_mod_settings_defaults(api, native_mod_id)
         _mods_settings_sync_in_progress = True
         try:
             api.updateModSettings(native_mod_id, _mods_settings_native(_build_mod_settings_state()))

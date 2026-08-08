@@ -1,0 +1,363 @@
+/* Zanju Directives Helper — garage window styling.
+ *
+ * Only CSS this renderer is known to support is used: flex, min-width, text-align and
+ * plain box properties. Gameface ignores font-variant-numeric / font-feature-settings and
+ * rejects `align-items: baseline`; `display: inline-block` and `ch` units appear nowhere in
+ * the game's own stylesheets. See docs/reference/gameface-mod-widgets.md.
+ *
+ * Sizes are in rem, which the game's own UI uses and which its interface-scale setting
+ * follows, so the window scales with the rest of the UI.
+ *
+ * Palette: neutral. Gold chrome over a dark panel reads as brown, so the accent colour is
+ * spent only where it means something -- white for the fitted directive and a ticked box,
+ * amber for the resupply warning. Everything else is grey, which is also what makes the
+ * warning the one warm thing on the panel and therefore impossible to miss.
+ */
+
+.zanju-dh-root {
+    position: fixed;
+    /* The garage listens for drag-to-rotate on the scene. An overlay that accepted pointer
+       events across its whole area would swallow that, so the root stays transparent to
+       input and only the parts that need it re-enable it. */
+    pointer-events: none;
+    z-index: 900;
+    min-width: 210rem;
+    display: flex;
+    flex-direction: column;
+    background: rgba(17, 19, 22, 0.9);
+    border: 1rem solid rgba(255, 255, 255, 0.13);
+    border-radius: 3rem;
+    font-size: 15rem;
+    line-height: 1.35em;
+    color: #d7dbe0;
+}
+
+/* Elements that take input: the title bar and the resize grip. */
+.zanju-dh-hot {
+    pointer-events: auto;
+    cursor: pointer;
+}
+
+.zanju-dh-header {
+    display: flex;
+    align-items: center;
+    padding: 6rem 10rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 3rem 3rem 0 0;
+    color: #f0f2f5;
+    letter-spacing: 0.02em;
+}
+
+.zanju-dh-fold {
+    min-width: 16rem;
+    text-align: center;
+    margin-right: 6rem;
+    opacity: 0.6;
+}
+
+.zanju-dh-title {
+    flex: 1 1 auto;
+    font-weight: 500;
+}
+
+/* The body opts back into pointer events so the tiles can be clicked and show their name on
+   hover. The cost is that the garage's drag-to-rotate is not available over the window's own
+   area, which is how a UI panel is expected to behave; the root stays transparent to input so
+   everything outside the window keeps working. */
+.zanju-dh-body {
+    pointer-events: auto;
+    display: flex;
+    flex-direction: column;
+    padding: 6rem 10rem 8rem 10rem;
+}
+
+/* Folded: the header alone remains, so the window collapses to a title bar. */
+.zanju-dh-folded .zanju-dh-body {
+    display: none;
+}
+
+.zanju-dh-folded .zanju-dh-header {
+    border-radius: 3rem;
+}
+
+/* Right edge, full height, for dragging the window wider or narrower. Hidden while folded,
+   where there is nothing to resize. */
+.zanju-dh-resize {
+    pointer-events: auto;
+    cursor: ew-resize;
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 6rem;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 0 3rem 3rem 0;
+}
+
+.zanju-dh-resize:hover {
+    background: rgba(255, 255, 255, 0.16);
+}
+
+.zanju-dh-folded .zanju-dh-resize {
+    display: none;
+}
+
+/* Option rows: auto-resupply, and whether to list directives the player does not own. */
+.zanju-dh-auto,
+.zanju-dh-option {
+    display: flex;
+    align-items: center;
+    padding-bottom: 4rem;
+}
+
+.zanju-dh-option {
+    margin-bottom: 4rem;
+    border-bottom: 1rem solid rgba(255, 255, 255, 0.1);
+}
+
+.zanju-dh-clickable {
+    cursor: pointer;
+}
+
+/* A box that fills when checked. No check glyph is used: the game's font is not guaranteed
+   to carry one, and a missing glyph draws an empty box, which reads as the opposite state. */
+.zanju-dh-check {
+    flex: 0 0 auto;
+    width: 13rem;
+    height: 13rem;
+    margin-right: 7rem;
+    border: 1rem solid rgba(255, 255, 255, 0.45);
+    border-radius: 2rem;
+}
+
+.zanju-dh-check-on {
+    background: #e8ebee;
+    border-color: #e8ebee;
+}
+
+.zanju-dh-check-label {
+    flex: 1 1 auto;
+}
+
+.zanju-dh-warning {
+    position: relative;
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+}
+
+/* Round badge: the one warm colour on the panel. Used by both the checkbox row and the title
+   bar, where it shows while the window is folded.
+ *
+ * The `!` is DRAWN from two boxes rather than typed as a character. `text-align: center` centres
+ * a glyph's advance width, not its ink, and this font gives `!` uneven side bearings, so it sat
+ * visibly left of the circle's middle. Two positioned boxes are centred by arithmetic, come out
+ * identical in both badges, and put the stroke weight under our control rather than the font's.
+ *
+ * `display: block` is explicit because the element must be a block container for its width,
+ * height and positioned children to apply; a flex item is supposed to be blockified
+ * automatically, and relying on that is what produced the original bug. */
+.zanju-dh-warn-mark {
+    display: block;
+    /* Never let a flex container squeeze the circle. */
+    flex: 0 0 auto;
+    position: relative;
+    width: 16rem;
+    height: 16rem;
+    border-radius: 8rem;
+    background: #e8a33d;
+}
+
+/* 4rem strokes in a 16rem circle: 6rem clear on the left, 16 - (6 + 4) = 6rem on the right, so
+   it is centred by arithmetic. Vertically the mark spans 2rem to 14rem, whose midpoint is the
+   circle's own. */
+.zanju-dh-warn-stem {
+    position: absolute;
+    left: 6rem;
+    top: 2rem;
+    width: 4rem;
+    height: 7rem;
+    background: #241a08;
+    border-radius: 1rem;
+}
+
+.zanju-dh-warn-dot {
+    position: absolute;
+    left: 6rem;
+    top: 10rem;
+    width: 4rem;
+    height: 4rem;
+    background: #241a08;
+    border-radius: 2rem;
+}
+
+/* Opens downward, into the window: the row sits at the top, so a tooltip above it would run
+   off over the header. Wraps, unlike the tile tips, because this is a sentence. */
+.zanju-dh-warn-tip {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: 20rem;
+    width: 190rem;
+    padding: 4rem 6rem;
+    font-size: 12rem;
+    line-height: 1.3em;
+    color: #f0d9b0;
+    background: rgba(0, 0, 0, 0.95);
+    border: 1rem solid rgba(232, 163, 61, 0.55);
+    border-radius: 3rem;
+}
+
+.zanju-dh-warning:hover .zanju-dh-warn-tip {
+    display: block;
+}
+
+/* The same badge in the title bar, shown only while folded -- then the bar is all there is
+   to see, and the warning would otherwise be hidden with the body. */
+.zanju-dh-header-warn {
+    display: none;
+}
+
+.zanju-dh-folded .zanju-dh-header-warn-on {
+    display: block;
+}
+
+.zanju-dh-category {
+    display: flex;
+    align-items: center;
+    margin-top: 6rem;
+    font-size: 15rem;
+    color: #98a1aa;
+    letter-spacing: 0.03em;
+}
+
+.zanju-dh-category-name {
+    flex: 1 1 auto;
+}
+
+/* Icon grid: a full depot stays compact because names are only shown on hover. */
+.zanju-dh-grid {
+    display: flex;
+    flex-wrap: wrap;
+}
+
+.zanju-dh-tile {
+    position: relative;
+    /* Square, and exactly the icon box: the numbers are overlaid rather than laid out, so the
+       tile has no reason to be any bigger than the art it shows. */
+    width: 48rem;
+    height: 48rem;
+    margin: 2rem;
+    cursor: pointer;
+    /* Every tile carries the border, transparent until it is the fitted one. Adding the
+       border only when fitted would grow the box and shove the icon and count around. */
+    border: 2rem solid transparent;
+    border-radius: 3rem;
+}
+
+/* 48x48 is what `gui/maps/icons/artefact` ships for all but a couple of directives, and it is
+ * the only size they ship: the larger `gui/maps/shop/artefacts` assets are 4:3 marketing art
+ * rather than square icons, so there is no higher-resolution source to scale up from. The box
+ * is therefore fixed at the native size of the overwhelming majority.
+ *
+ * `contain` fits the handful of outliers to it -- 43x43 up, 52x52 down -- rather than leaving
+ * them centred at odd sizes. A uniform grid is worth more than pixel-exactness on a few tiles,
+ * and the scaling is small in either direction; everything else is drawn 1:1.
+ *
+ * rem still scales the whole window with the interface-scale setting; this only fixes what the
+ * mod itself asks for. */
+.zanju-dh-icon {
+    width: 48rem;
+    height: 48rem;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
+}
+
+/* How much of the perk this directive would add, on tiles in the "boost perk to 100%"
+   section. Top-right, diagonally opposite the count. */
+.zanju-dh-gain {
+    position: absolute;
+    right: 0;
+    top: 0;
+    padding: 0 3rem;
+    font-size: 15rem;
+    line-height: 18rem;
+    color: #9ccb68;
+    background: rgba(0, 0, 0, 0.78);
+    border-radius: 3rem;
+}
+
+/* Depot stock, bottom-left. Both numbers carry a backing panel so they stay legible over
+   whatever the artwork happens to be behind them. */
+.zanju-dh-badge {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    padding: 0 3rem;
+    font-size: 15rem;
+    line-height: 18rem;
+    color: #ffffff;
+    background: rgba(0, 0, 0, 0.78);
+    border-radius: 3rem;
+}
+
+/* Name shown only while the cursor is over the tile. Hidden by `display` rather than
+   opacity so it never intercepts anything: a stray visible element would still overlap
+   neighbouring tiles. */
+.zanju-dh-tip {
+    display: none;
+    position: absolute;
+    left: 50%;
+    /* Clears the tile it belongs to (48rem plus its 2rem border). */
+    bottom: 52rem;
+    transform: translateX(-50%);
+    padding: 2rem 6rem;
+    white-space: nowrap;
+    font-size: 15rem;
+    color: #e8ebee;
+    background: rgba(0, 0, 0, 0.93);
+    border: 1rem solid rgba(255, 255, 255, 0.2);
+    border-radius: 3rem;
+}
+
+.zanju-dh-tile:hover .zanju-dh-tip {
+    display: block;
+}
+
+.zanju-dh-tile-equipped {
+    border-color: #ffffff;
+    background: rgba(255, 255, 255, 0.14);
+}
+
+/* Reward-only, so there is nothing a click can do: no pointer, to match. The art still
+   brightens on hover so it stays identifiable. */
+.zanju-dh-tile-inert {
+    cursor: default;
+}
+
+/* Owned none of it: dimmed, because it is the one tile that cannot be fitted. Clicking it
+   opens the game's own store page instead. Full strength on hover, so the art is legible
+   while deciding whether to buy. */
+.zanju-dh-tile-unowned .zanju-dh-icon {
+    opacity: 0.38;
+}
+
+.zanju-dh-tile-unowned:hover .zanju-dh-icon {
+    opacity: 0.85;
+}
+
+.zanju-dh-tile-unowned .zanju-dh-badge {
+    color: #98a1aa;
+}
+
+/* Placeholder for a section with nothing usable on the current tank. */
+.zanju-dh-empty {
+    opacity: 0.45;
+    font-size: 15rem;
+    padding: 2rem 0 2rem 2rem;
+}
+
+.zanju-dh-muted {
+    opacity: 0.55;
+}
