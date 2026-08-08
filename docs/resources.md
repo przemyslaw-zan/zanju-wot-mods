@@ -4,6 +4,12 @@ This page links to public resources that are useful for coding, debugging, migra
 
 ## Source Repositories And Community Knowledge
 
+- wgmods.dev modding documentation: https://wgmods.dev/docs/wot/getting-started
+  (also at https://github.com/wgmods-dev/wgmods.dev). Beginner-oriented and strongest on the
+  areas this repository does not touch: battle-side APIs (`Avatar`, arena), Wwise sound events,
+  vehicle icon naming, and the JPEXS workflow for editing the game's own SWFs. Its pages link a
+  `wgmods-dev/wot-src` decompiled-source repository that does not exist; read the client
+  directly instead, per [Reading The Client's Own Code](reference/reading-the-clients-code.md).
 - Kurzdor WoT mods: https://github.com/Kurzdor/wotmods-public/
 - Aslain forum: https://aslain.com/forums/
 - KoreanRandom technical board: https://koreanrandom.com/forum/forum/44-mods-and-software/

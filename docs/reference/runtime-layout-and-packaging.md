@@ -15,10 +15,26 @@ A `.wotmod` commonly contains:
 
 - `res/` — the only required element; everything below lives under it
 - compiled Python scripts under `res/scripts/client/gui/mods/*.pyc`
-- optional UI assets such as SWFs under `res/gui/flash/*.swf`
+- optional Scaleform assets under `res/gui/flash/*.swf`
+- optional Gameface assets under `res/gui/gameface/mods/<namespace>/*` — the HTML/CSS/JS a
+  widget injects into a game document
 - optional localisation assets under `res/mods/<namespace>/text/*.yml`
 - optional `meta.xml` manifest at the archive root (`<id>`, `<version>`, `<name>`, `<description>`)
 - optional root `LICENSE.md`
+
+## `gui/gameface` Is Not `gui/unbound`
+
+The client ships both, and only the first holds web assets. Counted across `gui-part1.pkg` on
+2.3.1.1:
+
+| Path | Contents |
+| --- | --- |
+| `gui/gameface/` | 159 `.js`, 144 `.css`, 128 `.html` — the compiled documents, under `_dist/` |
+| `gui/unbound/` | 42 files, all `.unbound` — Unbound's own declarative view format |
+
+A widget's assets therefore go under `res/gui/gameface/`, which is also the prefix its
+`coui://` URLs resolve against. Community guides that send Gameface overrides to
+`gui/unbound/` are wrong on this point.
 
 ## Repository Build Rules
 

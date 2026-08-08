@@ -22,21 +22,35 @@ def discover_mods():
     return sorted(d for d in os.listdir(MODS_DIR) if os.path.isdir(os.path.join(MODS_DIR, d)))
 
 
+class UsageError(Exception):
+    """A command was invoked with arguments it cannot make sense of.
+
+    Separate from RuntimeError, which reports a task that failed: this one says the request
+    was never valid, so the caller prints the command's usage rather than a failure message.
+    """
+
+
 def split_targeting_args(argv, bool_flags):
     """Split argv into (flags, positionals) for a simple boolean-flag CLI.
 
-    bool_flags maps each recognised `--flag` to the result key it sets True.
-    Unrecognised tokens become positionals (preserving the prior behaviour
-    where stray arguments are treated as mod-name targets).
+    bool_flags maps each recognised `--flag` to the result key it sets True. Bare tokens are
+    mod names; anything else that starts with `-` raises UsageError.
+
+    That last rule matters more than it looks. These commands take mod names positionally, so
+    a mistyped flag used to be accepted as a mod name and surfaced several steps later as
+    "mod directory not found: --fresh-logfile" -- or, from `cycle`, as a subprocess traceback
+    from the sub-command that inherited it. Rejecting it here names the actual mistake.
     """
     flags = dict.fromkeys(bool_flags.values(), False)
     positionals = []
     for arg in argv:
         key = bool_flags.get(arg)
-        if key is None:
-            positionals.append(arg)
-        else:
+        if key is not None:
             flags[key] = True
+        elif arg.startswith("-"):
+            raise UsageError("unknown option: {}".format(arg))
+        else:
+            positionals.append(arg)
     return flags, positionals
 
 
@@ -59,6 +73,8 @@ def parse_companion_targeting_args(argv):
             run_all = True
         elif arg == "--verbose":
             verbose = True
+        elif arg.startswith("-"):
+            raise UsageError("unknown option: {}".format(arg))
         else:
             targets.append(arg)
     return include_companion_bundle, run_all, verbose, targets

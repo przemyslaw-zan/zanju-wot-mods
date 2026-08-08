@@ -4,23 +4,27 @@ Source repository for World of Tanks mods, build tooling, and game-facing techni
 
 ## Included Mods
 
-- [Zanju's Research Progress Bar](mods/research-progress-bar/README.md)  
+- [Zanju's Research Progress Bar](mods/research-progress-bar/README.md) [![release](https://img.shields.io/github/v/release/przemyslaw-zan/zanju-wot-mods?filter=research-progress-bar%40*)](https://github.com/przemyslaw-zan/zanju-wot-mods/releases/latest)  
   Custom hangar progress bar covering research, field modifications, Tier XI upgrade-tree progress, and elite progress modes.
-
-WIP or experimental mods are intentionally not listed here as public entry points.
+- [Zanju's Premium Time](mods/premium-time/README.md) [![release](https://img.shields.io/github/v/release/przemyslaw-zan/zanju-wot-mods?filter=premium-time%40*)](https://github.com/przemyslaw-zan/zanju-wot-mods/releases/latest)  
+  Precise premium account countdown in the lobby header, with the exact end time in its tooltip.
+- [Zanju's Directives Helper](mods/directives-helper/README.md) [![release](https://img.shields.io/github/v/release/przemyslaw-zan/zanju-wot-mods?filter=directives-helper%40*)](https://github.com/przemyslaw-zan/zanju-wot-mods/releases/latest)  
+  Garage window for fitting directives, showing what each is worth on the current crew and warning before auto-resupply spends anything.
 
 ## Install And Use
 
 Use this path if you want to install a prepared mod package and keep it updated.
 
 - [Installing Mods](docs/installing-mods.md)
-- Pushes to `master` publish the repository's rolling GitHub release titled `Stable build`, backed by the fixed tag `stable-build`.
+- Each mod version is published as its own GitHub release, tagged `<mod-name>@<version>`. The
+  [Latest Releases](https://github.com/przemyslaw-zan/zanju-wot-mods/releases/latest) index always lists the current
+  release of every mod, so that one link stays correct as mods update independently.
 
 ## Build From Source
 
 Use this path if you want to build `.wotmod` packages yourself without changing the code.
 
-- Prerequisites: **Docker Desktop only** — the whole toolchain (Python 3, Python 2.7, Java + Apache Flex SDK) ships in the published image `ghcr.io/przemyslaw-zan/zanju-wot-mods/toolchain`
+- Prerequisites: **Docker Desktop only** — the whole toolchain (Python 3, Python 2.7, Node, Java + Apache Flex SDK) ships in the published image `ghcr.io/przemyslaw-zan/zanju-wot-mods/toolchain`
 - The target WoT version is pinned in `tools/wot_version_manifest.json`
 - Standalone configurator bundles additionally require the pinned companion artifacts fetched into the local ignored cache
 
@@ -33,7 +37,7 @@ Use this path if you want to change code, add features, or create new mods in th
 
 - Prerequisites: **Docker Desktop** + the VS Code **Dev Containers** extension; a local WoT install; `.env` copied from `.env.example` with `WOT_GAME_DIR` set
 - Open the repo in VS Code → **Reopen in Container**; the `zwm` command is ready in the container terminal
-- FFDec (SWF inspection) is a separate optional tool for reverse-engineering work
+- `swfdump` (Apache Flex SDK) ships in the image for SWF inspection; FFDec is a separate optional tool if you need a GUI decompiler
 - Run `zwm help` to list the available commands
 - Run `zwm lint check` before build or deploy, and `zwm test --all` to run the mods' unit tests
 

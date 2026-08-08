@@ -60,15 +60,31 @@ The pinned WoT target version lives at `tools/wot_version_manifest.json`. If you
 updates, refresh it before build/deploy (run inside the image as above):
 `zwm update-wot-version-manifest`.
 
-## CI Stable Build
+## CI Releases
 
-Pushes to `master` publish the current bundles to the rolling GitHub release titled
-`Stable build` (tag `stable-build`). CI runs the same image: it lints, builds all mods
-inside the image, and publishes. The toolchain image itself is rebuilt and pushed to GHCR
-only when `tools/Dockerfile` or the `requirements-*.txt` files change.
+Pushes to `master` lint, build all mods inside the image, and then publish. The toolchain
+image itself is rebuilt and pushed to GHCR only when `tools/Dockerfile` or the
+`requirements-*.txt` files change.
 
-The release notes include one changelog link per published mod, so mods intended for that
-rolling release should include `mods/<name>/CHANGELOG.md`.
+Publishing follows a single rule: a mod at version `1.0.0` or higher whose `meta.xml`
+version has no release yet gets one, tagged `<mod-name>@<version>` (for example
+`premium-time@1.0.1`). Releases are never edited afterwards, so a push with no version
+bump publishes nothing. Versions below `1.0.0` are treated as internal and are not
+released.
+
+Whenever at least one mod is released, the `Latest Releases` index release is republished
+under a fresh dated tag and marked as GitHub's latest release, so
+`/releases/latest` always resolves to a current list of every mod's newest download. The
+index carries no assets of its own and is rendered from the releases that actually exist,
+so a partly failed run self-corrects on the next one.
+
+Release notes for each mod are taken from its `mods/<name>/CHANGELOG.md` section matching
+the version being released, so that section must exist before the version can ship.
+
+> Do not enable GitHub's **immutable releases** setting on this repository. It permanently
+> reserves the tag name of every release published while it is on — even after that release
+> is deleted, and even if the setting is later turned off. The index republishes by deleting
+> its previous dated tag, which that setting would block.
 
 ## Output
 

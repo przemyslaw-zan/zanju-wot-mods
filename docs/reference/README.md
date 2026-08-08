@@ -5,6 +5,7 @@ Use it when you need import paths, runtime locations, API entry points, or versi
 
 ## Reference Pages
 
+- [Reading The Client's Own Code](reading-the-clients-code.md)
 - [Runtime Layout And Packaging](runtime-layout-and-packaging.md)
 - [Python Runtime And Data Access](python-runtime-and-data-access.md)
 - [Research, XP, And Post-Progression](research-xp-and-post-progression.md)
