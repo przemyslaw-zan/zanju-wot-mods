@@ -28,7 +28,13 @@ import subprocess
 import sys
 
 from ..core.console import detail, section, success, warning
-from ..core.mod_cli import ensure_mod_dirs_exist, resolve_mod_targets, run_entrypoint
+from ..core.env import subprocess_env
+from ..core.mod_cli import (
+    UsageError,
+    ensure_mod_dirs_exist,
+    resolve_mod_targets,
+    run_entrypoint,
+)
 from ..core.mod_meta import read_meta
 from ..core.paths import MODS_DIR, REPO_ROOT
 from .lint import format_command, resolve_py27_python
@@ -58,7 +64,7 @@ def find_test_files(tests_dir, pattern):
 
 def run_command(cmd, cwd=None, verbose=False):
     detail("Running: {}".format(format_command(cmd)), verbose=verbose)
-    return subprocess.call(cmd, cwd=cwd or REPO_ROOT)
+    return subprocess.call(cmd, cwd=cwd or REPO_ROOT, env=subprocess_env())
 
 
 def run_py27_suite(mod_name, tests_dir, verbose):
@@ -140,6 +146,8 @@ def parse_args(argv):
             verbose = True
         elif arg == "--strict":
             strict = True
+        elif arg.startswith("-"):
+            raise UsageError("unknown option: {}".format(arg))
         else:
             targets.append(arg)
     return run_all, verbose, strict, targets

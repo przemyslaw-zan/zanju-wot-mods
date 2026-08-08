@@ -50,8 +50,10 @@ when you really want every mod. `zwm deploy` expects current build output in
 there is no automatic running-process check (the container can't see the Windows host);
 in-use files are simply skipped.
 
-Mods intended for the repository's rolling `Stable build` GitHub release should include
-`mods/<name>/CHANGELOG.md`, because the generated release notes link each published mod to that file.
+Every releasable mod must keep a `mods/<name>/CHANGELOG.md` with a `## <version>` section for
+each released version: the release notes are generated from the section matching `meta.xml`,
+and a version bump without a matching section fails the release build. Bumping the version in
+`meta.xml` is what triggers a release, and versions below `1.0.0` are never published.
 
 ## Python Format and Lint Workflow
 

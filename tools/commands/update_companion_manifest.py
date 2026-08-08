@@ -9,6 +9,7 @@ import sys
 import tempfile
 from urllib.parse import quote
 
+from ..core.mod_cli import run_entrypoint
 from ..core.companion_artifacts import (
     COMPANION_ARTIFACT_SCHEMA_VERSION,
     RESEARCH_PROGRESS_BAR_BUNDLE,
@@ -46,7 +47,7 @@ def parse_args(argv):
     return dry_run, verbose
 
 
-def main():
+def _main():
     dry_run, verbose = parse_args(sys.argv[1:])
     section("Update companion manifest")
     current_manifest = load_manifest()
@@ -265,8 +266,12 @@ def _normalized_manifest(manifest):
     return normalized
 
 
+def main():
+    # run_entrypoint, not a guard under `if __name__`: zwm imports this module and calls
+    # main() directly, so anything handled only in the __main__ block never ran for the
+    # command's actual users -- domain errors reached them as tracebacks.
+    return run_entrypoint(_main)
+
+
 if __name__ == "__main__":
-    try:
-        main()
-    except CompanionArtifactError as exc:
-        raise SystemExit(str(exc)) from exc
+    sys.exit(main())

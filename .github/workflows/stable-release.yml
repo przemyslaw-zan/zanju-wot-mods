@@ -8,7 +8,10 @@ on:
 
 concurrency:
   group: stable-release
-  cancel-in-progress: true
+  # Not cancel-in-progress: publishing is not a check that can be safely interrupted and
+  # retried later. A run cancelled midway through can leave some mods released and the
+  # index not yet refreshed; letting it finish keeps the published state coherent.
+  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -61,7 +64,7 @@ jobs:
     uses: ./.github/workflows/toolchain-image.yml
 
   stable-release:
-    name: Build and Publish Stable Build
+    name: Build and Publish Releases
     needs: [checks, detect, image]
     if: >-
       always()
@@ -106,14 +109,18 @@ jobs:
           "${{ steps.img.outputs.ref }}" \
           bash -c 'python3 -m tools.commands.fetch_companion_artifacts && python3 -m tools.commands.build --all'
 
-    - name: Generate stable release notes
-      run: python .github/scripts/generate_stable_release_notes.py --output .tmp/stable-release-notes.md
-
-    - name: Publish rolling stable release
+    # Publishes one write-once release per mod whose meta.xml version has no release yet.
+    # Nothing is republished, so a run with no version bumps is a no-op.
+    - name: Publish per-mod releases
+      id: mods
       env:
         GH_TOKEN: ${{ github.token }}
-      run: >-
-        python .github/scripts/sync_stable_release.py
-        --tag stable-build
-        --title "Stable build"
-        --notes-file .tmp/stable-release-notes.md
+      run: python .github/scripts/publish_mod_releases.py
+
+    # Only refreshed when something actually shipped, so the index's date reflects the
+    # last real release rather than the last push to master.
+    - name: Refresh Latest Releases index
+      if: steps.mods.outputs.published != '0'
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: python .github/scripts/publish_hub_release.py
