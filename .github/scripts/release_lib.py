@@ -220,10 +220,10 @@ def extract_changelog_section(changelog_path, version):
 
 
 def list_releases(repo):
-    """Return every published release as {tagName, name, isLatest} dicts."""
+    """Return every published release as {tagName, name, isLatest, publishedAt} dicts."""
 
     result = run_command(
-        gh_command(["release", "list", "--limit", "500", "--json", "tagName,name,isLatest"], repo),
+        gh_command(["release", "list", "--limit", "500", "--json", "tagName,name,isLatest,publishedAt"], repo),
     )
     return json.loads(result.stdout or "[]")
 

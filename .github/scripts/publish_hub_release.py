@@ -70,6 +70,21 @@ def format_stamp(now):
     )
 
 
+def format_release_date(timestamp):
+    """Render gh's ISO-8601 publish timestamp as "8 August 2026".
+
+    Degrades to a dash rather than raising: the date is decoration on an index that is
+    rebuilt from scratch every release, so an unparseable value is not worth failing a
+    publish over.
+    """
+
+    try:
+        parsed = dt.datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%SZ")
+    except (TypeError, ValueError):
+        return "—"
+    return "{day} {month} {year}".format(day=parsed.day, month=parsed.strftime("%B"), year=parsed.year)
+
+
 def hub_tag(now):
     # Minute resolution: runs are serialised by the workflow's concurrency group and a
     # build takes minutes, so this cannot collide in practice -- and it never needs to,
@@ -99,6 +114,7 @@ def find_current_releases(repo):
                 "display_name": known_mods[acronym]["display_name"],
                 "version": version,
                 "tag": tag,
+                "published_at": release.get("publishedAt") or "",
             }
 
     # Sorted by full name so the index table matches the order the README lists mods in.
@@ -117,10 +133,10 @@ def find_zip_asset(repo, tag):
 
 def render_notes(repo, releases, now):
     lines = [
-        "The current release of each mod. Each row links straight to the download and to "
-        "that mod's own release page, where its changelog lives.",
+        "The current release of each mod. Each row links straight to the download, and to "
+        "that release's own page where its changelog entry lives.",
         "",
-        "| Mod | Version | Download | Notes |",
+        "| Mod | Release | Released | Download |",
         "| --- | --- | --- | --- |",
     ]
 
@@ -134,8 +150,14 @@ def render_notes(repo, releases, now):
             # that rather than dressing the release page up as a download.
             download = "—"
         lines.append(
-            "| {} | `{}` | {} | [release notes]({}) |".format(
-                release["display_name"], release["version"], download, release_url
+            # The version itself is the link to that release's page, so the column carries
+            # both facts without a second column repeating the version inside a tag.
+            "| {} | [{}]({}) | {} | {} |".format(
+                release["display_name"],
+                release["version"],
+                release_url,
+                format_release_date(release["published_at"]),
+                download,
             )
         )
 

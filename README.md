@@ -1,5 +1,7 @@
 # Zanju's WoT Mods
 
+[![license](https://img.shields.io/github/license/przemyslaw-zan/zanju-wot-mods?color=green&style=flat)](LICENSE.md) [![WoT](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fprzemyslaw-zan%2Fzanju-wot-mods%2Fmaster%2Ftools%2Fwot_version_manifest.json&query=%24.wotClientVersion&label=WoT&color=green&style=flat)](tools/wot_version_manifest.json) [![stars](https://img.shields.io/github/stars/przemyslaw-zan/zanju-wot-mods?color=green&style=flat)](https://github.com/przemyslaw-zan/zanju-wot-mods/stargazers) [![downloads](https://img.shields.io/github/downloads/przemyslaw-zan/zanju-wot-mods/total?color=green&style=flat)](https://github.com/przemyslaw-zan/zanju-wot-mods/releases/latest)
+
 Source repository for World of Tanks mods, build tooling, and game-facing technical notes.
 
 ## Included Mods
