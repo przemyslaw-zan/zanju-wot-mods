@@ -22,6 +22,12 @@ Shows actual remaining premium account time in the lobby header, with the exact 
 
 Hangar progress bar covering research, field modifications, Tier XI upgrades, and elite progress modes.
 
+### [Zanju's Salvo Reticle Fix](mods/salvo-reticle-fix/README.md)
+
+Not yet released — the version in `meta.xml` is still below `1.0.0`.
+
+Strips the fixed shell-spread offset from the reticle of twin-gun vehicles in Salvo Fire mode, so the circle shows dispersion only, like every other vehicle's does.
+
 ## Install And Use
 
 Use this path if you want to install a prepared mod package and keep it updated.
