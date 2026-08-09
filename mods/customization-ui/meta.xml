@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<root>
+    <name>Zanju's Customization UI</name>
+    <id>zanju.customizationui</id>
+    <version>0.1.0</version>
+    <description>Replaces the vehicle customization screen with a mod-owned interface. This version is a foundation spike that validates the client's Scaleform extension override path before any interface work starts.</description>
+</root>
