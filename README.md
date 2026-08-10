@@ -26,7 +26,7 @@ Hangar progress bar covering research, field modifications, Tier XI upgrades, an
 
 ### [Zanju's Salvo Reticle Fix](mods/salvo-reticle-fix/README.md)
 
-Not yet released — the version in `meta.xml` is still below `1.0.0`.
+[![release](https://img.shields.io/github/v/release/przemyslaw-zan/zanju-wot-mods?filter=SRF%40*&color=green&style=flat)](https://github.com/przemyslaw-zan/zanju-wot-mods/releases/latest)
 
 Strips the fixed shell-spread offset from the reticle of twin-gun vehicles in Salvo Fire mode, so the circle shows dispersion only, like every other vehicle's does.
 
