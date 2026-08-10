@@ -3,5 +3,4 @@
     <name>Zanju's Premium Time</name>
     <id>zanju.premiumtime</id>
     <version>1.0.1</version>
-    <description>Shows exactly how much Premium Account time is left on the lobby header button, down to the second in the final hour, with the exact end date in its tooltip.</description>
 </root>

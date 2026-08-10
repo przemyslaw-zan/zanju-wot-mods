@@ -3,5 +3,4 @@
     <name>Zanju's Salvo Reticle Fix</name>
     <id>zanju.salvoreticlefix</id>
     <version>0.1.0</version>
-    <description>Removes the fixed shell-spread term that inflates the aiming reticle of twin-gun vehicles in Salvo Fire mode, so the circle again shows only dispersion the way every other vehicle's does.</description>
 </root>

@@ -17,7 +17,7 @@ Optional prebuild hooks:
 - The build tool stages both mods/<name>/res/ and generated ui/build/res/ into the final archive.
 
 Internal .wotmod layout:
-    meta.xml                                (authored manifest: id/version/name/description)
+    meta.xml                                (authored manifest: id/version/name)
     LICENSE.md                              (repo-root license, when present)
     res/scripts/client/gui/mods/<file>.pyc  (compiled from mods/<name>/src/)
     res/scripts/client/gui/mods/<pkg>/_mod_meta.pyc  (generated from meta.xml: MOD_ID/MOD_NAME)
