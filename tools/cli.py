@@ -8,7 +8,9 @@ the human-facing alias for `python3 -m tools.commands.<module>`. Run `zwm help` 
 
 import importlib
 import sys
+import time
 
+from tools.core.console import dim
 from tools.core.mod_cli import UsageError
 
 # subcommand -> tools.commands submodule that exposes main()
@@ -43,6 +45,16 @@ def _print_command_help(command, module):
     print((module.__doc__ or "").strip())
 
 
+def _log_finish_time():
+    """Print the wall-clock time the command finished at.
+
+    The zone is always shown: the dev container runs on UTC while the developer's own
+    clock usually does not, so a bare time would be quietly misleading.
+    """
+
+    dim("Finished at {}".format(time.strftime("%H:%M:%S %Z")))
+
+
 def main(argv=None):
     argv = list(sys.argv[1:] if argv is None else argv)
     if not argv or argv[0] in ("help", "-h", "--help"):
@@ -74,6 +86,12 @@ def main(argv=None):
         sys.stderr.write("zwm {}: {}\n\n".format(command, exc))
         _print_command_help(command, module)
         return 2
+    finally:
+        # Stamps every dispatched command, including ones that failed: commands report
+        # failure by raising SystemExit, which passes through here, and knowing when a
+        # long build gave up is as useful as knowing when it succeeded. `zwm help` and
+        # unknown commands return before this block, so they stay unstamped.
+        _log_finish_time()
 
 
 if __name__ == "__main__":

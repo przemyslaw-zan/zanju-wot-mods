@@ -15,3 +15,7 @@ services:
       # Authoritative for the tools inside the container (overrides .env via os.environ).
       WOT_GAME_DIR: /game
       WOT_PYTHON2_EXE: /opt/python2.7/bin/python2.7
+      # Wall-clock zone for tool output. The image runs on UTC, so without this the finish
+      # time `zwm` prints after each command would not match the developer's own clock.
+      # Set TZ in the repo .env; unset or empty keeps the image default.
+      TZ: ${TZ:-Etc/UTC}

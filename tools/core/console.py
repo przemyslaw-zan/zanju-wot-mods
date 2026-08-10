@@ -43,3 +43,9 @@ def warning(message):
 def detail(message, verbose=False):
     if verbose:
         print(_style("  {}".format(message), _DIM))
+
+
+def dim(message):
+    """Print de-emphasised text that should not compete with a command's own output."""
+
+    print(_style(message, _DIM))
