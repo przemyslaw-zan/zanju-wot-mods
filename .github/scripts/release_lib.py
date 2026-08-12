@@ -105,6 +105,18 @@ def release_tag(acronym, version):
     return "{}{}{}".format(acronym, TAG_SEPARATOR, version)
 
 
+def mod_readme_url(repo, mod_name):
+    """Link to a mod's own README on master.
+
+    Always master, never the release's commit: these links are followed to find out what a
+    mod does, and a pin would freeze that at whatever the README said when the version
+    shipped. Same reasoning as the changelog link -- only "built from commit" identifies a
+    specific commit, because that is the one thing that genuinely is version-specific.
+    """
+
+    return "https://github.com/{}/blob/master/mods/{}/README.md".format(repo, mod_name)
+
+
 def release_acronym(display_name):
     """Initials of a mod's name, dropping a leading possessive author prefix.
 

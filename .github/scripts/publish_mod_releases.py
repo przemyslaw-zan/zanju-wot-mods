@@ -18,6 +18,7 @@ from release_lib import (
     gh_command,
     is_published_version,
     iter_mods,
+    mod_readme_url,
     read_wot_version,
     release_exists,
     release_title,
@@ -50,9 +51,15 @@ def parse_args(argv=None):
 
 def render_notes(mod, repo, commit):
     # The title and tag are both acronyms, so the body carries the full name -- otherwise
-    # nothing on the release page would say which mod this is.
+    # nothing on the release page would say which mod this is. The name links to the mod's
+    # README, so the page also answers "what does it actually do".
+    if repo:
+        heading = "**[{}]({})**".format(mod["display_name"], mod_readme_url(repo, mod["mod_name"]))
+    else:
+        heading = "**{}**".format(mod["display_name"])
+
     sections = [
-        "**{}**".format(mod["display_name"]),
+        heading,
         "",
         extract_changelog_section(mod["changelog_path"], mod["version"]),
         "",
@@ -63,12 +70,15 @@ def render_notes(mod, repo, commit):
     wot_version = read_wot_version()
     if wot_version:
         sections.append("- Target WoT client version: `{}`".format(wot_version))
-    if repo and commit:
+    if repo:
+        # master, not this release's commit: "full changelog" means the whole history, and
+        # a pinned copy would stop at the version being published.
         sections.append(
-            "- Full changelog: [CHANGELOG.md](https://github.com/{}/blob/{}/mods/{}/CHANGELOG.md)".format(
-                repo, commit, mod["mod_name"]
+            "- Full changelog: [CHANGELOG.md](https://github.com/{}/blob/master/mods/{}/CHANGELOG.md)".format(
+                repo, mod["mod_name"]
             )
         )
+    if repo and commit:
         sections.append("- Built from commit [{}](https://github.com/{}/commit/{})".format(commit[:7], repo, commit))
     if repo:
         sections.extend(

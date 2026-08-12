@@ -28,6 +28,7 @@ from release_lib import (
     gh_command,
     iter_mods,
     list_releases,
+    mod_readme_url,
     read_wot_version,
     run_command,
     version_tuple,
@@ -133,8 +134,8 @@ def find_zip_asset(repo, tag):
 
 def render_notes(repo, releases, now):
     lines = [
-        "The current release of each mod. Each row links straight to the download, and to "
-        "that release's own page where its changelog entry lives.",
+        "The current release of each mod. Each mod name links to what it does, and each row "
+        "links straight to the download and to that release's own page.",
         "",
         "| Mod | Release | Released | Download |",
         "| --- | --- | --- | --- |",
@@ -151,9 +152,11 @@ def render_notes(repo, releases, now):
             download = "—"
         lines.append(
             # The version itself is the link to that release's page, so the column carries
-            # both facts without a second column repeating the version inside a tag.
-            "| {} | [{}]({}) | {} | {} |".format(
+            # both facts without a second column repeating the version inside a tag. The
+            # name links to the mod's README, which nothing else on this page reaches.
+            "| [{}]({}) | [{}]({}) | {} | {} |".format(
                 release["display_name"],
+                mod_readme_url(repo, release["mod_name"]),
                 release["version"],
                 release_url,
                 format_release_date(release["published_at"]),
