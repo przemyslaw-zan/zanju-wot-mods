@@ -2,19 +2,23 @@
 """Follows the garage's loadout panel: is it on screen, and does it offer directives.
 
 The loadout panel is the bar along the bottom of the garage holding shells, consumables,
-optional devices and directives. It is the right thing to key the window's visibility on,
-because it answers both questions at once and answers them per game mode:
+optional devices and directives. It answers two of the three questions that decide whether the
+window shows.
+The third one -- whether the tank in the garage has a directives slot at all -- is
+`slot_gate`'s, and the panel cannot answer it: the sections it lists are the same for every
+tank in the mode, and it is the game's own slot count that differs.
 
 * **On screen** — the panel's presenter is loaded exactly while the panel is being shown, so
   its lifecycle is the visibility signal. Leaving the garage for another lobby screen tears it
   down; coming back builds a new one.
 * **Offers directives** — the panel is built from `GroupData(groupID, sections)` records, and
-  the directives slot exists precisely when `battleBoosters` is one of those sections. Every
-  mode decides this the same way, through `AmmunitionGroupsController._getGroups()`:
-  Onslaught reuses the random-battle groups (so directives apply), Fun Random builds its
-  groups from the active sub-mode's configuration flag, Last Stand from the player's chosen
-  panel preset. Asking the panel therefore covers modes that did not exist when this was
-  written, and modes that change their mind while the player is standing in them.
+  the directives slot exists precisely when `battleBoosters` is one of those sections. The
+  garage reads them from `HangarAmmunitionGroupsController._getGroups()`, which in client
+  2.3.1.3 answers `RANDOM_GROUPS` for every tank once one is in the garage, and an empty list
+  before that. The panel therefore lists directives in every mode, and this half of the gate
+  currently reduces to "a panel is up and a tank is in it". The class still carries an unused
+  `prbDispatcher` property, which reads as the remains of a version that did branch per mode,
+  so asking the panel keeps the answer right if a later client branches again.
 
 The alternative — matching the lobby's route against a list of known garage routes — cannot
 do this. Routes are mode-prefixed (`subScope/subLayer/comp7Light/hangar/{root}` rather than
@@ -34,7 +38,8 @@ BATTLE_BOOSTERS_SECTION = 'battleBoosters'
 
 _PRESENTER_MODULE = 'gui.impl.lobby.hangar.presenters.loadout_presenter'
 _PRESENTER_CLASS = 'LoadoutPresenter'
-# Patched on the base class, which every mode's panel subclasses without overriding these.
+# Patched on `LoadoutPresenter` itself. Client 2.3.1.3 has no subclass of it, and a
+# mode-specific one added later inherits these hooks unless it overrides them.
 _HOOKS = ('_onLoading', '_updateAmmunitionGroupsController', '_finalize')
 
 _patched = []

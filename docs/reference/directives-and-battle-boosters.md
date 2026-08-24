@@ -1,10 +1,12 @@
 # Directives And Battle Boosters
 
 Reference notes for `directives-helper`: where the client keeps directives, what a crew
-directive is actually worth on a given crew, and the two questions that decide whether the
+directive is actually worth on a given crew, and the three questions that decide whether the
 mod's garage window is on screen.
 
-Verified against WoT client **2.3.1.1** by decompiling the shipped scripts.
+Verified by decompiling the shipped scripts: most of this page against WoT client **2.3.1.1**,
+and the mode and slot questions under [When the window shows](#when-the-window-shows) against
+**2.3.1.3**.
 
 ## Where the data comes from
 
@@ -25,6 +27,10 @@ inventory's equipment section rather than having one of their own.
 - **Crew vs equipment** — `item.isCrewBooster()`, the same test behind the game's own two
   directive tabs.
 - **Fitted** — `vehicle.battleBoosters.installed`.
+- **How many directives this tank can take** — the length of that same collection, which is
+  the count of battle-booster supply slots on the vehicle descriptor. It is zero on a low-tier
+  tank, which can therefore take no directive at all. See
+  [When the window shows](#when-the-window-shows).
 - **Fits this tank** — `item.isAffectsOnVehicle(vehicle)`, which validates crew directives
   against the crew's skills and equipment directives against the mounted optional devices.
 - **What a grant-perk directive is worth** — how far short of a full perk the crew currently
@@ -66,15 +72,22 @@ out of the window entirely rather than listed with a reduced figure.
 
 ## When the window shows
 
-Two conditions, from two different sources, and the window needs both.
+Three conditions, from three different sources, and the window needs all of them.
 
 **Does this mode offer directives at all?** It follows the garage's loadout panel — the bar
 holding shells, consumables, optional devices and directives — by patching `LoadoutPresenter`,
-which every mode's panel subclasses. The panel's presenter is alive exactly while the bar is on
-screen, and its groups controller (`_getGroupController._getGroups()`) lists the sections the
-bar carries; the answer is yes when a panel is up and `battleBoosters` is one of its sections.
-This covers modes that decide at runtime: Fun Random enables directives per sub-mode, Last
-Stand per panel preset.
+the class behind that bar. The presenter is alive exactly while the bar is on screen, and its
+groups controller (`_getGroupController._getGroups()`) lists the sections the bar carries. The
+answer is yes when a panel is up and `battleBoosters` is one of its sections.
+
+In client 2.3.1.3 that question no longer separates one mode from another.
+`HangarAmmunitionGroupsController._getGroups()` returns `RANDOM_GROUPS` for every tank once one
+is in the garage, and an empty list before that. This half of the gate therefore reduces to "a
+panel is up and a tank is in it". There is one such controller and one `LoadoutPresenter` in
+the whole client, and no `FUN_RANDOM_GROUPS` or `LAST_STAND_GROUPS` anywhere — but the
+controller still carries a `prbDispatcher` property that nothing reads, which looks like the
+remains of a version that did branch per mode. Reading the panel rather than reproducing its
+decision costs nothing, and keeps the answer right if a later client branches again.
 
 **Is the garage what the player is actually looking at?** The panel cannot answer this, and
 that is not a flaw in it — opening the playlist editor, the directives screen or the equipment
@@ -99,20 +112,44 @@ client's own consumers of this event compare against `getStateByCls(DefaultHanga
 has the same problem from the other end — each mode's garage is a separately generated state
 class, so that test answers False everywhere but the default hangar.
 
-There is deliberately no third test for "is there a vehicle". The panel already answers it —
+**Does this tank have a directives slot?** The other two cannot answer this, because it is a
+property of the tank rather than of the mode or the screen. The panel's section list is a
+constant — `RANDOM_GROUPS` in `ammunition_groups_controller` names `battleBoosters` for every
+tank in the mode — and what differs per tank is how many slots the game then draws in that
+section: `BaseBlock._createSlots` sizes it by `len(vehicle.battleBoosters.installed)`, which
+counts the battle-booster supply slots on the vehicle descriptor
+(`vehDescr.type.supplySlots`, filtered by item type in `_EquipmentCollector._getCapacity`).
+Low-tier tanks have none, so the client draws the section with nothing in it. The mod reads the
+same number the panel does.
+
+This one is a safety gate rather than a tidiness one. `BuyAndInstallBattleBoostersProcessor`
+sends the tank's consumables and its directive layout to the server as a single array, and on
+a tank with no directive slot that array does not line up with what the server expects: a
+consumable ends up recorded as the tank's fitted directive, and the player can no longer take
+the tank into battle until they sell it and buy it back. The processor does not refuse the
+request — the game's own UI never makes it, because it draws no slot to click — so
+`equip_directive` asks the same question again before it touches the layout. A window that is
+somehow on screen still must not be able to corrupt a tank. Reported as
+[issue #18](https://github.com/przemyslaw-zan/zanju-wot-mods/issues/18), where the client
+update diff reads `boostersLayout: {349: [[1275]]}` for a tier II tank and the client logs
+`capacity: 0` for its battle-booster equipment alongside it.
+
+There is deliberately no fourth test for "is there a vehicle". The panel already answers it —
 `_getGroupController` is None until a tank is in the garage — and asking separately means
 answering the same question twice from two places that can disagree. An earlier version did
 exactly that, gating on whether the snapshot described a tank, and it could strand the window
 hidden: the data model is built a second or two *before* the garage finishes assembling, so
 that gate started out false on every entry and only cleared if some later event happened to
-trigger a rebuild.
+trigger a rebuild. The slot gate is careful not to reintroduce it: no tank, and a tank it
+cannot read, both answer "shown".
 
-For the same reason neither answer is mirrored into a local flag. Both are read live at the
+For the same reason no answer is mirrored into a local flag. All three are read live at the
 moment visibility is applied, so a callback firing from one source can never push a decision
-made from a stale copy of the other. The lobby state machine belongs to the lobby app, so it
-is a different object after every teardown and its subscription is re-made on each hangar
-build; until it has reported, the route half answers "shown" rather than holding the window
-back.
+made from a stale copy of another. The mod applies visibility on a vehicle change as well as on
+a panel or route change, since the third question is the one whose answer a new tank can flip.
+The lobby state machine belongs to the lobby app, so it is a different object after every
+teardown and its subscription is re-made on each hangar build; until it has reported, the route
+half answers "shown" rather than holding the window back.
 
 ## How the window is drawn
 

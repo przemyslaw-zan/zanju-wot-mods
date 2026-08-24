@@ -21,7 +21,7 @@ import logging
 
 from frameworks.wulf import ViewModel
 
-from .. import collector, config, loadout_panel, route_gate
+from .. import collector, config, loadout_panel, route_gate, slot_gate
 from ..localization import get_text as _loc
 
 _MODULE_URL = 'coui://gui/gameface/mods/zanju_directives/window.js'
@@ -47,13 +47,14 @@ _patched = []
 # updates, which is how a torn-down view leaves the list.
 _models = []
 
-# Visibility is the conjunction of two questions, each owned by the module that can answer it:
-# does this mode offer directives at all (loadout_panel), and is the garage what the player is
-# actually looking at (route_gate). They are genuinely different -- the panel stays alive
-# underneath a screen drawn over the garage and keeps answering yes -- which is why one cannot
-# serve as the other.
+# Visibility is the conjunction of three questions, each owned by the module that can answer it:
+# does this mode offer directives at all (loadout_panel), is the garage what the player is
+# actually looking at (route_gate), and does the tank in the garage have a directives slot
+# (slot_gate). They are genuinely different -- the panel stays alive underneath a screen drawn
+# over the garage and keeps answering yes, and it reports its mode's sections for every tank in
+# that mode however few slots any one of them has -- which is why none can serve as another.
 #
-# Both are read live rather than cached here. An earlier version mirrored them into module
+# All three are read live rather than cached here. An earlier version mirrored them into module
 # globals updated from their callbacks, which meant the answer could be pushed from stale state
 # by a caller that had not heard from one of them yet.
 
@@ -244,6 +245,14 @@ def equip_directive(int_cd, logger):
         if not g_currentVehicle.isPresent():
             return
         vehicle = g_currentVehicle.item
+        if not slot_gate.has_directive_slot(vehicle):
+            # The window checks this too, so it should not be on screen for such a tank at all.
+            # The check runs again here because this is the last point before the client's own
+            # processor, which does not refuse the request but corrupts the tank's stored layout
+            # instead -- see slot_gate and issue #18.
+            logger.warning(
+                'The selected vehicle has no directives slot; not fitting directive %s', int_cd)
+            return
         booster = _find_booster(vehicle, int_cd, logger)
         if booster is None:
             logger.warning('Directive %s is not available for this vehicle', int_cd)
@@ -409,7 +418,7 @@ def refresh(logger):
 
 
 def _should_be_visible():
-    return loadout_panel.is_visible() and route_gate.is_visible()
+    return loadout_panel.is_visible() and route_gate.is_visible() and slot_gate.is_visible()
 
 
 def _apply_visibility(logger):
@@ -449,6 +458,10 @@ def _on_panel_update():
     # The loadout bar re-read the vehicle, so what the window shows has changed with it. This
     # covers the selected tank and the selected setup, and keeps working after a lobby
     # teardown has emptied the events _bind_events subscribes to.
+    #
+    # This re-applies visibility as well: a different tank can decide whether the window
+    # applies at all, and this hook is the one signal that survives a lobby teardown.
+    _apply_visibility(_module_logger)
     refresh(_module_logger)
 
 
@@ -509,6 +522,8 @@ def _on_client_updated(diff, *args):
 
 
 def _on_vehicle_changed(*args):
+    # The new tank may have no directives slot, which hides the window rather than emptying it.
+    _apply_visibility(_module_logger)
     refresh(_module_logger)
 
 
