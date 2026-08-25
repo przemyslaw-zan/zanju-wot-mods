@@ -79,10 +79,11 @@ _asked = {}
 _pending = set()
 # invIDs whose verdict is in the log, so neither result repeats.
 _reported = set()
-# Set once a scan of a populated garage comes back clean, which ends the scanning: only a
-# version of this mod that cannot run beside this one writes the state this looks for, so a
-# garage that is clean at login stays clean.
-_scanned_clean = False
+# Set once a scan of a populated garage has nothing left to do, which ends the scanning. Only
+# a version of this mod that cannot run beside this one writes the state this looks for, so a
+# garage that is clean at login stays clean, and a tank the server would not repair stays
+# broken however many times it is asked.
+_scanning_done = False
 
 
 def recorded_directives(vehicle_data):
@@ -114,8 +115,8 @@ def invalid_directives(int_cds, slots):
 
 def check(logger):
     """Clear the invalid state on any tank that has it, with one request per tank."""
-    global _scanned_clean
-    if _scanned_clean:
+    global _scanning_done
+    if _scanning_done:
         return
     try:
         vehicles_seen, invalid = _find_invalid(logger)
@@ -136,8 +137,14 @@ def check(logger):
             'slot: %s', len(int_cds), name, inv_id, _list(int_cds))
         _clear(inv_id, name, logger)
 
-    if vehicles_seen and not invalid and not _pending:
-        _scanned_clean = True
+    if not vehicles_seen or _pending:
+        # Nothing to read yet, or an answer is still on its way. Either way there is more to do
+        # on the next garage build.
+        return
+    if any(inv_id not in _reported for inv_id, _, _ in invalid):
+        return
+    _scanning_done = True
+    if not invalid:
         logger.info('No tank in the garage records a directive it cannot hold')
 
 
