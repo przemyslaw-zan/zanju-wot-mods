@@ -6,35 +6,73 @@ Source repository for World of Tanks mods, build tooling, and game-facing techni
 
 ## Included Mods
 
-### [Zanju's Campaign Tracker](mods/campaign-tracker/README.md)
-
-In development, not released yet.
-
-One garage widget per active personal missions campaign. Each widget names the mission the selected vehicle works on. Its hover card gives the line, the stage, and the condition progress.
-
-### [Zanju's Directives Helper](mods/directives-helper/README.md)
-
-[![release](https://img.shields.io/github/v/release/przemyslaw-zan/zanju-wot-mods?filter=DH%40*&color=green&style=flat)](https://github.com/przemyslaw-zan/zanju-wot-mods/releases/latest)
-
-Garage window for fitting directives and warning before auto-resupply spends any resources.
-
-### [Zanju's Premium Time](mods/premium-time/README.md)
-
-[![release](https://img.shields.io/github/v/release/przemyslaw-zan/zanju-wot-mods?filter=PT%40*&color=green&style=flat)](https://github.com/przemyslaw-zan/zanju-wot-mods/releases/latest)
-
-Shows actual remaining premium account time in the lobby header, with the exact end time in its tooltip.
-
-### [Zanju's Research Progress Bar](mods/research-progress-bar/README.md)
-
-[![release](https://img.shields.io/github/v/release/przemyslaw-zan/zanju-wot-mods?filter=RPB%40*&color=green&style=flat)](https://github.com/przemyslaw-zan/zanju-wot-mods/releases/latest)
-
-Hangar progress bar covering research, field modifications, Tier XI upgrades, and elite progress modes.
-
-### [Zanju's Salvo Reticle Fix](mods/salvo-reticle-fix/README.md)
-
-[![release](https://img.shields.io/github/v/release/przemyslaw-zan/zanju-wot-mods?filter=SRF%40*&color=green&style=flat)](https://github.com/przemyslaw-zan/zanju-wot-mods/releases/latest)
-
-Strips the fixed shell-spread offset from the reticle of twin-gun vehicles in Salvo Fire mode, so the circle shows dispersion only, like every other vehicle's does.
+<table>
+  <tr>
+    <td width="1%">
+      <a href="mods/campaign-tracker/README.md"><b>Zanju's&nbsp;Campaign&nbsp;Tracker</b></a>
+    </td>
+    <td>
+      <i>In development, not released yet.</i>
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2">
+      One garage badge per active personal missions campaign, naming the mission your selected vehicle is on. Hover it for the operation, the full mission name, and the condition progress.
+    </td>
+  </tr>
+  <tr>
+    <td width="1%">
+      <a href="mods/directives-helper/README.md"><b>Zanju's&nbsp;Directives&nbsp;Helper</b></a>
+    </td>
+    <td>
+      <a href="https://github.com/przemyslaw-zan/zanju-wot-mods/releases/latest"><img alt="release" src="https://img.shields.io/github/v/release/przemyslaw-zan/zanju-wot-mods?filter=DH%40*&amp;color=green&amp;style=flat"></a>
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2">
+      Garage window for fitting directives and warning before auto-resupply spends any resources.
+    </td>
+  </tr>
+  <tr>
+    <td width="1%">
+      <a href="mods/premium-time/README.md"><b>Zanju's&nbsp;Premium&nbsp;Time</b></a>
+    </td>
+    <td>
+      <a href="https://github.com/przemyslaw-zan/zanju-wot-mods/releases/latest"><img alt="release" src="https://img.shields.io/github/v/release/przemyslaw-zan/zanju-wot-mods?filter=PT%40*&amp;color=green&amp;style=flat"></a>
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2">
+      Shows actual remaining premium account time in the lobby header, with the exact end time in its tooltip.
+    </td>
+  </tr>
+  <tr>
+    <td width="1%">
+      <a href="mods/research-progress-bar/README.md"><b>Zanju's&nbsp;Research&nbsp;Progress&nbsp;Bar</b></a>
+    </td>
+    <td>
+      <a href="https://github.com/przemyslaw-zan/zanju-wot-mods/releases/latest"><img alt="release" src="https://img.shields.io/github/v/release/przemyslaw-zan/zanju-wot-mods?filter=RPB%40*&amp;color=green&amp;style=flat"></a>
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2">
+      Hangar progress bar covering research, field modifications, Tier XI upgrades, and elite progress modes.
+    </td>
+  </tr>
+  <tr>
+    <td width="1%">
+      <a href="mods/salvo-reticle-fix/README.md"><b>Zanju's&nbsp;Salvo&nbsp;Reticle&nbsp;Fix</b></a>
+    </td>
+    <td>
+      <a href="https://github.com/przemyslaw-zan/zanju-wot-mods/releases/latest"><img alt="release" src="https://img.shields.io/github/v/release/przemyslaw-zan/zanju-wot-mods?filter=SRF%40*&amp;color=green&amp;style=flat"></a>
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2">
+      Strips the fixed shell-spread offset from the reticle of twin-gun vehicles in Salvo Fire mode, so the circle shows dispersion only, like every other vehicle's does.
+    </td>
+  </tr>
+</table>
 
 ## Install And Use
 

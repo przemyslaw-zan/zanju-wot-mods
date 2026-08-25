@@ -151,6 +151,95 @@ The lobby state machine belongs to the lobby app, so it is a different object af
 teardown and its subscription is re-made on each hangar build; until it has reported, the route
 half answers "shown" rather than holding the window back.
 
+## Repairing a tank the old version broke
+
+Version 1.0.1 fitted directives to tanks with no slot for one, and the account came back
+recording directives that such a tank cannot hold. It reaches both per-tank inventory keys:
+`boosters`, which holds the fitted directive, and `boostersLayout`, which holds what the game
+refills after a battle. On the tanks this hit, both keys hold the tank's *consumables* —
+`(1275, 763, 2555)` on the tank behind this section.
+
+Nothing in the client shows it. `_Equipment.__init__` truncates the parsed list to the tank's
+capacity, which is zero, so the gui item reports nothing fitted and no screen can reach the
+entries. The only marks are in `python.log`, once per rebuild of that tank:
+
+```
+WARNING: [gui.shared.gui_items.vehicle_equipment] Length of arguments is not valid,
+args: (1275, 763, 2555) for equipment: _ExpendableEquipment, ..., capacity: 0
+```
+
+What the player sees is a tank that looks normal and cannot fight. It enters the queue, the
+server declines to assemble an arena for it, and about 25 seconds later the client is back in
+the garage with no message and the vehicle lock released (`vehsLock: {686: (2, 0)}` and then
+`{686: None}` in the client update diffs).
+
+`repair.py` reads the raw inventory — `items.inventory.getItems(GUI_ITEM_TYPE.VEHICLE)`, the
+same per-tank dictionaries the update diffs carry — on every garage build, and again on any
+client update carrying those keys. A tank counts as broken when its directive capacity is zero
+and either key still names an item. The mod builds a gui item only for the tanks that name
+one, because the gui item is also the thing that hides them.
+
+The repair is one command:
+`inventory.setAndFillLayouts(invID, None, [0, 0], EQUIPMENT_TYPES.battleBoosters)` — a
+directive layout holding one empty slot. `(0, 0)` is how the client's own layout builders write
+an empty slot: `item.defaultLayoutValue if item is not None else (0, 0)`.
+
+This is a verified result rather than a deduction. On the tank behind this section the server
+answered
+`RES_SUCCESS` and sent the update that cleared it, and the tank took a battle immediately
+afterwards (WoT 2.3.1.3, EU, 25 August 2026):
+
+```
+inventory: {1: {'boostersLayout': {686: [[0]]}, 'boosters': {686: []}},
+            11: {763: 319, 2555: 1, 1275: 1}}
+```
+
+Section 11 is the depot, so the three items the server had been holding as that tank's
+directives came back to it.
+
+An **empty** array does not work, which is worth writing down because it is the obvious thing
+to try. Version 1.0.3 sent `setAndFillLayouts(invID, None, [], battleBoosters)`, the server
+answered `RES_SUCCESS`, and nothing happened: no inventory update followed and the tank read
+back unchanged three seconds later. The wire format explains it —
+`Inventory.__setAndFillLayoutsOnShopSynced` encodes `None` and `[]` identically, as a length of
+zero, so an empty array is how the client says "this command does not carry that section"
+rather than "make that section empty".
+
+A repaired tank keeps a one-slot layout, `boostersLayout: [[0]]`, which the client still
+truncates to a capacity of zero. It goes on logging `Length of arguments is not valid, args:
+(None,)` for that tank once per rebuild. Nothing hangs on it, and the mod reads that slot as
+empty, so the tank is never asked about again.
+
+The mod tries nothing else. A second command that has never had to run would be a write to
+somebody else's account that nobody has watched the server answer, which is worse than a log
+line saying what is left. What keeps this one safe to send unasked:
+
+- It names one section. Both of the client's own callers pass `None` for the section they do
+  not touch, and the update diff after the player fits a directive carries only the `boosters`
+  keys, so it cannot reach shells, consumables or optional devices.
+- It carries no item, so the "fill" half has nothing to buy. No resource can be spent, with or
+  without the processor's `MoneyValidator`.
+- The mod addresses only a tank whose capacity is zero. It never writes to a healthy tank, and
+  it asks once per session per tank.
+
+Three seconds after the server answers, the mod reads the tank back out of the raw inventory
+and writes the verdict: repaired, or still recorded with a sale the only fix left. It does not
+wait for the next garage build to do it, because the outcome worth diagnosing — a request the
+server accepts and does not act on — produces no inventory update, and so nothing that would
+prompt another check. Every log line names the inventory id as well as the tank, which is the
+key the update diffs use.
+
+Scanning stops for the session once a populated garage comes back clean. Only a mod version
+that cannot run beside this one writes the state, so a garage that is clean at login stays
+clean, and a per-garage-build walk of the inventory after that is work for nothing.
+
+What the server does with the array it receives is not readable from the client, and the
+client's own callers do not pin it down: `BuyAndInstallBattleBoostersProcessor` sends
+`consumables.installed + battleBoosters.layout` and `BuyAndInstallConsumablesProcessor` sends
+`consumables.layout + battleBoosters.installed`, both with `equipmentType` naming the half the
+server should apply. The payload above sidesteps the question: it clears the section under
+every reading of that split.
+
 ## How the window is drawn
 
 It is plain HTML/CSS injected into the garage's Gameface document by OpenWG, and it is
