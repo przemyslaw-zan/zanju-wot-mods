@@ -9,9 +9,10 @@ remembered window state, which window.js reads.
 
 Placement is collision-aware. `gf_mod_inject` always writes to the fixed field name
 `ModInjectModel`, so two mods that pick the same sub-view silently clobber each other, last
-writer wins. We therefore hook several candidate hangar sub-views and claim the first one
-that is still free, leaving any mod that got there first alone. The JS finds our data by
-scanning sub-views, so which candidate we land on does not matter to it.
+writer wins. We hook several candidate hangar sub-views, attach to the first free one, and
+then leave the others alone for the next mod -- see view_claim for why that last part is not
+optional. The JS finds our data by scanning sub-views, so which candidate we land on does not
+matter to it.
 
 See docs/reference/gameface-mod-widgets.md for the wider set of rules this follows.
 """
@@ -21,7 +22,7 @@ import logging
 
 from frameworks.wulf import ViewModel
 
-from .. import collector, config, loadout_panel, route_gate, slot_gate
+from .. import collector, config, loadout_panel, repair, route_gate, slot_gate, view_claim
 from ..localization import get_text as _loc
 
 _MODULE_URL = 'coui://gui/gameface/mods/zanju_directives/window.js'
@@ -33,6 +34,10 @@ _INJECT_FIELD = 'ModInjectModel'
 
 # Hangar sub-views to try, most preferred first. All live in the persistent
 # `mono/hangar/main` document, which loads once per garage session.
+#
+# The order is only a preference: the client decides which of these it builds first, and we
+# attach to whichever free one reaches us first. Coexisting with other mods rests on attaching
+# to exactly one of them, not on the order -- see view_claim.
 _CANDIDATE_MODELS = (
     ('gui.impl.gen.view_models.views.lobby.hangar.main_menu_model', 'MainMenuModel'),
     ('gui.impl.gen.view_models.views.lobby.hangar.mode_state_model', 'ModeStateModel'),
@@ -40,6 +45,9 @@ _CANDIDATE_MODELS = (
 )
 
 _module_logger = logging.getLogger('zanju.directiveshelper')
+
+# The view model class this mod attached to, so it never takes a second one. See view_claim.
+_claimed_class = None
 
 _patched = []
 # Live data models, so a change in the depot or the selected tank can be pushed to whichever
@@ -499,6 +507,13 @@ def _bind_events(logger):
     # teardown; `install` compares identity and only re-subscribes when it actually changed.
     route_gate.install(logger, _on_route_visibility)
 
+    # The garage build is the earliest point where the account's inventory is there to read.
+    # Version 1.0.1 could leave a tank recording a directive it cannot hold, and such a tank is
+    # refused a battle until the record is cleared. `check` stops looking once it has seen a
+    # clean garage, so this costs a call and nothing else for the rest of the session -- see
+    # repair.py.
+    repair.check(logger)
+
 
 def _unbind_events(logger):
     try:
@@ -577,11 +592,12 @@ def _patch(model_class, gf_mod_inject, logger):
     original = model_class._initialize
 
     def _initialize_with_window(self):
+        global _claimed_class
         original(self)
         try:
-            if _is_claimed(self, logger):
-                # Another mod owns this view; leave it untouched and rely on a later
-                # candidate, so we never break a mod that got there first.
+            claim, _claimed_class = view_claim.decide(
+                model_class, _is_claimed(self, logger), _claimed_class)
+            if not claim:
                 return
             gf_mod_inject(
                 self,
@@ -593,7 +609,9 @@ def _patch(model_class, gf_mod_inject, logger):
             self._addViewModelProperty(str(_DATA_PROPERTY), data_model)
             _models.append(data_model)
             _bind_events(logger)
+            logger.info('Directives window attached to %s', model_class.__name__)
         except Exception:
+            _claimed_class = None
             logger.exception('Failed to attach the directives window model')
 
     model_class._initialize = _initialize_with_window
@@ -601,6 +619,8 @@ def _patch(model_class, gf_mod_inject, logger):
 
 
 def uninstall(logger):
+    global _claimed_class
+    _claimed_class = None
     _unbind_events(logger)
     loadout_panel.uninstall(logger)
     route_gate.uninstall(logger)

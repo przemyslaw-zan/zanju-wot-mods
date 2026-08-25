@@ -39,6 +39,9 @@ _logger = logging.getLogger('zanju.directiveshelper')
 # The last answer written to the log, so the line marks the changes rather than every refresh.
 # Logging only. The decision itself is always read live, like the other two gates'.
 _reported = None
+# Whether the read has failed once already. A client that changed shape would fail on every
+# visibility check, and one traceback says as much about that as fifty.
+_reported_failure = False
 
 
 def has_directive_slot(vehicle):
@@ -49,6 +52,7 @@ def has_directive_slot(vehicle):
     there is a tank in the garage is the loadout panel's question -- its group controller is
     None until one arrives -- which this must not start answering as well.
     """
+    global _reported_failure
     if vehicle is None:
         return True
     try:
@@ -57,7 +61,9 @@ def has_directive_slot(vehicle):
         # One attribute chain, so a failure here means the client changed shape rather than
         # that this tank is unusual. Worth reporting for that reason, and worth answering
         # True: the window belongs on screen unless the client says the slot is missing.
-        _logger.exception('Failed to read the directive slots of the selected vehicle')
+        if not _reported_failure:
+            _reported_failure = True
+            _logger.exception('Failed to read the directive slots of the selected vehicle')
         return True
 
 
