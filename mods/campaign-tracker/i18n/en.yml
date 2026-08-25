@@ -1,0 +1,14 @@
+# Widget states
+LABEL_NO_MISSION: "No mission for this vehicle"
+LABEL_NO_VEHICLE: "No vehicle in the garage"
+LABEL_DISABLED: "Campaign not available"
+LABEL_PAUSED: "Mission on pause"
+
+# Hover card
+# {name} is the vehicle the operation awards, which is what the game names each operation after.
+LABEL_OPERATION_TITLE: "Operation {name}"
+LABEL_MAIN_CONDITIONS: "Main conditions"
+LABEL_ADD_CONDITIONS: "Additional conditions"
+# Separates two conditions where meeting either one is enough.
+LABEL_OR: "OR"
+LABEL_NO_CONDITIONS: "No conditions to show"

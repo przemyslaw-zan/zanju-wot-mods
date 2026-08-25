@@ -6,6 +6,12 @@ Source repository for World of Tanks mods, build tooling, and game-facing techni
 
 ## Included Mods
 
+### [Zanju's Campaign Tracker](mods/campaign-tracker/README.md)
+
+In development, not released yet.
+
+One garage widget per active personal missions campaign. Each widget names the mission the selected vehicle works on. Its hover card gives the line, the stage, and the condition progress.
+
 ### [Zanju's Directives Helper](mods/directives-helper/README.md)
 
 [![release](https://img.shields.io/github/v/release/przemyslaw-zan/zanju-wot-mods?filter=DH%40*&color=green&style=flat)](https://github.com/przemyslaw-zan/zanju-wot-mods/releases/latest)

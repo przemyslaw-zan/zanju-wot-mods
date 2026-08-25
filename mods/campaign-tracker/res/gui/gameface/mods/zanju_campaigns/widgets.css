@@ -1,0 +1,215 @@
+/* Zanju Campaign Tracker — garage widget styling.
+ *
+ * Only CSS this renderer is known to support is used: flex, min-width, text-align and plain
+ * box properties. Gameface ignores font-variant-numeric / font-feature-settings and rejects
+ * `align-items: baseline`; `display: inline-block` and `ch` units appear nowhere in the game's
+ * own stylesheets. See docs/reference/gameface-mod-widgets.md.
+ *
+ * Sizes are in rem, which the game's own UI uses and which its interface-scale setting
+ * follows, so the widgets scale with the rest of the UI.
+ *
+ * Palette: neutral, with one accent. A campaign running a mission for the tank in the garage
+ * is the only thing drawn in white; everything else is grey. That is what makes a glance at
+ * the corner of the screen answer the question the mod exists for.
+ */
+
+/* Container only: it holds the widgets so the drag handler can decide ownership by subtree.
+   The garage listens for drag-to-rotate on the scene, so this stays transparent to input and
+   each widget re-enables it for itself.
+
+   It covers the viewport rather than collapsing to nothing. A zero-sized parent is the shape
+   this renderer is least reliable about: children of a `pointer-events: none` root are already
+   documented as unreliable receivers here, and giving the root no box of its own invites the
+   hit test to skip the subtree entirely. The game's own overlay layer
+   (`HangarScreen_hangarPage`) is exactly this shape — full size, transparent to input, with
+   children opting back in — so it is the shape known to work. */
+.zanju-ct-root {
+    position: fixed;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+    z-index: 900;
+}
+
+.zanju-ct-widget {
+    position: fixed;
+    pointer-events: auto;
+    display: flex;
+    flex-direction: column;
+    font-size: 15rem;
+    line-height: 1.35em;
+    color: #d7dbe0;
+}
+
+/* The badge: campaign numeral over the mission's short id. Stacked rather than side by side so
+   the widget stays narrow — it sits beside the vehicle name, where horizontal room is what is
+   scarce. `min-width` sizes it for a two-line id like SPG-13 and lets a longer one push wider,
+   so every badge in the row matches unless its id genuinely needs the space. */
+.zanju-ct-face {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 54rem;
+    padding: 3rem 7rem 4rem 7rem;
+    background: rgba(17, 19, 22, 0.9);
+    border: 1rem solid rgba(255, 255, 255, 0.13);
+    border-radius: 3rem;
+    color: #f0f2f5;
+    letter-spacing: 0.02em;
+}
+
+/* The campaign number, which is how players name these campaigns. */
+.zanju-ct-numeral {
+    display: block;
+    width: 100%;
+    padding-bottom: 2rem;
+    margin-bottom: 3rem;
+    border-bottom: 1rem solid rgba(255, 255, 255, 0.13);
+    font-size: 12rem;
+    text-align: center;
+    color: #9ca4ab;
+}
+
+.zanju-ct-id {
+    display: block;
+    width: 100%;
+    text-align: center;
+    font-weight: 500;
+}
+
+/* No mission running for this tank: the whole widget drops back to grey. */
+.zanju-ct-widget-idle .zanju-ct-face {
+    background: rgba(17, 19, 22, 0.72);
+    border-color: rgba(255, 255, 255, 0.08);
+    color: #7d848b;
+}
+
+.zanju-ct-widget-idle .zanju-ct-numeral {
+    color: #5e646a;
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+/* The hover card. It sits below the face and outside the widget's own box, so the pointer
+   leaving the face closes it — which is what should happen, since nothing on the card can be
+   clicked. Transparent to input for the same reason: an open card must never swallow the
+   garage's drag-to-rotate. */
+.zanju-ct-card {
+    display: none;
+    pointer-events: none;
+    position: absolute;
+    /* Centred on the badge rather than left-aligned to it: the badge is narrow and sits near
+       the middle of the screen, so hanging the card off one corner would throw it well off to
+       one side of what it describes. */
+    left: 50%;
+    transform: translateX(-50%);
+    top: 100%;
+    margin-top: 4rem;
+    min-width: 300rem;
+    flex-direction: column;
+    padding: 8rem 10rem 10rem 10rem;
+    background: rgba(17, 19, 22, 0.96);
+    border: 1rem solid rgba(255, 255, 255, 0.13);
+    border-radius: 3rem;
+}
+
+.zanju-ct-widget:hover .zanju-ct-card {
+    display: flex;
+}
+
+/* The operation heads the card but is the quieter of the two: the mission underneath it is
+   what the player came to read, so that one carries the weight. The rule stays on whichever
+   line is last, which is the subtitle whenever there is one. */
+.zanju-ct-card-title {
+    display: block;
+    color: #9ca4ab;
+}
+
+.zanju-ct-card-subtitle {
+    display: block;
+    padding-bottom: 6rem;
+    margin-bottom: 6rem;
+    border-bottom: 1rem solid rgba(255, 255, 255, 0.1);
+    color: #f0f2f5;
+    font-weight: 500;
+}
+
+/* Carries the rule instead when there is no subtitle to carry it, so an idle card keeps the
+   same shape as one describing a running mission. */
+.zanju-ct-card-title-alone {
+    padding-bottom: 6rem;
+    margin-bottom: 6rem;
+    border-bottom: 1rem solid rgba(255, 255, 255, 0.1);
+}
+
+.zanju-ct-note {
+    display: block;
+    color: #7d848b;
+}
+
+.zanju-ct-group {
+    display: block;
+    margin-top: 8rem;
+    margin-bottom: 4rem;
+    color: #9ca4ab;
+    letter-spacing: 0.02em;
+}
+
+.zanju-ct-cond {
+    display: flex;
+    align-items: center;
+    padding-bottom: 3rem;
+}
+
+/* The tick is a box that fills when the condition is done rather than a check glyph: the
+   game's font is not guaranteed to carry one, and a missing glyph renders as an empty box —
+   which reads as exactly the opposite state. */
+.zanju-ct-mark {
+    display: block;
+    min-width: 10rem;
+    width: 10rem;
+    height: 10rem;
+    margin-right: 8rem;
+    border: 1rem solid rgba(255, 255, 255, 0.28);
+    border-radius: 2rem;
+    background: transparent;
+}
+
+.zanju-ct-cond-done .zanju-ct-mark {
+    background: #9ccb68;
+    border-color: #9ccb68;
+}
+
+.zanju-ct-cond-failed .zanju-ct-mark {
+    background: #cc6b5a;
+    border-color: #cc6b5a;
+}
+
+.zanju-ct-cond-text {
+    display: block;
+    flex: 1 1 auto;
+}
+
+.zanju-ct-cond-done .zanju-ct-cond-text {
+    color: #7d848b;
+}
+
+/* Sits between two conditions of an "or" group, indented to the text column so it reads as a
+   break in that list rather than as another condition. */
+.zanju-ct-or {
+    display: block;
+    margin-left: 18rem;
+    padding-bottom: 3rem;
+    font-size: 12rem;
+    color: #7d848b;
+    letter-spacing: 0.06em;
+}
+
+.zanju-ct-cond-count {
+    display: block;
+    min-width: 56rem;
+    margin-left: 8rem;
+    text-align: right;
+    color: #9ca4ab;
+}

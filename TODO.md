@@ -10,18 +10,29 @@ Follow-up backlog after the initial Python format-and-lint tooling rollout.
 
 - Broad runtime splitting for `research-progress-bar` is mostly complete; only reopen it if `mods/research-progress-bar/src/zanju_rpb/main.py` or `mods/research-progress-bar/src/zanju_rpb/scaleform/modes.py` grow enough to justify another targeted slice.
 
-## Shared Runtime `localization.py` (Build-Time Staging)
+## Shared Runtime Modules (Build-Time Staging)
 
-Planned; do it on the mainline as its own change (not on `premium-time`) once the in-flight branches land. Context: `zanju_pt/localization.py` and `zanju_rpb/localization.py` are ~98% identical copies (only docstring, logger name, and `get_wg_text` differ), the empty-value fix already had to be mirrored by hand once, and `crew-post-progression` would add a third copy.
+Planned. Do it on the mainline as its own change (not on `premium-time` or `campaign-tracker`) once the in-flight branches land. Context: `zanju_pt/localization.py` and `zanju_rpb/localization.py` are ~98% identical copies (only docstring, logger name, and `get_wg_text` differ), and the empty-value fix already had to be mirrored by hand once.
+
+Scope grew after this was first written. The entry expected a third copy of `localization.py` from `crew-post-progression`. `campaign-tracker` got there first, and it now stands at four. Three more modules are duplicated as well. Plan the staging mechanism for a set of files, not for one:
+
+| Module | Copies | Mods | Notes |
+| --- | --- | --- | --- |
+| `localization.py` | 4 | `pt`, `rpb`, `dh`, `ct` | The original case. Differences are docstring, logger name, and an unused `get_wg_text`. |
+| `storage.py` | 2 | `rpb`, `dh` | AppData path resolution plus atomic writes. Differs only in the docstring. |
+| `route_gate.py` | 2 | `dh`, `ct` | Lobby visible-route gating. `ct`'s copy differs only in docstring wording. |
+| `view_claim.py` | 2 | `dh`, `ct` | Which hangar sub-view a mod attaches to. The two copies are byte-identical, deliberately. |
+
+Move `view_claim.py` first. Its copies are already identical, so it needs no genericizing and proves the staging path cheaply. It also has the strongest reason to stay in step. It is the rule that stops two mods fighting over the same sub-view, and a version skew between mods is what it exists to prevent.
 
 - Decision: single authored source staged into each mod's package at build time. Rejected alternatives: a shared `.wotmod` library (VFS version-skew between independently installed mods; breaks the self-contained-mods philosophy) and committed copies with a lint sync-check (more tooling, drift is only CI-caught instead of impossible). Precedent for staging: `_mod_meta` is already generated into every package at build, and committed `constants.py` imports it as a sibling that does not exist in the tree.
-- Canonical file location: outside `mods/` (e.g. `runtime-common/localization.py`) — several tools iterate `mods/` expecting each subdir to be a mod with `meta.xml` (release notes, `build --all`, `deploy`, `cleanup`); otherwise teach all iterators to skip non-mod dirs.
-- Genericize the file: derive logger via `MOD_ID + '.i18n'` (yields the exact current names for both mods), keep `get_wg_text` everywhere (harmless where unused), neutral docstring.
+- Canonical file location: outside `mods/` (e.g. `runtime-common/<name>.py`) — several tools iterate `mods/` expecting each subdir to be a mod with `meta.xml` (release notes, `build --all`, `deploy`, `cleanup`); otherwise teach all iterators to skip non-mod dirs.
+- Genericize each file. For `localization.py`, derive the logger via `MOD_ID + '.i18n'` (yields the exact current names for every mod), keep `get_wg_text` everywhere (harmless where unused), and write a neutral docstring. `storage.py` and `route_gate.py` need only the neutral docstring. `view_claim.py` needs nothing.
 - Import rule: the shared module imports `from ._mod_meta import MOD_ID` directly (the only sibling guaranteed in every package by the build itself) — not `.constants`.
-- Build change: mirror `bundle_generated_mod_meta` — compile the shared file into every internal package as `<pkg>/localization.pyc`; hard error if a mod's own `src/` contains a colliding filename (silent shadowing would reintroduce drift).
+- Build change: mirror `bundle_generated_mod_meta` — compile each shared file into every internal package as `<pkg>/<name>.pyc`; hard error if a mod's own `src/` contains a colliding filename (silent shadowing would reintroduce drift). Stage per mod, not every file everywhere. `salvo-reticle-fix` needs none of them, and `view_claim.py` belongs only in the two Gameface mods.
 - Lint: add the canonical path to the py2.7 flake8 coverage (current glob is `mods/*/src`).
-- Delete both per-mod copies.
-- Accepted consequences: IDE shows unresolved `.localization` imports in callers (cosmetic; flake8 does not resolve imports — verified green); `python.log` tracebacks cite `mods/<pkg>/localization.py`, a path with no matching file under `src/`; a one-time modify/delete merge conflict with `premium-time`'s copy (resolve by taking the delete); future per-mod divergence requires parameterizing the shared file or an explicit opt-out (defer until needed).
+- Delete the per-mod copies (ten files, across the four rows in the table above).
+- Accepted consequences: IDE shows unresolved `.localization` imports in callers (cosmetic; flake8 does not resolve imports — verified green); `python.log` tracebacks cite `mods/<pkg>/localization.py`, a path with no matching file under `src/`; one-time modify/delete merge conflicts with any branch still carrying a copy (resolve by taking the delete); future per-mod divergence requires parameterizing the shared file or an explicit opt-out (defer until needed).
 - Verified non-issues: nothing outside the game imports the mod packages (no py3 probes/tests reach into `src/`); deploy ships the built `.wotmod`, untouched.
 
 ## Testing Backlog
