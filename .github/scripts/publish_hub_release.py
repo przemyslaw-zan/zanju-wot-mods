@@ -134,9 +134,6 @@ def find_zip_asset(repo, tag):
 
 def render_notes(repo, releases, now):
     lines = [
-        "The current release of each mod. Each mod name links to what it does, and each row "
-        "links straight to the download and to that release's own page.",
-        "",
         "| Mod | Release | Released | Download |",
         "| --- | --- | --- | --- |",
     ]
