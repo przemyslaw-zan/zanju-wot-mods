@@ -120,7 +120,7 @@ def _read_vehicles(storage, quest, vehicle_cd, logger):
         'completed': min(len(descriptors), required),
         'required': required,
         'locked': used,
-        # Whether the tank in the garage is one of the spent ones. The badge says so on its
+        # Whether the tank in the garage is one of the spent ones. The banner says so on its
         # face, because it is the one thing here that changes what the player should do next:
         # the mission is still theirs to finish, but not in this tank.
         'currentLocked': vehicle_cd is not None and vehicle_cd in descriptors,
@@ -191,7 +191,7 @@ def _read_attempt(progress, logger):
             'text': progress.getHeaderLabel(),
             # Which shape the requirement takes: `biathlon` counts how many of a fixed run of
             # battles went well, `limited` allows a fixed run of battles to reach a total. The
-            # numbers below mean different things in each, so the badge has to be told which.
+            # numbers below mean different things in each, so the banner has to be told which.
             'type': progress.getDisplayType(),
             'current': progress.getCurrent(),
             'goal': progress.getGoal(),
@@ -279,7 +279,7 @@ def _mark_finished(storage, quest, logger):
     - **Kept:** a mission finished with an order never had its conditions met, so ticking them
       would credit the player with something they did not do.
     - **Dropped:** the client also skips one-battle missions that are still in progress. That
-      guard suits a card describing the battle you are about to enter. It does not suit a badge
+      guard suits a card describing the battle you are about to enter. It does not suit a banner
       describing where the mission stands, and a one-battle mission whose primary objective is
       met really did meet those conditions.
     """

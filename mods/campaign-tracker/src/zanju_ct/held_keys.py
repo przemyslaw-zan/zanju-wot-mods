@@ -2,7 +2,7 @@
 """Which modifier keys the player is holding, tracked on the Python side.
 
 The hover card lights the line for the keys held right now, so it has to hear about a key going
-down while the pointer sits still over a badge. Asking the widget document for that does not
+down while the pointer sits still over a banner. Asking the widget document for that does not
 work: an injected Gameface sub-view is not given keyboard events until the player has clicked
 into the document, so the highlight stayed dead until the garage had been dragged, and reading
 the flags off mouse events instead only answered once the pointer moved.
@@ -60,7 +60,7 @@ def install(logger, on_change):
         logger.info('Subscribed to modifier keys')
         return True
     except Exception:
-        # The badges still work: the click reads its own event. Only the highlight is lost.
+        # The banners still work: the click reads its own event. Only the highlight is lost.
         logger.exception('Failed to subscribe to key events; the card cannot light a line')
         return False
 

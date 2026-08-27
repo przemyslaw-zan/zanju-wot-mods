@@ -132,18 +132,18 @@ function entry(overrides) {
     }, overrides);
 }
 
-test('the badge carries the short mission id, not the mission name', () => {
+test('the banner carries the short mission id, not the mission name', () => {
     assert.equal(widgets.faceId(entry({})), 'UN-10');
 });
 
-test('the badge keeps its shape when no mission matches', () => {
+test('the banner keeps its shape when no mission matches', () => {
     const idle = entry({ mission: null, missionId: '', state: 'nomatch' });
     assert.equal(widgets.faceId(idle), widgets.IDLE_ID);
 });
 
-test('a badge with a mission to work on is not greyed, paused or not', () => {
+test('a banner with a mission to work on is not greyed, paused or not', () => {
     assert.equal(widgets.isActive(entry({})), true);
-    // Paused counts: the badge flags that with an icon, and greying it too would file it with
+    // Paused counts: the banner flags that with an icon, and greying it too would file it with
     // the states that have no mission at all.
     assert.equal(widgets.isActive(entry({ state: 'paused' })), true);
     for (const state of ['nomatch', 'novehicle', 'disabled']) {
@@ -164,13 +164,13 @@ test('a counted condition shows numbers and a binary one does not', () => {
     assert.equal(widgets.conditionCount({ counted: false, current: 0, goal: 1 }), '');
 });
 
-test('only a badge with a mission behind it is clickable', () => {
+test('only a banner with a mission behind it is clickable', () => {
     assert.equal(widgets.isClickable(entry({})), true);
     assert.equal(widgets.isClickable(entry({ mission: null })), false);
     assert.equal(widgets.isClickable(null), false);
 });
 
-test('the clickable badge is marked for the stylesheet and the click handler', () => {
+test('the clickable banner is marked for the stylesheet and the click handler', () => {
     const widget = widgets.buildWidget(entry({}));
     widgets.renderWidget(widget, entry({}), LABELS);
     assert.ok(widget.className.includes('zanju-ct-widget-clickable'));
@@ -181,7 +181,7 @@ test('the clickable badge is marked for the stylesheet and the click handler', (
     assert.equal(widget._zanjuCtClickable, false);
 });
 
-test('the click handler finds the badge from any node inside it', () => {
+test('the click handler finds the banner from any node inside it', () => {
     const widget = widgets.buildWidget(entry({}));
     const id = widget.querySelector('.zanju-ct-id');
     assert.equal(widgets.widgetFrom(id), widget);
@@ -189,10 +189,10 @@ test('the click handler finds the badge from any node inside it', () => {
     assert.equal(widgets.widgetFrom(document.createElement('div')), null);
 });
 
-test('the badge tally shows the successes, the number needed and the battles left', () => {
+test('the banner tally shows the successes, the number needed and the battles left', () => {
     // Two successes of the three needed. One battle missed the condition and spent one of the
     // five anyway, so two battles are left rather than three.
-    const tally = widgets.badgeTally(entry({
+    const tally = widgets.bannerTally(entry({
         attempts: [attempt({
             current: 2,
             goal: 3,
@@ -202,14 +202,14 @@ test('the badge tally shows the successes, the number needed and the battles lef
     assert.deepEqual(tally, { kind: 'battles', current: 2, goal: 3, left: 2 });
 });
 
-test('a mission with no battle limit has no badge tally', () => {
-    assert.equal(widgets.badgeTally(entry({ attempts: [attempt({ battles: [] })] })), null);
-    assert.equal(widgets.badgeTally(entry({ attempts: [] })), null);
-    assert.equal(widgets.badgeTally(null), null);
+test('a mission with no battle limit has no banner tally', () => {
+    assert.equal(widgets.bannerTally(entry({ attempts: [attempt({ battles: [] })] })), null);
+    assert.equal(widgets.bannerTally(entry({ attempts: [] })), null);
+    assert.equal(widgets.bannerTally(null), null);
 });
 
-test('the badge tally follows the primary objective', () => {
-    const tally = widgets.badgeTally(entry({
+test('the banner tally follows the primary objective', () => {
+    const tally = widgets.bannerTally(entry({
         attempts: [
             attempt({ battles: ['done', 'pending'] }),
             attempt({ battles: ['failed', 'failed'], main: false, current: 0, goal: 2 }),
@@ -218,8 +218,8 @@ test('the badge tally follows the primary objective', () => {
     assert.deepEqual(tally, { kind: 'battles', current: 1, goal: 3, left: 1 });
 });
 
-test('the badge tally moves to the secondary objective once the primary is done', () => {
-    const tally = widgets.badgeTally(entry({
+test('the banner tally moves to the secondary objective once the primary is done', () => {
+    const tally = widgets.bannerTally(entry({
         attempts: [
             attempt({ battles: ['done', 'done'], done: true }),
             attempt({ battles: ['failed', 'pending'], main: false, current: 0, goal: 2 }),
@@ -228,10 +228,10 @@ test('the badge tally moves to the secondary objective once the primary is done'
     assert.deepEqual(tally, { kind: 'battles', current: 0, goal: 2, left: 1 });
 });
 
-test('the badge tally shows nothing once every objective is finished', () => {
+test('the banner tally shows nothing once every objective is finished', () => {
     // Not reachable in game -- a finished mission is deselected, and only a selected one gets
-    // a badge -- so there is nothing to fall back to.
-    assert.equal(widgets.badgeTally(entry({
+    // a banner -- so there is nothing to fall back to.
+    assert.equal(widgets.bannerTally(entry({
         attempts: [attempt({ battles: ['done', 'done'], done: true })],
     })), null);
 });
@@ -250,7 +250,7 @@ test('the tally row is emptied and hidden when there is nothing to count', () =>
 
 test('a running-total mission reports score, target and battles left', () => {
     // "Earn a total of 15 rewards" inside a run of 5 battles, 2 of them spent.
-    const tally = widgets.badgeTally(entry({
+    const tally = widgets.bannerTally(entry({
         attempts: [attempt({ type: 'limited', battles: [], current: 2, goal: 5 })],
         conditions: [condition('Earn rewards', { counted: true, current: 6, goal: 15 })],
     }));
@@ -258,15 +258,15 @@ test('a running-total mission reports score, target and battles left', () => {
 });
 
 test('a running-total mission with no counted condition reports nothing', () => {
-    const tally = widgets.badgeTally(entry({
+    const tally = widgets.bannerTally(entry({
         attempts: [attempt({ type: 'limited', battles: [], current: 2, goal: 5 })],
         conditions: [condition('Survive the battle')],
     }));
     assert.equal(tally, null);
 });
 
-test('the running total is taken from the objective the badge is standing on', () => {
-    const tally = widgets.badgeTally(entry({
+test('the running total is taken from the objective the banner is standing on', () => {
+    const tally = widgets.bannerTally(entry({
         attempts: [
             attempt({ type: 'limited', battles: [], current: 1, goal: 4, done: true }),
             attempt({ type: 'limited', battles: [], current: 1, goal: 4, main: false }),
@@ -287,8 +287,8 @@ test('the score row shows the total, its target and the battles left', () => {
     assert.equal(node.querySelector('.zanju-ct-tally-left').textContent, '3');
 });
 
-test('the badge score is tinted from the pace Python worked out', () => {
-    const behind = widgets.badgeTally(entry({
+test('the banner score is tinted from the pace Python worked out', () => {
+    const behind = widgets.bannerTally(entry({
         attempts: [attempt({ type: 'limited', battles: [], current: 3, goal: 10 })],
         conditions: [condition('Modules', { counted: true, current: 7, goal: 25 })],
         paces: [pace({})],
@@ -377,7 +377,7 @@ test('the push subscription follows the sub-view when the garage replaces it', (
 
 test('the key poll reads the held keys without waiting on the snapshot', () => {
     // The regression: the highlight rode the main tick, which stands down to a one-second
-    // backstop once the badges have settled, so a key took up to a second to reach the card.
+    // backstop once the banners have settled, so a key took up to a second to reach the card.
     const data = entry({ canPause: true, canReset: true });
     const widget = widgets.buildWidget(data);
     widgets.renderWidget(widget, data, LABELS);
@@ -403,10 +403,10 @@ test('the key poll does nothing before the data model has been found', () => {
     assert.doesNotThrow(() => widgets.keyTick());
 });
 
-test('the badge hangs to a point, drawn as an outline with a fill inside it', () => {
+test('the banner hangs to a point, drawn as an outline with a fill inside it', () => {
     const widget = widgets.buildWidget(entry({}));
     const tail = widget.querySelector('.zanju-ct-tail');
-    assert.ok(tail, 'the point is part of every badge');
+    assert.ok(tail, 'the point is part of every banner');
     // Two layers: clip-path takes an element's border with it, so the outline has to be a
     // filled shape with a smaller filled shape on top.
     assert.equal(tail.children.length, 1);
@@ -493,16 +493,16 @@ test('a warning note reaches the card carrying its warning class', () => {
     assert.equal(lockedNote.textContent, LABELS.vehicleLocked);
 });
 
-test('a paused mission flags itself on the badge face', () => {
-    assert.deepEqual(widgets.badgeFlags(entry({ state: 'paused' })), ['paused']);
+test('a paused mission flags itself on the banner face', () => {
+    assert.deepEqual(widgets.bannerFlags(entry({ state: 'paused' })), ['paused']);
 });
 
 test('a tank already spent on the mission is flagged as locked', () => {
     const locked = entry({ vehicles: { completed: 2, required: 5, locked: ['T-54'], currentLocked: true } });
-    assert.deepEqual(widgets.badgeFlags(locked), ['locked']);
+    assert.deepEqual(widgets.bannerFlags(locked), ['locked']);
     // The same mission in a tank that has not been spent on it flags nothing.
     const free = entry({ vehicles: { completed: 2, required: 5, locked: ['T-54'], currentLocked: false } });
-    assert.deepEqual(widgets.badgeFlags(free), []);
+    assert.deepEqual(widgets.bannerFlags(free), []);
 });
 
 test('both states are flagged when both are true', () => {
@@ -510,14 +510,14 @@ test('both states are flagged when both are true', () => {
         state: 'paused',
         vehicles: { completed: 2, required: 5, locked: [], currentLocked: true },
     });
-    assert.deepEqual(widgets.badgeFlags(both), ['paused', 'locked']);
+    assert.deepEqual(widgets.bannerFlags(both), ['paused', 'locked']);
 });
 
-test('a badge with no mission flags nothing, whatever its state says', () => {
-    // A grey badge is already saying it has nothing running; a pause icon on it would be noise.
-    assert.deepEqual(widgets.badgeFlags(entry({ state: 'paused', mission: null })), []);
-    assert.deepEqual(widgets.badgeFlags(entry({})), []);
-    assert.deepEqual(widgets.badgeFlags(null), []);
+test('a banner with no mission flags nothing, whatever its state says', () => {
+    // A grey banner is already saying it has nothing running; a pause icon on it would be noise.
+    assert.deepEqual(widgets.bannerFlags(entry({ state: 'paused', mission: null })), []);
+    assert.deepEqual(widgets.bannerFlags(entry({})), []);
+    assert.deepEqual(widgets.bannerFlags(null), []);
 });
 
 test('the flag row is emptied and hidden when there is nothing to flag', () => {
@@ -532,7 +532,7 @@ test('the flag row is emptied and hidden when there is nothing to flag', () => {
     assert.equal(node.children.length, 0);
 });
 
-test('the badge grows a fourth row for a paused mission', () => {
+test('the banner grows a fourth row for a paused mission', () => {
     const data = entry({ state: 'paused' });
     const widget = widgets.buildWidget(data);
     widgets.renderWidget(widget, data, LABELS);
@@ -541,14 +541,14 @@ test('the badge grows a fourth row for a paused mission', () => {
     assert.equal(flags.children.length, 1);
 });
 
-test('a badge with a mission running keeps its fourth row out of the way', () => {
+test('a banner with a mission running keeps its fourth row out of the way', () => {
     const data = entry({});
     const widget = widgets.buildWidget(data);
     widgets.renderWidget(widget, data, LABELS);
     assert.ok(widget.querySelector('.zanju-ct-flags').className.includes('flags-empty'));
 });
 
-test('a badge with no pause or reset offers the plain click alone', () => {
+test('a banner with no pause or reset offers the plain click alone', () => {
     const block = widgets.buildHints(entry({}), LABELS);
     assert.deepEqual(block.children.map((row) => row.textContent),
         ['Click to open the mission']);
@@ -652,7 +652,7 @@ test('a card rebuilt under a held key keeps its highlight', () => {
     }
 });
 
-test('the badge takes the pace of the objective it is reporting', () => {
+test('the banner takes the pace of the objective it is reporting', () => {
     const paces = [pace({ ahead: true }), pace({ ahead: false, main: false })];
     assert.equal(widgets.paceFor(paces, true), true);
     assert.equal(widgets.paceFor(paces, false), false);
@@ -661,7 +661,7 @@ test('the badge takes the pace of the objective it is reporting', () => {
 });
 
 test('a run-of-battles mission reports the run so far and the run required', () => {
-    const tally = widgets.badgeTally(entry({
+    const tally = widgets.bannerTally(entry({
         attempts: [attempt({ type: 'series', battles: [], current: 3, goal: 5 })],
     }));
     assert.deepEqual(tally, { kind: 'count', current: 3, goal: 5 });
@@ -669,7 +669,7 @@ test('a run-of-battles mission reports the run so far and the run required', () 
 
 test('a repeat-it-N-times mission reports the same way', () => {
     // The commonest requirement of all: 60 of the 120 missions that have one.
-    const tally = widgets.badgeTally(entry({
+    const tally = widgets.bannerTally(entry({
         attempts: [attempt({ type: 'counter', battles: [], current: 2, goal: 4 })],
     }));
     assert.deepEqual(tally, { kind: 'count', current: 2, goal: 4 });
@@ -683,17 +683,17 @@ test('the count row puts what is in hand in green, against its target', () => {
     assert.equal(node.querySelectorAll('.zanju-ct-tally-left').length, 0);
 });
 
-test('a requirement of some other shape gets no badge row', () => {
-    const tally = widgets.badgeTally(entry({
+test('a requirement of some other shape gets no banner row', () => {
+    const tally = widgets.bannerTally(entry({
         attempts: [attempt({ type: 'simple', battles: [] })],
         conditions: [condition('Earn rewards', { counted: true, current: 1, goal: 5 })],
     }));
     assert.equal(tally, null);
 });
 
-test('a requirement carried only by the secondary objective still reaches the badge', () => {
+test('a requirement carried only by the secondary objective still reaches the banner', () => {
     // 42 missions put the requirement on the secondary objective alone.
-    const tally = widgets.badgeTally(entry({
+    const tally = widgets.bannerTally(entry({
         attempts: [attempt({ type: 'counter', battles: [], current: 1, goal: 3, main: false })],
     }));
     assert.deepEqual(tally, { kind: 'count', current: 1, goal: 3 });
@@ -707,7 +707,7 @@ test('an idle widget is marked so the stylesheet can grey it', () => {
     assert.ok(!widget.className.includes('zanju-ct-widget-idle'));
 });
 
-test('the badge stacks the campaign numeral over the mission id', () => {
+test('the banner stacks the campaign numeral over the mission id', () => {
     const widget = widgets.buildWidget(entry({}));
     widgets.renderWidget(widget, entry({}), LABELS);
     assert.equal(widget.querySelector('.zanju-ct-numeral').textContent, 'II');
@@ -716,7 +716,7 @@ test('the badge stacks the campaign numeral over the mission id', () => {
     assert.ok(widget.querySelector('.zanju-ct-tally').className.includes('tally-empty'));
 });
 
-test('the badge grows a third row for a mission with a battle limit', () => {
+test('the banner grows a third row for a mission with a battle limit', () => {
     const widget = widgets.buildWidget(entry({}));
     widgets.renderWidget(widget, entry({
         attempts: [attempt({ battles: ['done', 'failed', 'pending'] })],
@@ -738,7 +738,7 @@ test('the hover card carries no label-and-value table any more', () => {
     const card = document.createElement('div');
     widgets.renderCard(card, entry({}), LABELS);
     assert.equal(card.querySelectorAll('.zanju-ct-row').length, 0);
-    // The line the vehicle falls in is collected for the badge id, never shown on the card.
+    // The line the vehicle falls in is collected for the banner id, never shown on the card.
     assert.ok(!card.textContent.includes('Alliance'));
 });
 
@@ -949,7 +949,7 @@ test('the hover card of an idle campaign carries the state and nothing else', ()
     assert.ok(card.querySelector('.zanju-ct-card-head'));
 });
 
-test('badges are reconciled, so a campaign that stays keeps its element', () => {
+test('banners are reconciled, so a campaign that stays keeps its element', () => {
     const root = document.createElement('div');
     const snapshot = { campaigns: [entry({}), entry({ branch: 'regular', numeral: 'I' })], labels: {} };
     assert.deepEqual(widgets.renderWidgets(root, snapshot), ['pm2', 'regular']);
@@ -961,12 +961,12 @@ test('badges are reconciled, so a campaign that stays keeps its element', () => 
     assert.equal(root.querySelector('[data-branch="pm2"]'), kept);
 });
 
-test('a position is clamped so a badge can never sit off-screen', () => {
+test('a position is clamped so a banner can never sit off-screen', () => {
     assert.deepEqual(widgets.clampToViewport(-50, -50), { x: 0, y: 0 });
     assert.deepEqual(widgets.clampToViewport(99999, 99999), { x: 1880, y: 1060 });
 });
 
-test('badges are laid out in a row from the origin, one margin apart', () => {
+test('banners are laid out in a row from the origin, one margin apart', () => {
     const root = document.createElement('div');
     const branches = widgets.renderWidgets(root, {
         campaigns: [entry({ branch: 'regular', numeral: 'I' }), entry({})], labels: {},
@@ -978,9 +978,9 @@ test('badges are laid out in a row from the origin, one margin apart', () => {
     assert.equal(first.style.left, '1030px');
     assert.equal(first.style.top, '100px');
     // Widths are not measurable in this DOM, so the slot advances by the nominal width plus
-    // one margin. The badges share a baseline either way.
+    // one margin. The banners share a baseline either way.
     const step = parseInt(second.style.left, 10) - parseInt(first.style.left, 10);
-    assert.equal(step - 60, widgets.BADGE_GAP_PX);
+    assert.equal(step - 60, widgets.BANNER_GAP_PX);
     assert.equal(second.style.top, '100px');
 });
 
@@ -995,13 +995,13 @@ test('the row starts down and right of the anchor top-right corner', () => {
 });
 
 test('there is no origin at all while the anchor is off stage', () => {
-    // No fallback position: that is what keeps the badges hidden until the garage mounts the
+    // No fallback position: that is what keeps the banners hidden until the garage mounts the
     // block, rather than showing them somewhere else first and moving them across.
     clearBody();
     assert.equal(widgets.anchorOrigin(), null);
 });
 
-test('the poll stays fast until a push has arrived and the badges are placed', () => {
+test('the poll stays fast until a push has arrived and the banners are placed', () => {
     const fast = widgets.UNPUSHED_POLL_INTERVAL_MS;
     const slow = widgets.POLL_INTERVAL_MS;
     assert.equal(widgets.pollRateFor(false, false), fast);
@@ -1014,15 +1014,15 @@ test('the poll stays fast until a push has arrived and the badges are placed', (
     assert.equal(widgets.pollRateFor(true, true), slow);
 });
 
-test('a row laid out on badges that cannot be measured yet asks to be laid out again', () => {
+test('a row laid out on banners that cannot be measured yet asks to be laid out again', () => {
     const root = document.createElement('div');
     const widget = document.createElement('div');
     widget.setAttribute('data-branch', 'pm2');
     root.appendChild(widget);
 
-    // No rect yet, which is what a badge appended this frame reports.
+    // No rect yet, which is what a banner appended this frame reports.
     assert.equal(widgets.applyLayout(root, ['pm2'], { x: 100, y: 50 }), false);
-    // Placed anyway, so the badge is never left without a position.
+    // Placed anyway, so the banner is never left without a position.
     assert.equal(widget.style.left, '100px');
 
     widget._rect = { left: 0, top: 0, right: 84, bottom: 40, width: 84, height: 40 };
@@ -1030,7 +1030,7 @@ test('a row laid out on badges that cannot be measured yet asks to be laid out a
 });
 
 test('a provisional row is laid out again, even though the anchor has not moved', () => {
-    // The regression the badge kept jumping from: the first layout ran before the badges could
+    // The regression the banner kept jumping from: the first layout ran before the banners could
     // be measured, spread the row on the nominal slot, then cached the origin as done. Nothing
     // moved it again until the next snapshot, which is where the jump came from.
     clearBody();
@@ -1042,12 +1042,12 @@ test('a provisional row is laid out again, even though the anchor has not moved'
         campaigns: [entry({ branch: 'regular' }), entry({ branch: 'pm2' })],
     });
 
-    // First pass: the badges have no rect, so the row stands on the nominal slot.
+    // First pass: the banners have no rect, so the row stands on the nominal slot.
     widgets.updateLayout(root, ['regular', 'pm2']);
     const second = root.querySelector('[data-branch="pm2"]');
     const provisional = second.style.left;
 
-    // The badges become measurable, and the anchor has not moved a pixel.
+    // The banners become measurable, and the anchor has not moved a pixel.
     for (const branch of ['regular', 'pm2']) {
         root.querySelector('[data-branch="' + branch + '"]')._rect =
             { left: 0, top: 0, right: 84, bottom: 40, width: 84, height: 40 };
@@ -1073,10 +1073,10 @@ test('the row spreads by the measured width once there is one', () => {
     widgets.applyLayout(root, ['regular', 'pm2'], { x: 100, y: 50 });
     assert.equal(root.querySelector('[data-branch="regular"]').style.left, '100px');
     assert.equal(root.querySelector('[data-branch="pm2"]').style.left,
-        String(100 + 84 + widgets.BADGE_GAP_PX) + 'px');
+        String(100 + 84 + widgets.BANNER_GAP_PX) + 'px');
 });
 
-test('the layout leaves the badges alone when there is no origin', () => {
+test('the layout leaves the banners alone when there is no origin', () => {
     const root = document.createElement('div');
     const branches = widgets.renderWidgets(root, { campaigns: [entry({})], labels: {} });
     const widget = root.querySelector('[data-branch="pm2"]');

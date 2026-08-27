@@ -20,7 +20,7 @@ Every client import stays inside a function, so this module is importable outsid
 """
 from __future__ import absolute_import, print_function, unicode_literals
 
-# What a badge click asks for. `OPEN` is the plain click and is handled by `navigation`; the
+# What a banner click asks for. `OPEN` is the plain click and is handled by `navigation`; the
 # other two are handled here.
 ACTION_OPEN = 'open'
 ACTION_PAUSE = 'pause'
@@ -71,7 +71,7 @@ def _is_running(quest):
 def _is_campaign_3_active(logger):
     """Campaign 3 being the active one blocks both actions, the way the client blocks them.
 
-    Campaigns 1 and 2 have no badge while campaign 3 runs, so this is close to unreachable. It
+    Campaigns 1 and 2 have no banner while campaign 3 runs, so this is close to unreachable. It
     is kept because it is the client's own condition, and because the two campaign styles have
     swapped over before.
     """
@@ -90,7 +90,7 @@ def _is_campaign_3_active(logger):
 def perform(quest, action, logger):
     """Hand this mission to the processor for `action`. Returns True when the request went.
 
-    Takes the mission rather than the campaign behind the badge, which keeps this module free
+    Takes the mission rather than the campaign behind the banner, which keeps this module free
     of `collector` -- `collector` asks this one which actions a mission accepts, and two
     modules that import each other cannot both be imported first.
     """
@@ -100,8 +100,8 @@ def perform(quest, action, logger):
 
     try:
         from gui.shared.gui_items.processors import quests as quests_proc
-        # The branch comes off the mission rather than from the badge: this call wants the
-        # branch number, while the badge carries the branch name, and the two are easy to
+        # The branch comes off the mission rather than from the banner: this call wants the
+        # branch number, while the banner carries the branch name, and the two are easy to
         # confuse. The mission knows its own.
         branch = quest.getQuestBranch()
         if action == ACTION_PAUSE:

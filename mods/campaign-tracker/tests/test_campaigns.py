@@ -118,7 +118,7 @@ class FindMatchingMissionTest(unittest.TestCase):
 
 
 class BuildMissionIdTest(unittest.TestCase):
-    """The badge label, built from the game's own translated short mission name."""
+    """The banner label, built from the game's own translated short mission name."""
 
     def test_keeps_campaign_1_which_is_already_short(self):
         for short_name in ('LT-1', 'MT-1', 'HT-1', 'TD-1', 'SPG-13'):

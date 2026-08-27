@@ -12,12 +12,12 @@ Source repository for World of Tanks mods, build tooling, and game-facing techni
       <a href="mods/campaign-tracker/README.md"><b>Zanju's&nbsp;Campaign&nbsp;Tracker</b></a>
     </td>
     <td>
-      <i>In development, not released yet.</i>
+      <a href="https://github.com/przemyslaw-zan/zanju-wot-mods/releases/latest"><img alt="release" src="https://img.shields.io/github/v/release/przemyslaw-zan/zanju-wot-mods?filter=CT%40*&amp;color=green&amp;style=flat"></a>
     </td>
   </tr>
   <tr>
     <td colspan="2">
-      One garage badge per active personal missions campaign, naming the mission your selected vehicle is on. Hover it for the operation, the full mission name, and the condition progress.
+      One garage banner per active personal missions campaign, showing the mission your selected vehicle is on. Hover it for the operation, the full mission name, and the condition progress.
     </td>
   </tr>
   <tr>

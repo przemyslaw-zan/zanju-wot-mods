@@ -7,7 +7,7 @@ loads whatever a `ModInjectModel` on one of that document's SUB-views lists. We 
 model, plus our own data model (`zanjuCtWidgets`) carrying the campaign snapshot, which
 widgets.js reads.
 
-The badges are fixed beside the garage's vehicle name block, so no position is persisted. The
+The banners are fixed beside the garage's vehicle name block, so no position is persisted. The
 one thing they send back is a click: the JS reports which campaign was clicked and which keys
 were held with it, and Python either opens the client's own screen for that campaign's mission
 (see navigation) or pauses or resets it (see mission_actions).
@@ -109,7 +109,7 @@ class _WidgetsDataModel(ViewModel):
         self._setString(self._HELD_KEYS_INDEX, text)
 
     def __onMissionAction(self, *args):
-        """A badge was clicked. Which action it asks for depends on the keys held with it."""
+        """A banner was clicked. Which action it asks for depends on the keys held with it."""
         arg = args[0] if args else None
         branch = _map_get(arg, 'branch')
         if not branch:
@@ -121,7 +121,7 @@ class _WidgetsDataModel(ViewModel):
 
         # Resolved here rather than in `mission_actions`, which stays free of `collector` so
         # the two do not import each other. Resolved fresh on every click for the same reason
-        # `navigation` does: the mission behind a badge can change between render and click.
+        # `navigation` does: the mission behind a banner can change between render and click.
         quest = collector.find_active_mission(branch, _module_logger)
         if quest is None:
             _module_logger.info('Campaign %s has no active mission to %s', branch, action)
@@ -184,10 +184,10 @@ def _build_payload(logger):
 def _log_payload_change(snapshot, logger):
     """Report how many campaigns a snapshot found, when that number changes.
 
-    The badges cannot appear before the client has the mission data, and how long that takes
+    The banners cannot appear before the client has the mission data, and how long that takes
     is not something this mod controls. Timing it is the only way to tell a slow client from a
     slow mod, so the first build is logged and every later change of the count -- which is what
-    a reader of `python.log` needs to place the badges' arrival against the garage's.
+    a reader of `python.log` needs to place the banners' arrival against the garage's.
     """
     global _last_logged_count
     try:
@@ -294,7 +294,7 @@ def _bind_events(logger):
 
 
 def _bind_missions(logger):
-    """Follow the personal missions cache, which owns everything the badges show.
+    """Follow the personal missions cache, which owns everything the banners show.
 
     `onPMSyncCompleted` fires when the cache has re-read the missions -- a mission selected or
     finished, a campaign switched, condition progress arriving after a battle. That is the one
@@ -330,7 +330,7 @@ def _unbind_events(logger):
 
 
 def _on_vehicle_changed(*args):
-    # A different tank falls in a different line, so every badge can change at once.
+    # A different tank falls in a different line, so every banner can change at once.
     refresh(_module_logger)
 
 

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Tests for which screen a badge click opens.
+"""Tests for which screen a banner click opens.
 
 The two campaign styles differ: campaigns 1 and 2 give every mission its own screen, while
 campaign 3 shows a list. These check the branch is picked on the campaign, and that a campaign

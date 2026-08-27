@@ -40,25 +40,25 @@
     z-index: 1000;
 }
 
-/* Ordering WITHIN the root, which is a separate question from the number above: the badges are
-   siblings, so without this the next badge along paints over the card of the one before it.
-   Lifting the whole badge rather than just its card keeps the two together, so the card never
-   appears to detach from the badge it belongs to. */
+/* Ordering WITHIN the root, which is a separate question from the number above: the banners are
+   siblings, so without this the next banner along paints over the card of the one before it.
+   Lifting the whole banner rather than just its card keeps the two together, so the card never
+   appears to detach from the banner it belongs to. */
 .zanju-ct-widget:hover {
     z-index: 1;
 }
 
-/* A fixed-width slot that the badge fills exactly. The width is deliberate rather than left to
-   the content: a badge sized to its own content changes width whenever that content does -- a
+/* A fixed-width slot that the banner fills exactly. The width is deliberate rather than left to
+   the content: a banner sized to its own content changes width whenever that content does -- a
    tally row appearing after a battle, a longer mission id on another tank, a mission going on
    pause -- and every one of those drags the row with it. Fixing it holds the row still, keeps
-   the badges the same size as each other, and gives the hover card a stable centre to hang off,
+   the banners the same size as each other, and gives the hover card a stable centre to hang off,
    since the card is placed at 50% of this box.
 
-   Sized to the widest thing a badge carries, which is the third row at its longest
-   (`12 / 25 . 10`), and no wider: every spare pixel here is spare pixels between the badges.
+   Sized to the widest thing a banner carries, which is the third row at its longest
+   (`12 / 25 . 10`), and no wider: every spare pixel here is spare pixels between the banners.
    The mission id is shorter than that even at its longest (`SPG-13`), and the fourth row
-   shorter still -- a badge can only ever carry one icon there, because the two states it
+   shorter still -- a banner can only ever carry one icon there, because the two states it
    flags belong to campaigns that are never active at the same time. */
 .zanju-ct-widget {
     position: fixed;
@@ -71,9 +71,9 @@
     color: #d7dbe0;
 }
 
-/* The badge: campaign numeral over the mission's short id. Stacked rather than side by side so
+/* The banner: campaign numeral over the mission's short id. Stacked rather than side by side so
    the widget stays narrow — it sits beside the vehicle name, where horizontal room is what is
-   scarce. It fills its slot rather than sizing to its content, which is what keeps every badge
+   scarce. It fills its slot rather than sizing to its content, which is what keeps every banner
    the same size and keeps a content change from moving anything. */
 .zanju-ct-face {
     display: flex;
@@ -97,7 +97,7 @@
    drawn as a filled shape with a slightly smaller filled shape on top of it. The game's own
    hangar stylesheet builds its frames the same way.
    
-   Its own element, and a fixed height, so the point is identical on every badge -- badges in a
+   Its own element, and a fixed height, so the point is identical on every banner -- banners in a
    row differ in height by a row or two, and a point measured as a share of that would come out
    a different shape on each. Kept off the widget itself, which must never be clipped: the hover
    card hangs outside the widget's box and would be cut away with it. */
@@ -110,7 +110,7 @@
 }
 
 /* Inset on both sides and shorter, which is what leaves the outline showing along the two
-   diagonals. Its top edge stays flush with the sides above it, so the inside of the badge runs
+   diagonals. Its top edge stays flush with the sides above it, so the inside of the banner runs
    into the point with nothing drawn across the join.
 
    The outline on a slope is thinner than the same inset on an upright edge -- it is measured
@@ -147,7 +147,7 @@
     font-weight: 500;
 }
 
-/* A badge with a mission behind it opens that mission's screen, so it says so. A grey badge
+/* A banner with a mission behind it opens that mission's screen, so it says so. A grey banner
    has nothing to open and keeps the default cursor. */
 .zanju-ct-widget-clickable {
     cursor: pointer;
@@ -161,7 +161,7 @@
     background: rgba(255, 255, 255, 0.3);
 }
 
-/* The badge's third row, on the missions that count their battles: what is in hand, what it
+/* The banner's third row, on the missions that count their battles: what is in hand, what it
    takes, and the battles the mission still allows. Blockified children, because a flex item
    that carries text is not reliably blockified for us in this renderer. */
 .zanju-ct-tally {
@@ -217,9 +217,9 @@
     color: #cc6b5a;
 }
 
-/* The badge's fourth row: one small icon per state worth flagging. Shares the tally's shape --
+/* The banner's fourth row: one small icon per state worth flagging. Shares the tally's shape --
    a centred flex row that disappears entirely when there is nothing to say, rather than holding
-   a line of height open on every badge that has neither. */
+   a line of height open on every banner that has neither. */
 .zanju-ct-flags {
     display: flex;
     justify-content: center;
@@ -282,7 +282,7 @@
     display: none;
     pointer-events: none;
     position: absolute;
-    /* Centred on the badge rather than left-aligned to it: the badge is narrow and sits near
+    /* Centred on the banner rather than left-aligned to it: the banner is narrow and sits near
        the middle of the screen, so hanging the card off one corner would throw it well off to
        one side of what it describes. */
     left: 50%;
@@ -408,9 +408,9 @@
     color: #cc6b5a;
 }
 
-/* What a click on this badge does, at the foot of the card. One line for each action the
+/* What a click on this banner does, at the foot of the card. One line for each action the
    mission accepts, with the line for the keys held right now lit and the rest dim. Set off from
-   everything above it: those describe the mission, these describe the badge. */
+   everything above it: those describe the mission, these describe the banner. */
 .zanju-ct-hints {
     display: flex;
     flex-direction: column;
@@ -456,7 +456,7 @@
     margin-top: 2rem;
 }
 
-/* The same lock the badge shows, so a tank named here and a badge wearing the icon read as one
+/* The same lock the banner shows, so a tank named here and a banner wearing the icon read as one
    fact rather than two. */
 .zanju-ct-locked-icon {
     display: block;

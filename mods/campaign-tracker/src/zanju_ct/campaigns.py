@@ -129,11 +129,11 @@ def build_mission_id(short_name, line_name=None, internal_id=None):
     hardcodes a line name.
 
     Campaign 1 already ships short enough (`LT-1`, `SPG-13`). Campaigns 2 and 3 spell their
-    line out (`Union-10`, `Vanguard-1`), which is too wide for a small badge, so the line part
+    line out (`Union-10`, `Vanguard-1`), which is too wide for a small banner, so the line part
     is cut to two letters and the number is kept whole.
 
     Falls back to the line name and the mission's number in the chain when the short name is
-    missing, so a translation that has not shipped one still gives the badge something to say.
+    missing, so a translation that has not shipped one still gives the banner something to say.
     """
     shortened = _shorten_mission_id(_as_text(short_name))
     if shortened:

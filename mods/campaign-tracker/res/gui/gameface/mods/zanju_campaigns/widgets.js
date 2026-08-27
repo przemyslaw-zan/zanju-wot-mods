@@ -11,9 +11,9 @@
 // Pointer events are the important constraint here: the root stays `pointer-events: none` so
 // the widgets can never swallow the garage's drag-to-rotate, and each widget is one direct
 // child that re-enables them. Everything inside a widget inherits that, which is what lets the
-// hover card open on `:hover` without any script. A badge does two things: it opens its hover
-// card, and a badge with a mission behind it opens that mission's screen when clicked. Nothing
-// here listens for a drag — the badges are fixed to the anchor.
+// hover card open on `:hover` without any script. A banner does two things: it opens its hover
+// card, and a banner with a mission behind it opens that mission's screen when clicked. Nothing
+// here listens for a drag — the banners are fixed to the anchor.
 //
 // One input arrives the other way round. The card lights the line for the modifier keys held
 // right now, and this document is not given key events until the player has clicked into it,
@@ -23,12 +23,12 @@
 // Widgets are reconciled rather than rebuilt. A snapshot arrives on every mission update and
 // on every tank change, and rebuilding would close an open hover card each time.
 //
-// The badges are fixed to the garage's own vehicle name and experience block
+// The banners are fixed to the garage's own vehicle name and experience block
 // (`VehicleInfoWidget`, which renders the tier, the name and the XP total). That block lives in
-// this same document and sits centred near the top, so the badges take the space to its right
+// this same document and sits centred near the top, so the banners take the space to its right
 // and follow it wherever the garage puts it. See findAnchor for why it is matched the way it
 // is. There is no fallback position: without that block there is nothing to sit beside, so the
-// badges stay hidden until it mounts.
+// banners stay hidden until it mounts.
 //
 // See docs/reference/gameface-mod-widgets.md.
 
@@ -38,12 +38,12 @@ const DATA_PROPERTY = 'zanjuCtWidgets';
 // case where that channel could not be established, and the rate it drops to then.
 const POLL_INTERVAL_MS = 1000;
 // The unpushed rate only applies before the subscription is up, which is normally the first
-// tick or two, so it is worth keeping short: it is the whole cost of the badges appearing late
+// tick or two, so it is worth keeping short: it is the whole cost of the banners appearing late
 // once the mission data is ready.
 const UNPUSHED_POLL_INTERVAL_MS = 100;
 // The held keys get their own timer, at a rate the main tick cannot afford. A player watching
 // a line light up as they press a key notices a tenth of a second; a player switching tanks
-// does not, which is why the two are paced separately. This one never stands down: the badges
+// does not, which is why the two are paced separately. This one never stands down: the banners
 // settle and stop needing attention, but a key can be pressed at any moment for as long as the
 // garage is open.
 const KEY_POLL_INTERVAL_MS = 100;
@@ -75,15 +75,15 @@ const heldKeys = { shift: false, ctrl: false };
 // Wargaming edits that stylesheet. The prefix comes from the component's file name and is the
 // stable half.
 const ANCHOR_SELECTOR = '[class*="VehicleInfoWidget_"]';
-// The space a badge keeps clear of the badge beside it. Every badge fills its slot exactly, so
+// The space a banner keeps clear of the banner beside it. Every banner fills its slot exactly, so
 // this is the gap as it is seen, border to border.
-const BADGE_GAP_PX = 12;
+const BANNER_GAP_PX = 12;
 // Where the row starts, measured from the top-right corner of the block it hangs off. The
 // horizontal value clears the role icon the game itself hangs off that corner.
 const ANCHOR_OFFSET_X_PX = 25;
 const ANCHOR_OFFSET_Y_PX = 10;
-// Slot width used when a badge cannot be measured yet. Only a degraded path — the row spreads
-// by measured width normally — but without it an unmeasurable pass would stack every badge on
+// Slot width used when a banner cannot be measured yet. Only a degraded path — the row spreads
+// by measured width normally — but without it an unmeasurable pass would stack every banner on
 // the same spot.
 const NOMINAL_WIDGET_WIDTH_PX = 60;
 
@@ -101,11 +101,11 @@ let anchorEl = null;
 let liveBranches = [];
 let lastOriginKey = '';
 let hasDrawn = false;
-// Placement waits for the block the badges hang off. The garage mounts it only once the
+// Placement waits for the block the banners hang off. The garage mounts it only once the
 // selected vehicle's models are filled in, which is normally a tick or two after this document
-// loads — so the first tick usually finds nothing to measure. `badgesPlaced` is what the root's
-// visibility hangs on, so the badges appear beside the block rather than somewhere else first.
-let badgesPlaced = false;
+// loads — so the first tick usually finds nothing to measure. `bannersPlaced` is what the root's
+// visibility hangs on, so the banners appear beside the block rather than somewhere else first.
+let bannersPlaced = false;
 let currentPollMs = null;
 
 function log(message) {
@@ -275,9 +275,9 @@ function texts(snapshot) {
     };
 }
 
-// The badge face carries the campaign numeral over the mission's short id — `LT-1`, `UN-15`.
+// The banner face carries the campaign numeral over the mission's short id — `LT-1`, `UN-15`.
 // Python builds that id from the game's own translated short name; see campaigns.py. A
-// campaign with no mission for this vehicle keeps the badge's shape and shows a dash, so the
+// campaign with no mission for this vehicle keeps the banner's shape and shows a dash, so the
 // row does not reflow as the player switches tanks.
 const IDLE_ID = '—';
 
@@ -285,7 +285,7 @@ function faceId(entry) {
     return entry.missionId || IDLE_ID;
 }
 
-// The badge's third row, for the missions that count their battles. Every shape reads the same
+// The banner's third row, for the missions that count their battles. Every shape reads the same
 // way — what is in hand, out of what it takes, and how many battles are left to get there — but
 // the numbers come from different places:
 //
@@ -304,11 +304,11 @@ function faceId(entry) {
 // the first unfinished one is exactly that rule.
 //
 // There is no case where every objective is finished: the game deselects a mission the moment
-// it is, and only a selected mission reaches a badge. So "none unfinished" means the badge has
+// it is, and only a selected mission reaches a banner. So "none unfinished" means the banner has
 // nothing to count rather than something to fall back on. A requirement of any other shape
 // gets nothing rather than the next objective's numbers, which would be numbers for a
-// different objective than the badge is standing on.
-function badgeTally(entry) {
+// different objective than the banner is standing on.
+function bannerTally(entry) {
     const attempts = (entry && entry.attempts) || [];
     const chosen = attempts.filter(function (attempt) { return !attempt.done; })[0];
     if (!chosen) {
@@ -344,7 +344,7 @@ function badgeTally(entry) {
                 // The requirement's own numbers are battles used out of battles allowed.
                 left: Math.max(chosen.goal - chosen.current, 0),
                 // Taken from the pace Python worked out for this same objective rather than
-                // recomputed here, so the badge's colour and the card's line cannot disagree.
+                // recomputed here, so the banner's colour and the card's line cannot disagree.
                 ahead: paceFor(entry.paces, chosen.main),
             };
         }
@@ -361,7 +361,7 @@ function paceFor(paces, isMain) {
     return pace ? Boolean(pace.ahead) : null;
 }
 
-// The running total the badge reports. Conditions arrive in the client's own order, which is
+// The running total the banner reports. Conditions arrive in the client's own order, which is
 // its idea of which matters most, so the first counted one of the objective is the pick.
 function scoreCondition(conditions, isMain) {
     return conditions.filter(function (condition) {
@@ -369,14 +369,14 @@ function scoreCondition(conditions, isMain) {
     })[0] || null;
 }
 
-// Grey means the badge has no mission to work on, which is the one thing a glance at it has to
-// answer. A paused mission is still a mission, and the badge says it is paused with an icon of
+// Grey means the banner has no mission to work on, which is the one thing a glance at it has to
+// answer. A paused mission is still a mission, and the banner says it is paused with an icon of
 // its own -- greying it as well would file it with "nothing here" and cost the icon its point.
 function isActive(entry) {
     return entry.state === 'active' || entry.state === 'paused';
 }
 
-// Only a badge with a mission behind it has a screen to open. Derived rather than carried in
+// Only a banner with a mission behind it has a screen to open. Derived rather than carried in
 // the payload: the snapshot already says whether there is a mission.
 function isClickable(entry) {
     return Boolean(entry && entry.mission);
@@ -512,7 +512,7 @@ function buildVehicles(vehicles, labels) {
         block.appendChild(el('div', 'zanju-ct-locked-label', labels.lockedVehicles));
         // One row each rather than one comma-separated line: the list is read to check whether
         // a particular tank is on it, and a name is easier to find down a column than along a
-        // sentence. Each carries the same lock the badge uses, so the two say the same thing.
+        // sentence. Each carries the same lock the banner uses, so the two say the same thing.
         for (let i = 0; i < locked.length; i += 1) {
             const row = el('div', 'zanju-ct-locked-row');
             row.appendChild(el('div', 'zanju-ct-locked-icon'));
@@ -526,7 +526,7 @@ function buildVehicles(vehicles, labels) {
 // Where the running total stands against the average the mission asks for, as a percentage of
 // it: 100 is exactly on the average, and the line is green above it and red below. Python
 // composes the text so it stays translatable, and decides ahead or behind from the same reading
-// the badge is tinted by. This side only tints the line to match.
+// the banner is tinted by. This side only tints the line to match.
 function buildPace(pace) {
     const state = pace.ahead ? ' zanju-ct-pace-ahead' : ' zanju-ct-pace-behind';
     return el('div', 'zanju-ct-pace' + state, pace.text);
@@ -603,7 +603,7 @@ function renderTally(node, tally) {
     }
     node.textContent = '';
     if (!tally) {
-        // Most missions have no battle limit, and an empty row would still cost the badge a
+        // Most missions have no battle limit, and an empty row would still cost the banner a
         // line of height.
         node.className = 'zanju-ct-tally zanju-ct-tally-empty';
         return;
@@ -658,11 +658,11 @@ function renderCard(card, entry, labels) {
     card.appendChild(buildHints(entry, labels));
 }
 
-// What a click on this badge does, and what the keys held with it would do instead. The line
+// What a click on this banner does, and what the keys held with it would do instead. The line
 // for the keys currently held is lit, so the card answers "what happens if I click now".
 //
 // Only campaign 2's last operation allows pause and reset -- the client permits them nowhere
-// else -- so most badges carry the open line alone. That line still earns its place: a badge
+// else -- so most banners carry the open line alone. That line still earns its place: a banner
 // that opens a screen has no other way of saying so.
 function buildHints(entry, labels) {
     const block = el('div', 'zanju-ct-hints');
@@ -685,17 +685,17 @@ function buildHint(action, text) {
     return row;
 }
 
-// The badge's fourth row: the two states that change what the player should do with this tank,
-// said with an icon rather than a word because the badge has no room for a word.
+// The banner's fourth row: the two states that change what the player should do with this tank,
+// said with an icon rather than a word because the banner has no room for a word.
 //
 // - **paused** — the mission is on pause, so nothing played in it counts.
 // - **locked** — this mission wants several different vehicles and this one is already spent
-//   on it. The mission is still the tank's match, which is why the badge still names it, but
+//   on it. The mission is still the tank's match, which is why the banner still names it, but
 //   no battle in this tank will move it.
 //
 // Both can be true at once, and then both are drawn: they are separate facts and neither
 // implies the other.
-function badgeFlags(entry) {
+function bannerFlags(entry) {
     const flags = [];
     if (!entry || !entry.mission) {
         return flags;
@@ -715,7 +715,7 @@ function renderFlags(node, flags) {
     }
     node.textContent = '';
     if (!flags.length) {
-        // Most badges carry neither, and an empty row would still cost a line of height.
+        // Most banners carry neither, and an empty row would still cost a line of height.
         node.className = 'zanju-ct-flags zanju-ct-flags-empty';
         return;
     }
@@ -727,7 +727,7 @@ function renderFlags(node, flags) {
 
 function buildWidget(entry) {
     const widget = el('div', 'zanju-ct-widget');
-    // Read back when reconciling, to spot a badge whose campaign is no longer active.
+    // Read back when reconciling, to spot a banner whose campaign is no longer active.
     widget._zanjuCtBranch = entry.branch;
 
     const face = el('div', 'zanju-ct-face');
@@ -765,8 +765,8 @@ function renderWidget(widget, entry, labels) {
     if (id) {
         id.textContent = faceId(entry);
     }
-    renderTally(widget.querySelector('.zanju-ct-tally'), badgeTally(entry));
-    renderFlags(widget.querySelector('.zanju-ct-flags'), badgeFlags(entry));
+    renderTally(widget.querySelector('.zanju-ct-tally'), bannerTally(entry));
+    renderFlags(widget.querySelector('.zanju-ct-flags'), bannerFlags(entry));
     renderCard(widget.querySelector('.zanju-ct-card'), entry, labels);
     // The card was just rebuilt, so its hint lines start dim. Light the right one again for
     // whatever is held now, or a re-render under a held key would drop the highlight.
@@ -834,8 +834,8 @@ function findAnchor() {
     return null;
 }
 
-// Where the row of badges starts: down and right of the top-right corner of the garage's
-// vehicle name block. Null while that block is not on stage, which is the badges' cue to stay
+// Where the row of banners starts: down and right of the top-right corner of the garage's
+// vehicle name block. Null while that block is not on stage, which is the banners' cue to stay
 // hidden rather than to sit somewhere arbitrary.
 function anchorOrigin() {
     const element = findAnchor();
@@ -864,7 +864,7 @@ function widgetWidth(widget) {
     return 0;
 }
 
-// Lay the badges out in a row from the origin, left to right. Slots advance by each badge's
+// Lay the banners out in a row from the origin, left to right. Slots advance by each banner's
 // measured width plus the gap, so the row stays tight whatever a mission id happens to say.
 function applyLayout(root, branches, origin) {
     let offset = 0;
@@ -884,7 +884,7 @@ function applyLayout(root, branches, origin) {
         if (!width) {
             measured = false;
         }
-        offset += (width || NOMINAL_WIDGET_WIDTH_PX) + BADGE_GAP_PX;
+        offset += (width || NOMINAL_WIDGET_WIDTH_PX) + BANNER_GAP_PX;
     }
     // Whether the row stands on real widths. False asks the caller to lay out again next tick.
     return measured;
@@ -909,7 +909,7 @@ function renderWidgets(root, snapshot) {
         renderWidget(widget, entry, labels);
     }
 
-    // A campaign that stopped being active loses its badge, and the row closes up behind it.
+    // A campaign that stopped being active loses its banner, and the row closes up behind it.
     //
     // Copied into an array first. The result of `querySelectorAll` is walked by index rather
     // than by iterator, because this renderer has already been caught not implementing a DOM
@@ -941,7 +941,7 @@ function widgetFrom(node) {
     return null;
 }
 
-// Which action the held keys ask for on this badge, or null for none.
+// Which action the held keys ask for on this banner, or null for none.
 //
 // Holding both keys asks for nothing. A combination this mod does not define must not fall
 // through to one of the two it does -- and falling through would land on reset, which is the
@@ -1016,13 +1016,13 @@ function bindClicks(data) {
         }
         const widget = widgetFrom(event.target);
         if (!widget || !widget._zanjuCtClickable) {
-            return; // a grey badge has no mission, so it has no action to take
+            return; // a grey banner has no mission, so it has no action to take
         }
         // Read off the event rather than from the held state: the event is what the player
         // actually clicked with, and it cannot have gone stale between the two.
         const action = actionFor(keysOf(event), widget._zanjuCtEntry);
         // Still ours to swallow even when it asks for nothing, so an undefined combination
-        // does not fall through to the garage behind the badge.
+        // does not fall through to the garage behind the banner.
         event.stopPropagation();
         if (action) {
             invokeCommand(data, 'missionAction',
@@ -1055,12 +1055,12 @@ function tick() {
     if (!root) {
         root = buildRoot();
         bindClicks(data);
-        // A fresh root holds no badges, and the snapshot behind them has not changed — so
+        // A fresh root holds no banners, and the snapshot behind them has not changed — so
         // without this the render below would be skipped and the root would stay empty.
         lastSnapshotJson = null;
         liveBranches = [];
         lastOriginKey = '';
-        badgesPlaced = false;
+        bannersPlaced = false;
     }
 
     bindModelPush();
@@ -1070,7 +1070,7 @@ function tick() {
     const visible = unwrap(data.visible);
 
     // Cheap and first: a key change must reach the card without waiting on anything else,
-    // and it never touches the badges themselves.
+    // and it never touches the banners themselves.
     updateKeys(unwrap(data.heldKeys));
 
     const raw = unwrap(data.snapshot);
@@ -1082,14 +1082,14 @@ function tick() {
             lastOriginKey = '';
             if (!hasDrawn && liveBranches.length) {
                 // Once per document. Pairs with the Python side's own line so a reader of
-                // python.log can see whether a late badge was late data or a late draw.
+                // python.log can see whether a late banner was late data or a late draw.
                 hasDrawn = true;
-                log('drew ' + liveBranches.length + ' badge(s)');
+                log('drew ' + liveBranches.length + ' banner(s)');
             }
         }
     }
 
-    // Re-laid out whenever the block the badges hang off has moved. The garage moves it on a
+    // Re-laid out whenever the block the banners hang off has moved. The garage moves it on a
     // resolution change, on a UI-scale change, and whenever the vehicle name gets longer or
     // shorter — none of which arrive as a snapshot, so watching for it here is what keeps the
     // row beside it. One rect read on a cached element, because this runs on every model write
@@ -1097,38 +1097,38 @@ function tick() {
     if (liveBranches.length) {
         updateLayout(root, liveBranches);
     }
-    root.style.display = visible !== false && badgesPlaced ? 'block' : 'none';
-    setPollRate(pollRateFor(Boolean(document[PUSH_SEEN_FLAG]), badgesPlaced));
+    root.style.display = visible !== false && bannersPlaced ? 'block' : 'none';
+    setPollRate(pollRateFor(Boolean(document[PUSH_SEEN_FLAG]), bannersPlaced));
 }
 
 function updateLayout(root, branches) {
     const origin = anchorOrigin();
     if (!origin) {
-        // The block is not on stage: leave the badges where they are and keep them hidden.
-        badgesPlaced = false;
+        // The block is not on stage: leave the banners where they are and keep them hidden.
+        bannersPlaced = false;
         lastOriginKey = '';
         return;
     }
-    if (!badgesPlaced) {
+    if (!bannersPlaced) {
         log('anchored to the vehicle name block');
     }
     const key = origin.x + ':' + origin.y;
     if (key !== lastOriginKey) {
-        // Only remembered when every badge could be measured. A badge appended this frame can
+        // Only remembered when every banner could be measured. A banner appended this frame can
         // measure zero, and the row then spreads on the nominal slot instead of the real one --
         // right for one frame, wrong from then on, and frozen there because the origin has not
         // moved. Leaving the key unset costs one more layout on the next tick, which is where
-        // the badge that used to jump on the next snapshot was jumping from.
+        // the banner that used to jump on the next snapshot was jumping from.
         if (applyLayout(root, branches, origin)) {
             lastOriginKey = key;
         }
     }
-    badgesPlaced = true;
+    bannersPlaced = true;
 }
 
 // Fast while anything is still settling: the data model may not be found yet, pushes may not
 // be arriving, and the anchor may not have mounted. Only once a push has actually been
-// DELIVERED and the badges have a real position does the timer go back to being a backstop.
+// DELIVERED and the banners have a real position does the timer go back to being a backstop.
 //
 // Delivered, not subscribed. Subscribing always appears to succeed, so keying off that leaves
 // the widgets on the one-second backstop when the channel turns out to be silent -- which is
@@ -1194,7 +1194,7 @@ export {
     ACTION_RESET,
     ANCHOR_OFFSET_X_PX,
     ANCHOR_OFFSET_Y_PX,
-    BADGE_GAP_PX,
+    BANNER_GAP_PX,
     IDLE_ID,
     KEY_POLL_INTERVAL_MS,
     POLL_INTERVAL_MS,
@@ -1204,8 +1204,8 @@ export {
     applyHints,
     appendConditions,
     applyLayout,
-    badgeFlags,
-    badgeTally,
+    bannerFlags,
+    bannerTally,
     buildAttempt,
     buildHints,
     buildPace,

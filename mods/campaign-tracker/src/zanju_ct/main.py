@@ -1,7 +1,7 @@
 """
 zanju_ct.main
 
-Shows one small garage badge per active personal missions campaign. Each badge carries the
+Shows one small garage banner per active personal missions campaign. Each banner carries the
 campaign number over the mission the selected vehicle is currently working on, and its hover
 card gives the operation, the full mission name and the condition progress. A campaign the
 vehicle fits no mission in stays on screen in grey.

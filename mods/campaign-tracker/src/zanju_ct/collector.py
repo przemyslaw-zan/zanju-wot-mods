@@ -28,7 +28,7 @@ STATE_DISABLED = 'disabled'
 
 def collect(logger):
     """A snapshot of every active campaign, in campaign order. Never raises."""
-    # `hasVehicle` is read by the log line that times the badges' arrival, not by the widget.
+    # `hasVehicle` is read by the log line that times the banners' arrival, not by the widget.
     snapshot = {'hasVehicle': False, 'campaigns': []}
     try:
         missions = _personal_missions(logger)
@@ -50,8 +50,8 @@ def collect(logger):
 def find_active_mission(branch_name, logger):
     """The mission this campaign is running for the tank in the garage, or None.
 
-    The same answer the snapshot's badge is built from, resolved again on demand. Clicking a
-    badge reads it fresh rather than trusting a mission id carried in the payload: the player
+    The same answer the snapshot's banner is built from, resolved again on demand. Clicking a
+    banner reads it fresh rather than trusting a mission id carried in the payload: the player
     can pick a different mission, or a different tank, between the snapshot and the click.
     """
     try:
@@ -113,17 +113,17 @@ def _read_campaign(missions, branch_name, vehicle, logger):
 def _describe_mission(entry, missions, branch_id, quest, vehicle, logger):
     """Fill in the matched mission: its name, where it sits, and how far it has come.
 
-    The three values the badge id is built from are locals rather than entry fields. Only the
+    The three values the banner id is built from are locals rather than entry fields. Only the
     finished id is rendered, so shipping its ingredients would send the widget three strings
     it never reads.
     """
     # The game's own short name: "Union-10" where the full name is "Union-10. Raise the
-    # Flag!". It is translated, which is what keeps the badge label out of this mod's
+    # Flag!". It is translated, which is what keeps the banner label out of this mod's
     # localization files.
     short_name = ''
     internal_id = None
     # The chain's own label -- the vehicle class, the alliance or the common role, depending
-    # on the campaign. The card stopped showing it, but it is still the fallback the badge id
+    # on the campaign. The card stopped showing it, but it is still the fallback the banner id
     # falls back on when the client has no short name for a mission.
     line = ''
 

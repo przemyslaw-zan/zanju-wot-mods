@@ -24,7 +24,7 @@ LABEL_VEHICLE_LOCKED: "Vehicle locked"
 # The average is named rather than the total, because a player at 6 hits of 25 is at 24 percent
 # of the total but 120 percent of the average that gets them there.
 LABEL_PACE: "{percent}% of the target average per battle"
-# What a click on a badge does, listed at the foot of the hover card. Only campaign 2's last
+# What a click on a banner does, listed at the foot of the hover card. Only campaign 2's last
 # operation accepts pause and reset, so most cards show the first line alone.
 LABEL_HINT_OPEN: "Click to open the mission"
 LABEL_HINT_PAUSE: "Shift + Click to pause the mission"

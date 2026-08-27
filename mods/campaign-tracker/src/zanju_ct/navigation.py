@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Opens the client's own screen for a campaign's active mission.
 
-The two campaign styles show a mission in different places, so a badge click lands in a
+The two campaign styles show a mission in different places, so a banner click lands in a
 different screen depending on which campaign it belongs to:
 
 - **Campaigns 1 and 2** (`regular`, `pm2`) give every mission its own screen. The mission is
@@ -26,7 +26,7 @@ def open_mission(branch_name, logger):
     """Open the screen showing this campaign's active mission. Returns True when it went."""
     quest = collector.find_active_mission(branch_name, logger)
     if quest is None:
-        # The badge is grey in this case and the JS does not offer the click, so this is only
+        # The banner is grey in this case and the JS does not offer the click, so this is only
         # reached when the mission went away between the render and the click.
         logger.info('Campaign %s has no active mission to open', branch_name)
         return False
