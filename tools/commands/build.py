@@ -61,16 +61,49 @@ from ..core.wot_version import resolve_target_wot_version
 DEFAULT_PY2_EXE = "/opt/python2.7/bin/python2.7"
 
 
-def compile_py2_to_pyc(py2_exe, src_path, out_pyc_path):
-    # WoT runtime for this client/mod stack expects Python 2 bytecode.
+def compile_py2_to_pyc(py2_exe, src_path, out_pyc_path, dfile):
+    """Compile one module to Python 2 bytecode, recording `dfile` as its source path.
+
+    WoT runtime for this client/mod stack expects Python 2 bytecode.
+
+    `dfile` is the third argument py_compile takes, and it decides what the bytecode carries as
+    its own filename -- which is what a traceback prints. Left out, Python records the path it
+    compiled from, so every traceback a mod logs in the game names a directory that exists only
+    on the machine that built it. Pass the path inside the .wotmod instead: the game's own
+    bytecode carries a path relative to its package root, and a reader of python.log can find
+    the file that way.
+    """
     cmd = [
         py2_exe,
         "-c",
-        "import py_compile,sys; py_compile.compile(sys.argv[1], sys.argv[2])",
+        "import py_compile,sys; py_compile.compile(sys.argv[1], sys.argv[2], sys.argv[3])",
         src_path,
         out_pyc_path,
+        dfile,
     ]
     subprocess.check_call(cmd, env=subprocess_env())
+
+
+def assert_no_build_paths(package_path):
+    """Fail the build if the package carries a path from the machine that built it.
+
+    Compiled bytecode records where it was compiled from, and a traceback prints that path, so
+    a mod that logs an exception in the game used to name a directory on the build machine. The
+    compile step passes the in-package path instead, and this is the check that it kept doing
+    so -- the leak was silent for four releases, and only a log a player sent in exposed it.
+
+    Scans everything rather than the bytecode alone: a generated resource can leak the same way
+    and would read exactly as badly.
+    """
+    root = os.path.dirname(MODS_DIR).encode("utf-8")
+    if not root or root == b"/":
+        return
+    with zipfile.ZipFile(package_path) as zf:
+        for entry in zf.namelist():
+            if root in zf.read(entry):
+                raise RuntimeError(
+                    "{} leaks the build path {} -- see compile_py2_to_pyc".format(
+                        entry, root.decode("utf-8")))
 
 
 def run_optional_prebuild(mod_dir, verbose=False):
@@ -199,8 +232,8 @@ def bundle_generated_mod_meta(src_dir, meta, temp_dir, py2_exe, zf):
         with open(py_path, "w", encoding="utf-8") as fh:
             fh.write(source)
         pyc_path = "{}c".format(py_path)
-        compile_py2_to_pyc(py2_exe, py_path, pyc_path)
         archive_path = "res/scripts/client/gui/mods/{}/_mod_meta.pyc".format(package)
+        compile_py2_to_pyc(py2_exe, py_path, pyc_path, archive_path[:-1])
         zf.write(pyc_path, archive_path)
 
 
@@ -251,8 +284,8 @@ def build_mod(mod_name, py2_exe, target_wot_version, include_companion_bundle=No
                 compiled_dir = os.path.dirname(compiled_path)
                 if compiled_dir:
                     os.makedirs(compiled_dir, exist_ok=True)
-                compile_py2_to_pyc(py2_exe, abs_path, compiled_path)
                 archive_path = "res/scripts/client/gui/mods/{}".format(compiled_rel_path.replace(os.sep, "/"))
+                compile_py2_to_pyc(py2_exe, abs_path, compiled_path, archive_path[:-1])
                 zf.write(compiled_path, archive_path)
             bundle_generated_mod_meta(src_dir, meta, temp_dir, py2_exe, zf)
 
@@ -266,6 +299,8 @@ def build_mod(mod_name, py2_exe, target_wot_version, include_companion_bundle=No
                     abs_path = os.path.join(dirpath, filename)
                     archive_path = "res/{}".format(os.path.relpath(abs_path, staged_res_dir).replace(os.sep, "/"))
                     zf.write(abs_path, archive_path)
+
+    assert_no_build_paths(output_path)
 
     success("Package built: {}".format(output_name))
     detail("Path: {}".format(output_path), verbose=verbose)
