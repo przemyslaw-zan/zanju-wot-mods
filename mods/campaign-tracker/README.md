@@ -3,7 +3,7 @@
 ![Mod showcase image](./images/campaign_legacy.png)
 ![Mod showcase image, campaign 3](./images/campaign_modern.png)
 
-### This mod reintroduces the personal mission campaign banners the UI rework removed.
+### This mod brings back the personal mission campaign banners the UI rework removed.
 
 - **Support for all campaigns** — works with the old style of campaigns 1 and 2, and the new style of campaign 3.
 - **Details on hover** — hover over a banner for the conditions and your progress.
