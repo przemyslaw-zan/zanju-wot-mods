@@ -57,6 +57,18 @@ _module_logger = logging.getLogger(LOGGER_NAME)
 # changes without writing a line on every tank switch. `None` means nothing logged yet.
 _last_logged_count = None
 
+# Client strings this mod reads instead of shipping its own. Written as the keys themselves
+# rather than through `gui.Scaleform.locale`, because that module holds these very strings and
+# the key is the half worth reading here. Each one names the same thing the widget names:
+#
+# - the two condition group headings, which the game's own mission card prints in that exact
+#   place, and the separator it prints between two conditions of an "or" group
+# - the state a mission is in once its primary objective is met and its secondary one is not
+_KEY_PRIMARY = '#personal_missions:detailedView/conditionslabel'
+_KEY_SECONDARY = '#personal_missions:detailedView/conditionsFullylabel'
+_KEY_OR = '#personal_missions:conditions/orGroup'
+_KEY_IMPROVING = '#ingame_gui:statistics/tab/quests/status/increaseResult'
+
 # The view model class this mod attached to, so it never takes a second one. See view_claim.
 _claimed_class = None
 
@@ -162,8 +174,8 @@ def _build_payload(logger):
         snapshot['labels'] = {
             'noMission': _loc('LABEL_NO_MISSION'),
             'paused': _loc('LABEL_PAUSED'),
-            # The client's own words for these, which spares a translator four strings and
-            # gives every language the game ships. See `_client_text`.
+            # `_client_text` here and below: the client's own words, which spare a
+            # translator four strings and give every language the game ships.
             'primaryConditions': _client_text(_KEY_PRIMARY, logger),
             'secondaryConditions': _client_text(_KEY_SECONDARY, logger),
             'or': _client_text(_KEY_OR, logger),
@@ -183,24 +195,13 @@ def _build_payload(logger):
         return '{}'
 
 
-# Client strings this mod reads instead of shipping its own. Written as the keys themselves
-# rather than through `gui.Scaleform.locale`, because that module holds these very strings and
-# the key is the half worth reading here. Each one names the same thing the widget names:
-#
-# - the two condition group headings, which the game's own mission card prints in that exact
-#   place, and the separator it prints between two conditions of an "or" group
-# - the state a mission is in once its primary objective is met and its secondary one is not
-_KEY_PRIMARY = '#personal_missions:detailedView/conditionslabel'
-_KEY_SECONDARY = '#personal_missions:detailedView/conditionsFullylabel'
-_KEY_OR = '#personal_missions:conditions/orGroup'
-_KEY_IMPROVING = '#ingame_gui:statistics/tab/quests/status/increaseResult'
-
-
 def _client_text(key, logger, **format_kwargs):
     """A string the client already ships translated, or an empty string.
 
-    An empty answer is the right failure here. The widget draws a label it was given and skips
-    one it was not, so a key the client drops costs its own line and nothing else.
+    An empty answer is the right failure here. The widget draws whatever it is handed, so a
+    key the client drops leaves its line blank and costs nothing else. The secondary heading
+    keeps its element even when empty, because that element carries the rule dividing the two
+    condition groups, and losing the rule would read worse than losing the word.
     """
     try:
         from helpers import i18n

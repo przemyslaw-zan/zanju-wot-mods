@@ -18,7 +18,7 @@ Scope grew after this was first written. The entry expected a third copy of `loc
 
 | Module | Copies | Mods | Notes |
 | --- | --- | --- | --- |
-| `localization.py` | 4 | `pt`, `rpb`, `dh`, `ct` | The original case. Differences are docstring, logger name, and an unused `get_wg_text`. |
+| `localization.py` | 4 | `pt`, `rpb`, `dh`, `ct` | The original case. Differences are docstring, logger name, and an unused `get_wg_text`. `ct`'s copy also has `absolute_import`, which the others lack — take `ct`'s as the base, here and for `route_gate.py`. Every module in `zanju_ct` opts into it, because the package has a `constants.py` that shadows the client's own. |
 | `storage.py` | 2 | `rpb`, `dh` | AppData path resolution plus atomic writes. Differs only in the docstring. |
 | `route_gate.py` | 2 | `dh`, `ct` | Lobby visible-route gating. `ct`'s copy differs only in docstring wording. |
 | `view_claim.py` | 2 | `dh`, `ct` | Which hangar sub-view a mod attaches to. The two copies are byte-identical, deliberately. |
