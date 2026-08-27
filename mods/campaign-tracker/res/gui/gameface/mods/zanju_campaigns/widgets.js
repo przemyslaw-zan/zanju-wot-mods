@@ -252,34 +252,16 @@ function buildRoot() {
     return root;
 }
 
-function texts(snapshot) {
-    // Labels ride along in the snapshot so the Python side owns translation.
-    const labels = (snapshot && snapshot.labels) || {};
-    return {
-        noMission: labels.noMission || 'No mission for this vehicle',
-        noVehicle: labels.noVehicle || 'No vehicle in the garage',
-        disabled: labels.disabled || 'Campaign unavailable',
-        paused: labels.paused || 'Mission on pause',
-        // The game calls these groups primary and secondary wherever it shows them to a
-        // player; main/add is only what its own key names say.
-        primaryConditions: labels.primaryConditions || 'Primary conditions',
-        secondaryConditions: labels.secondaryConditions || 'Secondary conditions',
-        or: labels.or || 'OR',
-        lockedVehicles: labels.lockedVehicles || 'Locked vehicles:',
-        vehicleLocked: labels.vehicleLocked || 'Vehicle locked',
-        noConditions: labels.noConditions || 'No conditions to show',
-        hintOpen: labels.hintOpen || 'Click to open the mission',
-        hintPause: labels.hintPause || 'Shift + Click to pause the mission',
-        hintResume: labels.hintResume || 'Shift + Click to resume the mission',
-        hintReset: labels.hintReset || 'Ctrl + Click to reset the mission',
-    };
-}
-
 // The banner face carries the campaign numeral over the mission's short id — `LT-1`, `UN-15`.
 // Python builds that id from the game's own translated short name; see campaigns.py. A
 // campaign with no mission for this vehicle keeps the banner's shape and shows a dash, so the
 // row does not reflow as the player switches tanks.
 const IDLE_ID = '—';
+
+// The stages a mission can be in once its primary objective is settled, in the order Python
+// reports them. Listed rather than trusted, because the value is used as a label key and as a
+// CSS class suffix, and neither should take whatever string arrives.
+const STAGES = ['improving', 'pawned'];
 
 function faceId(entry) {
     return entry.missionId || IDLE_ID;
@@ -334,13 +316,29 @@ function bannerTally(entry) {
         return { kind: 'count', current: chosen.current, goal: chosen.goal };
     }
 
+    if (chosen.type === null || chosen.type === undefined) {
+        // No limit on this objective, so there are no battles to count against. What is worth
+        // showing is the total it is building towards -- for an unlimited primary that is the
+        // whole mission, and before this row existed the counter fell through to the
+        // secondary objective and reported numbers belonging to the wrong half.
+        const score = scoreCondition((entry && entry.conditions) || [], chosen.main);
+        if (score) {
+            return {
+                kind: 'count',
+                current: score.currentText,
+                goal: score.goalText,
+            };
+        }
+        return null;
+    }
+
     if (chosen.type === 'limited') {
         const score = scoreCondition((entry && entry.conditions) || [], chosen.main);
         if (score) {
             return {
                 kind: 'score',
-                current: score.current,
-                goal: score.goal,
+                current: score.currentText,
+                goal: score.goalText,
                 // The requirement's own numbers are battles used out of battles allowed.
                 left: Math.max(chosen.goal - chosen.current, 0),
                 // Taken from the pace Python worked out for this same objective rather than
@@ -393,6 +391,10 @@ function isClickable(entry) {
 // A list rather than a single note, because the two warnings are separate facts. In this
 // client's data they cannot both apply: pause belongs to campaign 2 and the vehicle lock to
 // campaign 3, and those two are never active together. The card does not rely on that.
+//
+// The stage note is the one piece of good news, and it comes last in every sense. It only says
+// what the battles now buy, which is worth nothing next to a note saying the battles buy
+// nothing at all, so anything already said wins the line.
 function cardNotes(entry, labels) {
     const notes = [];
     const state = stateNote(entry, labels);
@@ -402,21 +404,36 @@ function cardNotes(entry, labels) {
     if (entry && entry.vehicles && entry.vehicles.currentLocked) {
         notes.push({ text: labels.vehicleLocked, warning: true });
     }
+    const stage = stageNote(entry, labels);
+    if (!notes.length && stage) {
+        notes.push(stage);
+    }
     return notes;
+}
+
+// What the mission is still worth playing for once its primary objective is settled. Python
+// names the stage and the name doubles as the label key, so an unknown one is dropped rather
+// than looked up: any other key in `labels` would render as a note that makes no sense here.
+function stageNote(entry, labels) {
+    if (!entry || STAGES.indexOf(entry.stage) < 0) {
+        return null;
+    }
+    const text = labels[entry.stage];
+    return text ? { text: text, good: true } : null;
 }
 
 function noteClass(note) {
     const base = 'zanju-ct-note';
-    return note && note.warning ? base + ' zanju-ct-note-warning' : base;
+    if (note && note.warning) {
+        return base + ' zanju-ct-note-warning';
+    }
+    if (note && note.good) {
+        return base + ' zanju-ct-note-good';
+    }
+    return base;
 }
 
 function stateNote(entry, labels) {
-    if (entry.state === 'novehicle') {
-        return labels.noVehicle;
-    }
-    if (entry.state === 'disabled') {
-        return labels.disabled;
-    }
     if (entry.state === 'paused') {
         return labels.paused;
     }
@@ -432,9 +449,12 @@ function conditionCount(condition) {
     if (!condition.counted) {
         return '';
     }
-    return String(condition.current) + ' / ' + String(condition.goal);
+    return condition.currentText + ' / ' + condition.goalText;
 }
 
+// A condition, and under it the extra rule it carries if it carries one. Two levels rather than
+// one flex row, the shape the requirement below already uses: the rule belongs to the condition
+// and has to sit under it, not beside the tick.
 function buildCondition(condition) {
     let className = 'zanju-ct-cond';
     if (condition.done) {
@@ -442,7 +462,9 @@ function buildCondition(condition) {
     } else if (condition.failed) {
         className += ' zanju-ct-cond-failed';
     }
-    const row = el('div', className);
+    const block = el('div', className);
+
+    const row = el('div', 'zanju-ct-cond-line');
     row.appendChild(el('div', 'zanju-ct-mark'));
     row.appendChild(el('div', 'zanju-ct-cond-text', condition.text));
 
@@ -450,7 +472,44 @@ function buildCondition(condition) {
     if (count) {
         row.appendChild(el('div', 'zanju-ct-cond-count', count));
     }
-    return row;
+    block.appendChild(row);
+
+    if (condition.restriction) {
+        block.appendChild(buildRestriction(condition));
+    }
+    return block;
+}
+
+// The extra rule, under the condition it gates. The client leads it with a word of its own --
+// "Restriction!" -- and colours that word, so the word is carried apart and drawn apart. A
+// client that gives no such word leaves the line as the rule alone.
+//
+// One box per word, laid out as a wrapping flex row. The label and the rule are one paragraph,
+// so a rule long enough to wrap has to come back to the left edge under the word that
+// introduces it -- and this renderer gives no other way to get that. See `appendWords`.
+function buildRestriction(condition) {
+    const line = el('div', 'zanju-ct-cond-limit');
+    appendWords(line, condition.restrictionLabel, 'zanju-ct-cond-limit-label');
+    appendWords(line, condition.restriction, 'zanju-ct-cond-limit-text');
+    return line;
+}
+
+// One box per word, because this renderer wraps flex lines and not text. A sentence in a single
+// box is one column: put a coloured word beside it and every line after the first hangs under
+// the sentence rather than under the word. Split into words, the row wraps like a paragraph.
+//
+// This is the game's own answer, not a way around it. Its formatted-text component splits on
+// spaces and gives each word an element, and its stylesheets carry `display: flex` thousands of
+// times against three uses of `display: inline`.
+//
+// The label is split too: it is one word in English and need not be in every language.
+function appendWords(line, text, className) {
+    const words = String(text || '').split(' ');
+    for (let i = 0; i < words.length; i += 1) {
+        if (words[i]) {
+            line.appendChild(el('div', className, words[i]));
+        }
+    }
 }
 
 // An "or" group needs only one of its conditions met, which changes what the list means: an
@@ -478,8 +537,11 @@ function buildAttempt(attempt) {
 
     const line = el('div', 'zanju-ct-attempt-line');
     line.appendChild(el('div', 'zanju-ct-attempt-text', attempt.text));
-    line.appendChild(el('div', 'zanju-ct-attempt-count',
-        String(attempt.current) + ' / ' + String(attempt.goal)));
+    // An objective with no battle limit carries no numbers: there is nothing to count against.
+    if (typeof attempt.goal === 'number') {
+        line.appendChild(el('div', 'zanju-ct-attempt-count',
+            String(attempt.current) + ' / ' + String(attempt.goal)));
+    }
     row.appendChild(line);
 
     // One mark per allowed battle, in the order they were played, the way the game's own
@@ -639,6 +701,10 @@ function renderCard(card, entry, labels) {
     card.appendChild(head);
 
     if (!entry.mission) {
+        // This return is what leaves the head alone on the card, so the rule it carries would
+        // divide the head from nothing at all. Drop the rule rather than the block: the head
+        // is still the head, and every card keeps building it the same way.
+        head.className += ' zanju-ct-card-head-alone';
         return;
     }
 
@@ -685,16 +751,22 @@ function buildHint(action, text) {
     return row;
 }
 
-// The banner's fourth row: the two states that change what the player should do with this tank,
+// The banner's fourth row: the states that change what the player should do with this tank,
 // said with an icon rather than a word because the banner has no room for a word.
 //
 // - **paused** — the mission is on pause, so nothing played in it counts.
 // - **locked** — this mission wants several different vehicles and this one is already spent
 //   on it. The mission is still the tank's match, which is why the banner still names it, but
 //   no battle in this tank will move it.
+// - **improving** — the player met the primary objective and the secondary one is still open.
+//   Meeting both in one battle completes the mission with honors.
+// - **pawned** — an order was committed to fulfil the primary objective, so the mission is
+//   already complete and paid. Meeting both conditions in one battle returns the order.
 //
-// Both can be true at once, and then both are drawn: they are separate facts and neither
-// implies the other.
+// The first two can be true at once, and then both are drawn: they are separate facts and
+// neither implies the other. A stage icon is drawn only when neither of them is, for the same
+// reason the card orders its notes the same way. A mission nothing counts towards has no use
+// for a row naming what it would count towards.
 function bannerFlags(entry) {
     const flags = [];
     if (!entry || !entry.mission) {
@@ -705,6 +777,9 @@ function bannerFlags(entry) {
     }
     if (entry.vehicles && entry.vehicles.currentLocked) {
         flags.push('locked');
+    }
+    if (!flags.length && STAGES.indexOf(entry.stage) >= 0) {
+        flags.push(entry.stage);
     }
     return flags;
 }
@@ -891,7 +966,11 @@ function applyLayout(root, branches, origin) {
 }
 
 function renderWidgets(root, snapshot) {
-    const labels = texts(snapshot);
+    // Labels ride along in the snapshot so the Python side owns translation. A payload that
+    // carries campaigns always carries them too: both are built in one place, and a failure
+    // there empties the whole payload rather than half of it. So there is nothing to default
+    // them to -- a snapshot with no labels has no banner to put one on.
+    const labels = (snapshot && snapshot.labels) || {};
     const entries = (snapshot && snapshot.campaigns) || [];
     const wanted = {};
     const branches = [];
@@ -1214,6 +1293,9 @@ export {
     cardNotes,
     cardTitle,
     clampToViewport,
+    appendWords,
+    buildCondition,
+    buildRestriction,
     conditionCount,
     bindModelPush,
     faceId,
@@ -1236,7 +1318,7 @@ export {
     renderWidget,
     renderWidgets,
     updateLayout,
+    stageNote,
     stateNote,
-    texts,
     widgetFrom,
 };

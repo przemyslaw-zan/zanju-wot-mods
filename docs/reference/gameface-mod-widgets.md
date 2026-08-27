@@ -156,7 +156,7 @@ Confirmed by the game's own stylesheets never using them, and by live warnings:
 | --- | --- |
 | `font-variant-numeric`, `font-feature-settings` | Ignored — tabular figures unavailable even though PFDINMax ships `tnum` |
 | `align-items: baseline` | Rejected outright: *"Trying to set alignItems property to invalid value"* |
-| `display: inline-block`, `ch` units | Never used by the game; avoid |
+| `display: inline`, `display: inline-block`, `ch` units | Effectively unavailable — see "Text wraps by flex line" below |
 | `display: flex`, `min-width`, `text-align`, `letter-spacing` | Used heavily by the game; safe |
 
 **Blockify flex items yourself.** A flex item is supposed to be blockified automatically, so a
@@ -166,6 +166,8 @@ it: set `display: block` (or use a `div`) whenever you give a flex child a `widt
 because it is silent and *asymmetric* — the identical rule works wherever something else already
 forced the element to `display: block`, so the same class centres correctly in one place and not
 another, and no amount of tuning the text properties fixes the broken one.
+
+**Text wraps by flex line, not by inline flow.** There is no usable inline layout here. The game's own stylesheets carry `display: flex` 7821 times, `display: block` 114 times, and `display: inline` 3 times. None of those three uses puts two inline boxes on one line. A paragraph with one coloured word in it cannot be a block with a `<span>` inside: the span stacks above the text and reads as a heading above it. The game's own answer is to split the string on spaces, give every word its own element, and wrap the row with `display: flex; flex-wrap: wrap` — its formatted-text component does exactly this, and `.FormatText_base` carries those two properties. Supply the gap between words yourself with `margin-right`, because the split threw the real space away. Measure it rather than guess it: PFDINMax, the family `body` sets, gives its space an advance of 0.195 em, and the inherited `letter-spacing: 0.02em` supplies the rest. See `buildRestriction` and `appendWords` in `campaign-tracker`.
 
 **Prefer drawing a small mark to typing it.** `text-align: center` centres a glyph's *advance
 width*, not its ink, so a character with uneven side bearings (`!` is the classic) sits visibly

@@ -20,13 +20,17 @@ from zanju_ct import collector
 
 
 class _Logger(object):
-    """Records the exception() calls the collector makes instead of printing them."""
+    """Records what the collector logs instead of printing it."""
 
     def __init__(self):
         self.failures = []
+        self.notes = []
 
     def exception(self, message, *args):
         self.failures.append(message)
+
+    def info(self, message, *args):
+        self.notes.extend(args)
 
 
 class _VehicleType(object):
@@ -112,6 +116,41 @@ class PackageConstantsTest(unittest.TestCase):
         from zanju_ct import constants
         self.assertTrue(constants.LOGGER_NAME)
         self.assertFalse(hasattr(constants, 'BATTLE_MODE_VEHICLE_TAGS'))
+
+
+class IdleReasonLogTests(unittest.TestCase):
+    """The log is the only place the ways of having no mission stay apart, so it has to work.
+
+    A snapshot is built many times over the life of a garage. A reason that logged on every one
+    of them would bury the log rather than explain it, so only a change is reported.
+    """
+
+    def setUp(self):
+        collector._idle_reasons.clear()
+        collector._last_idle_reasons = frozenset()
+        self.logger = _Logger()
+
+    def test_a_new_reason_is_reported_once(self):
+        collector._note_idle('one')
+        collector._log_idle_reasons(self.logger)
+        collector._log_idle_reasons(self.logger)
+        self.assertEqual(self.logger.notes, ['one'])
+
+    def test_a_second_reason_is_reported_without_repeating_the_first(self):
+        collector._note_idle('one')
+        collector._log_idle_reasons(self.logger)
+        collector._note_idle('two')
+        collector._log_idle_reasons(self.logger)
+        self.assertEqual(self.logger.notes, ['one', 'two'])
+
+    def test_a_reason_that_goes_away_and_returns_is_reported_again(self):
+        collector._note_idle('one')
+        collector._log_idle_reasons(self.logger)
+        collector._idle_reasons.clear()
+        collector._log_idle_reasons(self.logger)
+        collector._note_idle('one')
+        collector._log_idle_reasons(self.logger)
+        self.assertEqual(self.logger.notes, ['one', 'one'])
 
 
 if __name__ == '__main__':

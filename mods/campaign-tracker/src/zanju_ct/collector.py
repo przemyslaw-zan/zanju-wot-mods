@@ -21,29 +21,52 @@ from .localization import get_text as _loc
 # What the widget face and its hover card show for one campaign.
 STATE_ACTIVE = 'active'
 STATE_PAUSED = 'paused'
+# Everything that is not a mission to work on. The four ways of arriving here -- no vehicle, a
+# vehicle no mission accepts, a campaign switched off, a disabled operation -- all leave the
+# player with the same nothing, and the banner says so once. They are told apart in the log
+# rather than on the card, because a player cannot act on the difference and a reader of
+# python.log chasing a missing banner can.
 STATE_NO_MATCH = 'nomatch'
-STATE_NO_VEHICLE = 'novehicle'
-STATE_DISABLED = 'disabled'
+
+
+# Why a banner came out with no mission on it. Reported when the set of reasons changes, not on
+# every snapshot: a snapshot is built many times over the life of a garage.
+_idle_reasons = set()
+_last_idle_reasons = frozenset()
+
+
+def _note_idle(reason):
+    _idle_reasons.add(reason)
+
+
+def _log_idle_reasons(logger):
+    global _last_idle_reasons
+    current = frozenset(_idle_reasons)
+    if current == _last_idle_reasons:
+        return
+    for reason in sorted(current - _last_idle_reasons):
+        logger.info('No mission to show: %s', reason)
+    _last_idle_reasons = current
 
 
 def collect(logger):
     """A snapshot of every active campaign, in campaign order. Never raises."""
     # `hasVehicle` is read by the log line that times the banners' arrival, not by the widget.
     snapshot = {'hasVehicle': False, 'campaigns': []}
+    _idle_reasons.clear()
     try:
         missions = _personal_missions(logger)
-        if missions is None:
-            return snapshot
+        if missions is not None:
+            vehicle = _current_vehicle(logger)
+            snapshot['hasVehicle'] = vehicle is not None
 
-        vehicle = _current_vehicle(logger)
-        snapshot['hasVehicle'] = vehicle is not None
-
-        for branch_name in campaigns.order_branches(missions.getActiveCampaigns()):
-            entry = _read_campaign(missions, branch_name, vehicle, logger)
-            if entry is not None:
-                snapshot['campaigns'].append(entry)
+            for branch_name in campaigns.order_branches(missions.getActiveCampaigns()):
+                entry = _read_campaign(missions, branch_name, vehicle, logger)
+                if entry is not None:
+                    snapshot['campaigns'].append(entry)
     except Exception:
         logger.exception('Failed to read the active campaigns')
+    _log_idle_reasons(logger)
     return snapshot
 
 
@@ -92,13 +115,14 @@ def _read_campaign(missions, branch_name, vehicle, logger):
         'paces': [],
         'canPause': False,
         'canReset': False,
+        'stage': '',
     }
 
     if not _is_enabled(missions, branch_id, logger):
-        entry['state'] = STATE_DISABLED
+        _note_idle('campaign %s is switched off on the server' % branch_name)
         return entry
     if vehicle is None:
-        entry['state'] = STATE_NO_VEHICLE
+        # Already reported by `_current_vehicle`, which knows which of its two answers it gave.
         return entry
 
     quest = campaigns.find_matching_mission(
@@ -146,11 +170,18 @@ def _describe_mission(entry, missions, branch_id, quest, vehicle, logger):
         # names its operations after.
         name = _safe_text(operation.getShortUserName, logger=logger)
         if name:
-            # Composed here rather than in the widget, so the wording stays translatable and
-            # a language that puts the name first can say so in its own file.
-            entry['operationTitle'] = _loc('LABEL_OPERATION_TITLE', name=name)
+            # The client's own heading for an operation, which already carries the name in
+            # the place the language wants it. Reading it saves this mod a string of its own.
+            entry['operationTitle'] = _operation_title(name, logger)
         if _is_disabled(operation, quest):
-            entry['state'] = STATE_DISABLED
+            # The client is not offering this mission, so the banner offers nothing either. The
+            # name goes with it: a banner naming a mission and saying there is none reads as a
+            # contradiction, and the operation heading names something equally unavailable.
+            _note_idle('an operation or mission is disabled in campaign %s' % branch_id)
+            entry['state'] = STATE_NO_MATCH
+            entry['mission'] = None
+            entry['operationTitle'] = ''
+            return
 
     entry['missionId'] = campaigns.build_mission_id(short_name, line, internal_id)
     progress = mission_progress.read_progress(quest, logger, vehicle.get('intCD'))
@@ -158,6 +189,10 @@ def _describe_mission(entry, missions, branch_id, quest, vehicle, logger):
     entry['attempts'] = progress['attempts']
     entry['vehicles'] = progress['vehicles']
     entry['paces'] = _read_paces(progress['conditions'], progress['attempts'], logger)
+    # What the mission is still worth playing for once its primary objective is settled: the
+    # secondary reward, or an order committed to buy the primary one back. The banner says which
+    # with an icon, and the card with a line of its own.
+    entry['stage'] = progress['stage']
 
     # Which of the two mission actions the card may offer. `paused` is dropped rather than
     # carried: the entry already says so in `state`, and one answer in two places goes stale
@@ -169,6 +204,20 @@ def _describe_mission(entry, missions, branch_id, quest, vehicle, logger):
 
 # The requirement shape that carries an average: a total to reach in a fixed run of battles.
 _LIMITED = 'limited'
+
+
+def _operation_title(name, logger):
+    """The client's own "Operation <name>" heading, or the bare name.
+
+    Falling back to the name alone rather than to nothing: the name is the half a player reads,
+    and a card headed "Excalibur" still says which operation the mission belongs to.
+    """
+    try:
+        from helpers import i18n
+        return i18n.makeString('#quests:tileChainsView/title', name=name)
+    except Exception:
+        logger.exception('Failed to read the operation heading')
+        return name
 
 
 def _read_paces(conditions, attempts, logger):
@@ -340,10 +389,12 @@ def _current_vehicle(logger):
     try:
         from CurrentVehicle import g_currentVehicle
         if not g_currentVehicle.isPresent():
+            _note_idle('there is no vehicle in the garage')
             return None
         item = g_currentVehicle.item
         vehicle_type = item.descriptor.type
         if _is_mode_locked(vehicle_type, logger):
+            _note_idle('the vehicle in the garage is locked to one battle mode')
             return None
         return {'type': vehicle_type, 'level': item.level, 'intCD': item.intCD}
     except Exception:

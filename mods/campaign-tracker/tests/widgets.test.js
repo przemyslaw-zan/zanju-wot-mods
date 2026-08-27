@@ -113,7 +113,25 @@ function clearBody() {
 
 const widgets = await import('../res/gui/gameface/mods/zanju_campaigns/widgets.js');
 
-const LABELS = widgets.texts({});
+// The labels the Python side ships in every snapshot. A fixture, not a copy of `en.yml`: no
+// test compares the two, and nothing here depends on the wording. Assert against `LABELS.x`
+// rather than against the string, so a copy edit never breaks a test.
+const LABELS = {
+    noMission: 'No mission for this vehicle',
+    paused: 'Mission on pause',
+    primaryConditions: 'Primary condition',
+    secondaryConditions: 'For completion with honors',
+    or: 'or',
+    lockedVehicles: 'Locked vehicles:',
+    vehicleLocked: 'Vehicle locked',
+    improving: 'Result Improvement',
+    pawned: 'Retrieving an order',
+    noConditions: 'No conditions to show',
+    hintOpen: 'Click to open the mission',
+    hintPause: 'Shift + Click to pause the mission',
+    hintResume: 'Shift + Click to resume the mission',
+    hintReset: 'Ctrl + Click to reset the mission',
+};
 
 function entry(overrides) {
     return Object.assign({
@@ -146,22 +164,30 @@ test('a banner with a mission to work on is not greyed, paused or not', () => {
     // Paused counts: the banner flags that with an icon, and greying it too would file it with
     // the states that have no mission at all.
     assert.equal(widgets.isActive(entry({ state: 'paused' })), true);
-    for (const state of ['nomatch', 'novehicle', 'disabled']) {
-        assert.equal(widgets.isActive(entry({ state })), false, state);
-    }
+    assert.equal(widgets.isActive(entry({ state: 'nomatch' })), false);
 });
 
-test('each idle state gets its own note, and a running one gets none', () => {
+test('a mission running says nothing, and everything else says what it is', () => {
     assert.equal(widgets.stateNote(entry({ state: 'active' }), LABELS), '');
     assert.equal(widgets.stateNote(entry({ state: 'paused' }), LABELS), LABELS.paused);
-    assert.equal(widgets.stateNote(entry({ state: 'disabled' }), LABELS), LABELS.disabled);
-    assert.equal(widgets.stateNote(entry({ state: 'novehicle' }), LABELS), LABELS.noVehicle);
+    // Every way of having no mission reads the same on the card. Python tells them apart in
+    // the log, because a player cannot act on the difference.
     assert.equal(widgets.stateNote(entry({ state: 'nomatch' }), LABELS), LABELS.noMission);
 });
 
 test('a counted condition shows numbers and a binary one does not', () => {
-    assert.equal(widgets.conditionCount({ counted: true, current: 2, goal: 5 }), '2 / 5');
-    assert.equal(widgets.conditionCount({ counted: false, current: 0, goal: 1 }), '');
+    assert.equal(widgets.conditionCount(condition('x', { counted: true, current: 2, goal: 5 })),
+        '2 / 5');
+    assert.equal(widgets.conditionCount(condition('x', { counted: false })), '');
+});
+
+test('a big number is shown as the client grouped it, not rebuilt from the digits', () => {
+    // 15000 assistance damage is a real mission goal, and the separator belongs to the
+    // language -- a space, a comma or a dot -- so the client is what decides it.
+    assert.equal(widgets.conditionCount(condition('Assist', {
+        counted: true, current: 2400, goal: 15000,
+        currentText: '2 400', goalText: '15 000',
+    })), '2 400 / 15 000');
 });
 
 test('only a banner with a mission behind it is clickable', () => {
@@ -200,6 +226,42 @@ test('the banner tally shows the successes, the number needed and the battles le
         })],
     }));
     assert.deepEqual(tally, { kind: 'battles', current: 2, goal: 3, left: 2 });
+});
+
+test('an unlimited objective says so, and carries no numbers beside it', () => {
+    const row = widgets.buildAttempt(attempt({
+        text: 'Complete the primary condition over any number of battles',
+        type: null, current: null, goal: null, battles: [],
+    }));
+    assert.equal(row.querySelector('.zanju-ct-attempt-text').textContent,
+        'Complete the primary condition over any number of battles');
+    // Nothing to count against, so no counter is drawn rather than one reading "null / null".
+    assert.equal(row.querySelectorAll('.zanju-ct-attempt-count').length, 0);
+});
+
+test('an unlimited primary reports its own total, not the secondary objective', () => {
+    // The regression: an unlimited primary had no row of its own, so "the first unfinished
+    // objective" answered with the secondary one and the banner counted the wrong half.
+    const tally = widgets.bannerTally(entry({
+        attempts: [
+            attempt({ text: 'over any number of battles', type: null, current: null, goal: null }),
+            attempt({ type: 'limited', battles: [], current: 1, goal: 4, main: false }),
+        ],
+        conditions: [
+            condition('Assist', { counted: true, current: 2400, goal: 15000,
+                currentText: '2 400', goalText: '15 000' }),
+            condition('Secondary total', { counted: true, current: 2, goal: 8, main: false }),
+        ],
+    }));
+    assert.deepEqual(tally, { kind: 'count', current: '2 400', goal: '15 000' });
+});
+
+test('an unlimited objective with nothing to count shows no tally', () => {
+    // Its conditions are all binary, so there is no total to report.
+    assert.equal(widgets.bannerTally(entry({
+        attempts: [attempt({ type: null, current: null, goal: null })],
+        conditions: [condition('Survive the battle')],
+    })), null);
 });
 
 test('a mission with no battle limit has no banner tally', () => {
@@ -254,7 +316,7 @@ test('a running-total mission reports score, target and battles left', () => {
         attempts: [attempt({ type: 'limited', battles: [], current: 2, goal: 5 })],
         conditions: [condition('Earn rewards', { counted: true, current: 6, goal: 15 })],
     }));
-    assert.deepEqual(tally, { kind: 'score', current: 6, goal: 15, left: 3, ahead: null });
+    assert.deepEqual(tally, { kind: 'score', current: '6', goal: '15', left: 3, ahead: null });
 });
 
 test('a running-total mission with no counted condition reports nothing', () => {
@@ -276,7 +338,7 @@ test('the running total is taken from the objective the banner is standing on', 
             condition('Secondary total', { counted: true, current: 2, goal: 8, main: false }),
         ],
     }));
-    assert.deepEqual(tally, { kind: 'score', current: 2, goal: 8, left: 3, ahead: null });
+    assert.deepEqual(tally, { kind: 'score', current: '2', goal: '8', left: 3, ahead: null });
 });
 
 test('the score row shows the total, its target and the battles left', () => {
@@ -384,14 +446,14 @@ test('the key poll reads the held keys without waiting on the snapshot', () => {
     const lit = () => widget.querySelectorAll('.zanju-ct-hint')
         .filter((row) => row.className.includes('zanju-ct-hint-active'))
         .map((row) => row.textContent);
-    assert.deepEqual(lit(), ['Click to open the mission']);
+    assert.deepEqual(lit(), [LABELS.hintOpen]);
 
     // The key poll runs at its own rate, faster than the snapshot is ever rebuilt.
     assert.ok(widgets.KEY_POLL_INTERVAL_MS < widgets.POLL_INTERVAL_MS);
     try {
         widgets.updateKeys('ctrl');
         widgets.applyHints(widget, { shift: false, ctrl: true });
-        assert.deepEqual(lit(), ['Ctrl + Click to reset the mission']);
+        assert.deepEqual(lit(), [LABELS.hintReset]);
     } finally {
         widgets.updateKeys('');
     }
@@ -428,14 +490,91 @@ test('only the notes that cost the player battles are drawn as warnings', () => 
     assert.equal(widgets.noteClass(null), 'zanju-ct-note');
 });
 
+test('the note that is good news gets a class of its own', () => {
+    assert.ok(widgets.noteClass({ good: true }).includes('zanju-ct-note-good'));
+    // A warning outranks it, so a note that somehow claimed both still reads as the warning.
+    assert.ok(widgets.noteClass({ warning: true, good: true }).includes('zanju-ct-note-warning'));
+});
+
 test('a paused mission warns, and the states that are merely true do not', () => {
     const warns = (state) => widgets.cardNotes(entry({ state }), LABELS)[0].warning;
     assert.equal(warns('paused'), true);
-    for (const state of ['nomatch', 'novehicle', 'disabled']) {
-        assert.equal(warns(state), false, state);
-    }
+    assert.equal(warns('nomatch'), false);
     // A running mission has nothing to say at all.
     assert.deepEqual(widgets.cardNotes(entry({ state: 'active' }), LABELS), []);
+});
+
+test('a restriction is drawn under the condition it gates, not beside it', () => {
+    const row = widgets.buildCondition({
+        text: 'Be the top player in the battle by number of vehicles destroyed.',
+        restrictionLabel: 'Restriction!',
+        restriction: 'Destroy 2 enemy vehicles.',
+        counted: false,
+    });
+    // The condition keeps its own class on the outside, so "done" and "failed" still reach the
+    // tick and the text through it.
+    assert.equal(row.className, 'zanju-ct-cond');
+    assert.deepEqual(row.children.map((node) => node.className),
+        ['zanju-ct-cond-line', 'zanju-ct-cond-limit']);
+    // The tick and the text stay on the first line, and the rule goes under both.
+    assert.deepEqual(row.children[0].children.map((node) => node.className),
+        ['zanju-ct-mark', 'zanju-ct-cond-text']);
+    // One box per word, so the flex row wraps like a paragraph and a wrapped rule comes back
+    // under the label rather than hanging in a column beside it.
+    const limit = row.children[1];
+    assert.deepEqual(limit.children.map((node) => node.className), [
+        'zanju-ct-cond-limit-label',
+        'zanju-ct-cond-limit-text', 'zanju-ct-cond-limit-text',
+        'zanju-ct-cond-limit-text', 'zanju-ct-cond-limit-text',
+    ]);
+    // Split apart and read back, the line is the sentence it started as.
+    assert.equal(limit.children.map((node) => node.textContent).join(' '),
+        'Restriction! Destroy 2 enemy vehicles.');
+});
+
+test('a condition with no restriction is the line and nothing else', () => {
+    const row = widgets.buildCondition({ text: 'Survive the battle.', counted: false });
+    assert.deepEqual(row.children.map((node) => node.className), ['zanju-ct-cond-line']);
+});
+
+test('a restriction with no label of its own is drawn as the rule alone', () => {
+    // The label comes from the client. Without it the line still has to carry the rule.
+    const line = widgets.buildRestriction({ restrictionLabel: '', restriction: 'Deal 500 damage.' });
+    assert.ok(line.children.every((node) => node.className === 'zanju-ct-cond-limit-text'));
+    assert.equal(line.children.map((node) => node.textContent).join(' '), 'Deal 500 damage.');
+});
+
+test('every word of the label is highlighted, not only the first', () => {
+    // "Restriction!" is one word in English and need not be in the language being read.
+    const line = widgets.buildRestriction({ restrictionLabel: 'Restriction !', restriction: 'Go.' });
+    assert.deepEqual(line.children.map((node) => node.className), [
+        'zanju-ct-cond-limit-label', 'zanju-ct-cond-limit-label', 'zanju-ct-cond-limit-text',
+    ]);
+});
+
+test('the word split drops the gaps rather than drawing empty boxes for them', () => {
+    // Runs of spaces and a trailing one are what a translated string tends to arrive with.
+    const line = document.createElement('div');
+    widgets.appendWords(line, '  two   words ', 'w');
+    assert.deepEqual(line.children.map((node) => node.textContent), ['two', 'words']);
+    widgets.appendWords(line, null, 'w');
+    assert.equal(line.children.length, 2);
+});
+
+test('the divider is dropped when there is nothing under it to divide', () => {
+    // A card with no mission is the head and nothing else.
+    const empty = document.createElement('div');
+    widgets.renderCard(empty, entry({ state: 'nomatch', mission: null }), LABELS);
+    assert.equal(empty.children.length, 1);
+    assert.ok(empty.querySelector('.zanju-ct-card-head').className
+        .includes('zanju-ct-card-head-alone'));
+
+    // A card with a mission has conditions and hints under the head, so the rule earns its
+    // place and stays.
+    const full = document.createElement('div');
+    widgets.renderCard(full, entry({}), LABELS);
+    assert.ok(full.children.length > 1);
+    assert.equal(full.querySelector('.zanju-ct-card-head').className, 'zanju-ct-card-head');
 });
 
 test('a warning sits with the mission it describes, above the divider', () => {
@@ -493,6 +632,50 @@ test('a warning note reaches the card carrying its warning class', () => {
     assert.equal(lockedNote.textContent, LABELS.vehicleLocked);
 });
 
+test('a mission past its primary objective says so, and not as a warning', () => {
+    assert.deepEqual(widgets.cardNotes(entry({ stage: 'improving' }), LABELS),
+        [{ text: LABELS.improving, good: true }]);
+    // An order committed to buy the primary objective is a different fact, and says so.
+    assert.deepEqual(widgets.cardNotes(entry({ stage: 'pawned' }), LABELS),
+        [{ text: LABELS.pawned, good: true }]);
+});
+
+test('a stage the widget does not know is dropped rather than looked up', () => {
+    // The value is a key into the labels, so an unknown one must not reach that lookup: every
+    // other key in there would render as a note that makes no sense on this card.
+    assert.equal(widgets.stageNote(entry({ stage: 'hintOpen' }), LABELS), null);
+    assert.equal(widgets.stageNote(entry({ stage: '' }), LABELS), null);
+    assert.equal(widgets.stageNote(null, LABELS), null);
+});
+
+test('the stage note yields to anything that costs the player battles', () => {
+    // Nothing played counts while the mission is paused, so what the battles would buy is not
+    // worth a line.
+    assert.deepEqual(
+        widgets.cardNotes(entry({ state: 'paused', stage: 'improving' }), LABELS)
+            .map((note) => note.text),
+        [LABELS.paused]);
+    // Same for a tank already spent on the mission, and the same for the other stage.
+    assert.deepEqual(
+        widgets.cardNotes(entry({
+            stage: 'pawned',
+            vehicles: { completed: 2, required: 5, locked: [], currentLocked: true },
+        }), LABELS).map((note) => note.text),
+        [LABELS.vehicleLocked]);
+});
+
+test('the stage note reaches the card in green, above the divider', () => {
+    const card = document.createElement('div');
+    widgets.renderCard(card, entry({ stage: 'improving' }), LABELS);
+    const head = card.querySelector('.zanju-ct-card-head');
+    assert.deepEqual(head.children.map((node) => node.className), [
+        'zanju-ct-card-title',
+        'zanju-ct-card-subtitle',
+        'zanju-ct-note zanju-ct-note-good',
+    ]);
+    assert.equal(card.querySelector('.zanju-ct-note').textContent, LABELS.improving);
+});
+
 test('a paused mission flags itself on the banner face', () => {
     assert.deepEqual(widgets.bannerFlags(entry({ state: 'paused' })), ['paused']);
 });
@@ -513,9 +696,32 @@ test('both states are flagged when both are true', () => {
     assert.deepEqual(widgets.bannerFlags(both), ['paused', 'locked']);
 });
 
+test('each stage carries its own icon, named by the stage itself', () => {
+    assert.deepEqual(widgets.bannerFlags(entry({ stage: 'improving' })), ['improving']);
+    assert.deepEqual(widgets.bannerFlags(entry({ stage: 'pawned' })), ['pawned']);
+    // A stage the widget does not know draws nothing, rather than a missing image.
+    assert.deepEqual(widgets.bannerFlags(entry({ stage: 'whatever' })), []);
+});
+
+test('the stage icon is dropped whenever a warning icon is drawn', () => {
+    assert.deepEqual(
+        widgets.bannerFlags(entry({ state: 'paused', stage: 'improving' })), ['paused']);
+    assert.deepEqual(widgets.bannerFlags(entry({
+        stage: 'pawned',
+        vehicles: { completed: 2, required: 5, locked: [], currentLocked: true },
+    })), ['locked']);
+    // And it never joins them as a third icon, which the banner has no width for.
+    assert.deepEqual(widgets.bannerFlags(entry({
+        state: 'paused',
+        stage: 'improving',
+        vehicles: { completed: 2, required: 5, locked: [], currentLocked: true },
+    })), ['paused', 'locked']);
+});
+
 test('a banner with no mission flags nothing, whatever its state says', () => {
     // A grey banner is already saying it has nothing running; a pause icon on it would be noise.
     assert.deepEqual(widgets.bannerFlags(entry({ state: 'paused', mission: null })), []);
+    assert.deepEqual(widgets.bannerFlags(entry({ stage: 'improving', mission: null })), []);
     assert.deepEqual(widgets.bannerFlags(entry({})), []);
     assert.deepEqual(widgets.bannerFlags(null), []);
 });
@@ -550,28 +756,24 @@ test('a banner with a mission running keeps its fourth row out of the way', () =
 
 test('a banner with no pause or reset offers the plain click alone', () => {
     const block = widgets.buildHints(entry({}), LABELS);
-    assert.deepEqual(block.children.map((row) => row.textContent),
-        ['Click to open the mission']);
+    assert.deepEqual(block.children.map((row) => row.textContent), [LABELS.hintOpen]);
 });
 
 test('a mission that accepts both actions lists all three lines', () => {
     const block = widgets.buildHints(entry({ canPause: true, canReset: true }), LABELS);
-    assert.deepEqual(block.children.map((row) => row.textContent), [
-        'Click to open the mission',
-        'Shift + Click to pause the mission',
-        'Ctrl + Click to reset the mission',
-    ]);
+    assert.deepEqual(block.children.map((row) => row.textContent),
+        [LABELS.hintOpen, LABELS.hintPause, LABELS.hintReset]);
 });
 
 test('a paused mission offers the way back out on the same key', () => {
     const block = widgets.buildHints(entry({ canPause: true, state: 'paused' }), LABELS);
-    assert.equal(block.children[1].textContent, 'Shift + Click to resume the mission');
+    assert.equal(block.children[1].textContent, LABELS.hintResume);
 });
 
 test('a mission with nothing to throw away lists no reset', () => {
     const block = widgets.buildHints(entry({ canPause: true, canReset: false }), LABELS);
     assert.deepEqual(block.children.map((row) => row.textContent),
-        ['Click to open the mission', 'Shift + Click to pause the mission']);
+        [LABELS.hintOpen, LABELS.hintPause]);
 });
 
 test('the keys held decide which action a click asks for', () => {
@@ -621,13 +823,13 @@ test('the hint line for the keys held is the lit one', () => {
         .map((row) => row.textContent);
 
     // Rendering with nothing held lights the plain click.
-    assert.deepEqual(lit(), ['Click to open the mission']);
+    assert.deepEqual(lit(), [LABELS.hintOpen]);
 
     widgets.applyHints(widget, { shift: true, ctrl: false });
-    assert.deepEqual(lit(), ['Shift + Click to pause the mission']);
+    assert.deepEqual(lit(), [LABELS.hintPause]);
 
     widgets.applyHints(widget, { shift: false, ctrl: true });
-    assert.deepEqual(lit(), ['Ctrl + Click to reset the mission']);
+    assert.deepEqual(lit(), [LABELS.hintReset]);
 
     // Both keys light nothing, which is what says the click will do nothing.
     widgets.applyHints(widget, { shift: true, ctrl: true });
@@ -785,10 +987,16 @@ test('the dividing rule is only drawn when a primary group sits above', () => {
 });
 
 function condition(text, overrides) {
-    return Object.assign({
+    const row = Object.assign({
         text, counted: false, current: 0, goal: 1,
         done: false, failed: false, main: true, alternative: false,
     }, overrides);
+    // Python sends both: the numbers, which the pace maths needs, and the text the card
+    // renders, which the client has already grouped for the player's language. Defaulted to
+    // the plain number here so only the tests that care about grouping have to say so.
+    if (row.currentText === undefined) { row.currentText = String(row.current); }
+    if (row.goalText === undefined) { row.goalText = String(row.goal); }
+    return row;
 }
 
 function pace(overrides) {

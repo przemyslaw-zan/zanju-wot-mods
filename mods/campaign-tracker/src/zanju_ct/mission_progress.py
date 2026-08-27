@@ -24,6 +24,8 @@ the part the widget cannot do without, so a failure here empties the rows and ke
 """
 from __future__ import absolute_import, print_function, unicode_literals
 
+import re
+
 # `constants.QUEST_PROGRESS_STATE`. Held as plain numbers because the row only needs to know
 # "done" and "failed"; the constant is read in `_states()` to report a renumbering rather than
 # to silently compare against the wrong value.
@@ -42,13 +44,59 @@ def read_progress(quest, logger, vehicle_cd=None):
     """
     storage = _build_storage(quest, logger)
     if storage is None:
-        return {'conditions': [], 'attempts': [], 'vehicles': None, 'hasProgress': False}
+        return {'conditions': [], 'attempts': [], 'vehicles': None, 'hasProgress': False,
+                'stage': ''}
     return {
         'conditions': _read_conditions(storage, quest, logger),
         'attempts': _read_attempts(storage, quest, logger),
         'vehicles': _read_vehicles(storage, quest, vehicle_cd, logger),
         'hasProgress': _has_progress(storage, quest, logger),
+        'stage': _mission_stage(storage, quest, logger),
     }
+
+
+# What a mission is still worth playing for once its primary objective is settled. Both are
+# states the client names itself, and both are empty for a mission still working on its primary
+# objective. The widget uses the value as an icon name and as a label key, so these two strings
+# are also CSS class suffixes and i18n keys.
+STAGE_IMPROVING = 'improving'
+STAGE_PAWNED = 'pawned'
+
+
+def _mission_stage(storage, quest, logger):
+    """`STAGE_PAWNED`, `STAGE_IMPROVING`, or an empty string for every other mission.
+
+    The two differ in what the remaining battles buy, which is why the client keeps them apart:
+
+    - **pawned** -- an order was committed to fulfil the primary condition. The mission counts
+      as complete and its main reward is paid, but the condition itself was never met. Meeting
+      both conditions in one battle returns the order.
+    - **improving** -- the player met the primary condition in a battle. Meeting both in one
+      battle completes the mission with honors and pays the secondary reward.
+
+    Pawned is tested first, the way the client's own status panel tests it. `areTokensPawned`
+    is defined as `isMainCompleted` and a pawned progress, so a pawned mission answers yes to
+    the improving test as well.
+
+    `isMainCompleted` is asked rather than `isCompleted`. The client defines that one as main
+    OR full, so it cannot tell the two states apart. A mission with no secondary objective is
+    never improving: nothing is left to improve once the primary objective is met.
+    """
+    try:
+        if quest.isFullCompleted():
+            # Both objectives are met, so there is nothing left to play this mission for.
+            return ''
+        if quest.areTokensPawned():
+            return STAGE_PAWNED
+        if not quest.isMainCompleted():
+            return ''
+        if not _has_conditions(storage, True) or not _has_conditions(storage, False):
+            return ''
+        return STAGE_IMPROVING
+    except Exception:
+        logger.exception('Failed to read what mission %s is still played for',
+                         _mission_id(quest))
+        return ''
 
 
 def _has_progress(storage, quest, logger):
@@ -85,7 +133,17 @@ def _read_conditions(storage, quest, logger):
 
 
 def _read_attempts(storage, quest, logger):
-    """One row per repetition requirement, main first. Empty when the mission has none."""
+    """One row per objective, saying how many battles it has to be met in. Main first.
+
+    An objective with no limit has no header progress at all, and the client fills that gap
+    itself with an "over any number of battles" line. This does the same, in the client's own
+    words, because the absence of a limit is worth saying: it is the difference between a
+    mission to work at and one that fails if it is not done in time.
+
+    It also keeps the objectives in step. Without a row of its own an unlimited primary was
+    skipped, and everything that reads "the first unfinished objective" -- the banner's counter
+    most visibly -- silently answered with the secondary one instead.
+    """
     try:
         progresses = list(storage.getHeaderProgresses().itervalues())
     except Exception:
@@ -98,7 +156,55 @@ def _read_attempts(storage, quest, logger):
         row = _read_attempt(progress, logger)
         if row is not None:
             rows.append(row)
+
+    for is_main in (True, False):
+        if any(row['main'] is is_main for row in rows):
+            continue
+        row = _unlimited_attempt(storage, quest, is_main, logger)
+        if row is not None:
+            rows.append(row)
+    # Main first again, now that the unlimited rows have joined them.
+    rows.sort(key=(lambda row: not row['main']))
     return rows
+
+
+def _unlimited_attempt(storage, quest, is_main, logger):
+    """The client's own "over any number of battles" line, or None when there is no objective.
+
+    A mission need not have a secondary objective at all, and one that does not should say
+    nothing about it rather than claim it is unlimited.
+    """
+    try:
+        if not _has_conditions(storage, is_main):
+            return None
+        from gui.Scaleform.locale.PERSONAL_MISSIONS import PERSONAL_MISSIONS
+        from helpers import i18n
+        key = (PERSONAL_MISSIONS.CONDITIONS_UNLIMITED_LABEL_MAIN if is_main
+               else PERSONAL_MISSIONS.CONDITIONS_UNLIMITED_LABEL_ADD)
+        return {
+            'text': i18n.makeString(key),
+            # No shape, no numbers: there is no limit here to count against. Every reader
+            # tests for these before using them.
+            'type': None,
+            'current': None,
+            'goal': None,
+            'battles': [],
+            'done': bool(quest.isFullCompleted() if not is_main else quest.isCompleted()),
+            'failed': False,
+            'main': bool(is_main),
+        }
+    except Exception:
+        logger.exception('Failed to read the unlimited-battles line of mission %s',
+                         _mission_id(quest))
+        return None
+
+
+def _has_conditions(storage, is_main):
+    """Whether this objective has any condition at all."""
+    for progress in storage.getBodyProgresses().itervalues():
+        if bool(progress.isMain()) is bool(is_main):
+            return True
+    return False
 
 
 def _read_vehicles(storage, quest, vehicle_cd, logger):
@@ -292,19 +398,45 @@ def _mark_finished(storage, quest, logger):
                          _mission_id(quest))
 
 
+def _format_count(value, logger):
+    """A condition's number, grouped the way the client groups numbers in its own screens.
+
+    Left to the client rather than done here, because the separator belongs to the language:
+    a space, a comma or a dot depending on where the player is.
+    """
+    if value is None:
+        return ''
+    try:
+        from gui.impl import backport
+        return backport.getNiceNumberFormat(value)
+    except Exception:
+        logger.exception('Failed to format a condition number; showing it plain')
+        return '{0}'.format(value)
+
+
 def _read_row(progress, logger):
     try:
         state = progress.getState()
         current = progress.getCurrent()
         goal = progress.getGoal()
+        text, restriction_label, restriction = _split_restriction(progress, logger)
         return {
-            'text': progress.getDescription(),
+            'text': text,
+            # The extra rule this condition carries, if it carries one, split off the
+            # description and given a line of its own by the widget.
+            'restrictionLabel': restriction_label,
+            'restriction': restriction,
             # A binary condition ("Survive the battle") has a goal of 1 and no useful counter,
             # so the widget shows a tick for it instead of "0 / 1". Which of the two it is comes
             # from the client's own cumulative flag rather than from the numbers.
             'counted': bool(progress.isCumulative()),
             'current': current,
             'goal': goal,
+            # The same numbers written out, because a mission asking for 15000 assistance
+            # damage reads as a wall of digits without grouping. Both are kept: the widget
+            # renders the text, and the pace maths needs the numbers.
+            'currentText': _format_count(current, logger),
+            'goalText': _format_count(goal, logger),
             'done': state in (_STATE_COMPLETED, _STATE_PRELIMINARY_COMPLETED),
             'failed': state == _STATE_FAILED,
             'main': bool(progress.isMain()),
@@ -315,6 +447,76 @@ def _read_row(progress, logger):
     except Exception:
         logger.exception('Failed to read a mission condition')
         return None
+
+
+# The client's own markup, which is Scaleform HTML the widget document cannot render. It comes
+# out of the restriction, which is the one place the client puts any.
+_MARKUP = re.compile(r'<[^>]+>')
+
+# `&amp;` last, or it would undo the escaping of the ones replaced before it.
+_ENTITIES = (('&lt;', '<'), ('&gt;', '>'), ('&quot;', '"'), ('&apos;', "'"),
+             ('&nbsp;', ' '), ('&amp;', '&'))
+
+
+def _split_restriction(progress, logger):
+    """`(the condition, the restriction label, the restriction)`, the last two often empty.
+
+    Some conditions carry a limiter: a second rule that has to hold before the first one counts
+    at all. "Be the top player by vehicles destroyed" is a race against your own team, so it
+    comes with "Destroy 2 enemy vehicles" to stop an empty scoreboard from meeting it.
+
+    The client composes the two into one description, as `condition`, a newline, the word
+    "Restriction!" in Scaleform markup, then the limiter. They are split back apart here
+    because the widget cannot render that markup, and because two rules on one line read as one
+    sentence.
+
+    `getLimiter` decides whether there is a second part, rather than the newline alone: the
+    client's own answer costs nothing and a description may hold a newline for its own reasons.
+    The split itself takes the last newline, which is the one the client put there.
+
+    Only the restriction is cleaned of markup. The condition above it carries none, and reading
+    every description for markup the client does not put there buys nothing.
+    """
+    description = progress.getDescription() or ''
+    try:
+        limited = progress.getLimiter() is not None
+    except Exception:
+        # Worth keeping the row for: the description carries both parts either way, which is
+        # what the client itself would draw.
+        logger.exception('Failed to read whether a condition carries a restriction')
+        limited = False
+
+    if not limited or '\n' not in description:
+        return description, '', ''
+
+    text, restriction = description.rsplit('\n', 1)
+    restriction = _plain(restriction)
+    label = _restriction_label(logger)
+    if label and restriction.startswith(label):
+        # Carried apart so the widget can give the label its own colour, the way the client
+        # colours it. A label that does not lead the line is left in place rather than cut out
+        # of the middle of it.
+        return text, label, restriction[len(label):].strip()
+    return text, '', restriction
+
+
+def _restriction_label(logger):
+    """The client's own word for a limiter, which it writes in front of the limiter's text."""
+    try:
+        from gui.Scaleform.locale.PERSONAL_MISSIONS import PERSONAL_MISSIONS
+        from helpers import i18n
+        return i18n.makeString(PERSONAL_MISSIONS.CONDITIONS_LIMITER_LABEL)
+    except Exception:
+        logger.exception('Failed to read the label the client puts on a restriction')
+        return ''
+
+
+def _plain(text):
+    """A restriction with the client's markup taken out, leaving the words it wrapped."""
+    text = _MARKUP.sub('', text or '')
+    for entity, character in _ENTITIES:
+        text = text.replace(entity, character)
+    return text.strip()
 
 
 def _check_states(logger):

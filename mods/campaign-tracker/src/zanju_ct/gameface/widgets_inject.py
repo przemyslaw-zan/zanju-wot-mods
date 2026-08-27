@@ -161,14 +161,16 @@ def _build_payload(logger):
         _log_payload_change(snapshot, logger)
         snapshot['labels'] = {
             'noMission': _loc('LABEL_NO_MISSION'),
-            'noVehicle': _loc('LABEL_NO_VEHICLE'),
-            'disabled': _loc('LABEL_DISABLED'),
             'paused': _loc('LABEL_PAUSED'),
-            'primaryConditions': _loc('LABEL_PRIMARY_CONDITIONS'),
-            'secondaryConditions': _loc('LABEL_SECONDARY_CONDITIONS'),
-            'or': _loc('LABEL_OR'),
+            # The client's own words for these, which spares a translator four strings and
+            # gives every language the game ships. See `_client_text`.
+            'primaryConditions': _client_text(_KEY_PRIMARY, logger),
+            'secondaryConditions': _client_text(_KEY_SECONDARY, logger),
+            'or': _client_text(_KEY_OR, logger),
             'lockedVehicles': _loc('LABEL_LOCKED_VEHICLES'),
             'vehicleLocked': _loc('LABEL_VEHICLE_LOCKED'),
+            'improving': _client_text(_KEY_IMPROVING, logger),
+            'pawned': _loc('LABEL_PAWNED'),
             'noConditions': _loc('LABEL_NO_CONDITIONS'),
             'hintOpen': _loc('LABEL_HINT_OPEN'),
             'hintPause': _loc('LABEL_HINT_PAUSE'),
@@ -179,6 +181,33 @@ def _build_payload(logger):
     except Exception:
         logger.exception('Failed to serialise the campaign snapshot')
         return '{}'
+
+
+# Client strings this mod reads instead of shipping its own. Written as the keys themselves
+# rather than through `gui.Scaleform.locale`, because that module holds these very strings and
+# the key is the half worth reading here. Each one names the same thing the widget names:
+#
+# - the two condition group headings, which the game's own mission card prints in that exact
+#   place, and the separator it prints between two conditions of an "or" group
+# - the state a mission is in once its primary objective is met and its secondary one is not
+_KEY_PRIMARY = '#personal_missions:detailedView/conditionslabel'
+_KEY_SECONDARY = '#personal_missions:detailedView/conditionsFullylabel'
+_KEY_OR = '#personal_missions:conditions/orGroup'
+_KEY_IMPROVING = '#ingame_gui:statistics/tab/quests/status/increaseResult'
+
+
+def _client_text(key, logger, **format_kwargs):
+    """A string the client already ships translated, or an empty string.
+
+    An empty answer is the right failure here. The widget draws a label it was given and skips
+    one it was not, so a key the client drops costs its own line and nothing else.
+    """
+    try:
+        from helpers import i18n
+        return i18n.makeString(key, **format_kwargs)
+    except Exception:
+        logger.exception('Failed to read the client string %s', key)
+        return ''
 
 
 def _log_payload_change(snapshot, logger):

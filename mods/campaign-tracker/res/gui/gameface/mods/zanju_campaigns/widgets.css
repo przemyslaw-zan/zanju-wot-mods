@@ -8,9 +8,17 @@
  * Sizes are in rem, which the game's own UI uses and which its interface-scale setting
  * follows, so the widgets scale with the rest of the UI.
  *
- * Palette: neutral, with one accent. A campaign running a mission for the tank in the garage
- * is the only thing drawn in white; everything else is grey. That is what makes a glance at
- * the corner of the screen answer the question the mod exists for.
+ * Palette. Four greys carry the text, and each one has one job. #f0f2f5 is the answer the
+ * player looks for: the mission id on the banner, and the mission name on the card. #d7dbe0 is
+ * a live value, such as a condition and its counter. #9ca4ab names or labels something, such as
+ * a heading, an operation, or a reference number. #7d848b marks what is spent or inactive, such
+ * as an idle banner, or a campaign with no mission. A fifth grey, #5e646a,
+ * drops the numeral on an idle banner below all of them.
+ *
+ * Four accents sit on the greys. Green #9ccb68 and red #cc6b5a mean done and failed, and also
+ * ahead and behind. Yellow #f0cf74 marks a state that costs the player battles. Blue #5b83a0 and
+ * #5fb2f2 mark what a click does, dim and lit. The yellow and the blue both come from the
+ * research progress bar, which gives them the same two jobs.
  */
 
 /* Container only: it holds the widgets so the drag handler can decide ownership by subtree.
@@ -58,8 +66,8 @@
    Sized to the widest thing a banner carries, which is the third row at its longest
    (`12 / 25 . 10`), and no wider: every spare pixel here is spare pixels between the banners.
    The mission id is shorter than that even at its longest (`SPG-13`), and the fourth row
-   shorter still -- a banner can only ever carry one icon there, because the two states it
-   flags belong to campaigns that are never active at the same time. */
+   shorter still. Two icons at their widest come to 44rem, and no banner ever draws a third.
+   Pause and lock can both apply, but a stage icon is drawn only when neither of them is. */
 .zanju-ct-widget {
     position: fixed;
     pointer-events: auto;
@@ -204,8 +212,11 @@
     color: #f0f2f5;
 }
 
+/* The goal, at the level of the battles left above it. Both are reference numbers beside the
+   total. The goal read dimmer than the count of battles before. That made the number the total
+   is measured against look like the lesser of the two. */
 .zanju-ct-tally-target {
-    color: #7d848b;
+    color: #9ca4ab;
 }
 
 /* The running total, tinted by whether it is keeping up with the battles it is spending. */
@@ -252,6 +263,14 @@
 
 .zanju-ct-flag-locked {
     background-image: url('coui://gui/gameface/mods/zanju_campaigns/lock.png');
+}
+
+.zanju-ct-flag-improving {
+    background-image: url('coui://gui/gameface/mods/zanju_campaigns/improvement.png');
+}
+
+.zanju-ct-flag-pawned {
+    background-image: url('coui://gui/gameface/mods/zanju_campaigns/order.png');
 }
 
 /* No mission running for this tank: the whole widget drops back to grey. */
@@ -313,6 +332,15 @@
     border-bottom: 1rem solid rgba(255, 255, 255, 0.1);
 }
 
+/* A card with no mission carries nothing under the head, and a rule there would divide the head
+   from nothing. The space goes with the rule: it was there to set the conditions off from the
+   line, and the card's own padding already holds the bottom edge clear. */
+.zanju-ct-card-head-alone {
+    padding-bottom: 0;
+    margin-bottom: 0;
+    border-bottom: none;
+}
+
 /* The operation heads the card but is the quieter of the two: the mission underneath it is
    what the player came to read, so that one carries the weight. */
 .zanju-ct-card-title {
@@ -339,6 +367,14 @@
    (TOOLTIP_HIGHLIGHT_TEXT_COLOR). */
 .zanju-ct-note-warning {
     color: #f0cf74;
+    font-weight: 500;
+}
+
+/* The good-news note, in the palette's green and at the weight of the warning above it. It sits
+   where the warnings sit and is drawn instead of them, never with them, so the two colours never
+   argue over one card. */
+.zanju-ct-note-good {
+    color: #9ccb68;
     font-weight: 500;
 }
 
@@ -422,11 +458,16 @@
 /* Blue marks text that tells the player what they can do, rather than what is true -- the
    colour the research progress bar already gives its own click hints
    (TOOLTIP_CLICK_HINT_TEXT_COLOR). Dimmed here to the same hue rather than to grey, so the
-   whole block reads as one thing and the lit line reads as the live one within it. */
+   whole block reads as one thing and the lit line reads as the live one within it.
+
+   The dim blue holds a contrast ratio of about 4.6 against the card, which every other text
+   colour on the card also clears. It was darker before and read at 3.4, the weakest text in the
+   mod and the smallest at the same time. The lit line stays far above at 8.2, so a glance still
+   separates the two. */
 .zanju-ct-hint {
     display: block;
     font-size: 13rem;
-    color: #4a6d85;
+    color: #5b83a0;
 }
 
 /* The action the click would take right now. Full strength, and still blue: green and red
@@ -444,10 +485,12 @@
     border-top: 1rem solid rgba(255, 255, 255, 0.1);
 }
 
+/* A heading, so it takes the heading grey -- the same one the condition groups carry. It sat a
+   step lower before, which put it at the exact weight of a condition already met. */
 .zanju-ct-locked-label {
     display: block;
     margin-top: 3rem;
-    color: #7d848b;
+    color: #9ca4ab;
 }
 
 .zanju-ct-locked-row {
@@ -500,9 +543,51 @@
 }
 
 .zanju-ct-cond {
+    display: block;
+    padding-bottom: 3rem;
+}
+
+/* The tick, the text and the counter. Its own level under the condition, because the condition
+   can carry a second line under this one and a flex row cannot hold it. */
+.zanju-ct-cond-line {
     display: flex;
     align-items: center;
-    padding-bottom: 3rem;
+}
+
+/* The extra rule a condition can carry, which has to hold before the condition counts at all.
+   Indented to the text column, so it reads as part of the condition above it rather than as
+   another condition -- the same indent the "or" separator takes, for the same reason. */
+/* A paragraph, wrapped by the flex row rather than by inline layout. One box per word arrives
+   from `appendWords`, and `flex-wrap` puts the words that do not fit on the next line -- which
+   is what brings a wrapped rule back to the left edge, under the word that introduces it. The
+   game's own formatted text is built exactly this way. */
+.zanju-ct-cond-limit {
+    display: flex;
+    flex-wrap: wrap;
+    margin-left: 18rem;
+    font-size: 13rem;
+}
+
+/* The gap between two words, which a flex row does not draw for us: the space that separated
+   them went with the split. Measured rather than guessed. PFDINMax is the font the document
+   sets, and its space carries an advance of 0.195em. That is 2.5rem at the 13rem this line is
+   set in, and the line's letter spacing supplies the rest of a real gap on its own. Move this
+   with the font size, or the words drift apart again. */
+.zanju-ct-cond-limit-label,
+.zanju-ct-cond-limit-text {
+    display: block;
+    margin-right: 2.5rem;
+}
+
+/* The client leads this line with a word of its own and draws it in orange. Yellow here
+   instead: the palette already carries one attention colour, and a second one this close to it
+   would be two words for one job. */
+.zanju-ct-cond-limit-label {
+    color: #f0cf74;
+}
+
+.zanju-ct-cond-limit-text {
+    color: #9ca4ab;
 }
 
 /* The tick is a box that fills when the condition is done rather than a check glyph: the
@@ -514,7 +599,7 @@
     width: 10rem;
     height: 10rem;
     margin-right: 8rem;
-    border: 1rem solid rgba(255, 255, 255, 0.28);
+    border: 1rem solid rgba(255, 255, 255, 0.25);
     border-radius: 2rem;
     background: transparent;
 }
@@ -534,25 +619,36 @@
     flex: 1 1 auto;
 }
 
-.zanju-ct-cond-done .zanju-ct-cond-text {
-    color: #7d848b;
-}
+/* A met condition keeps the full text colour, and the filled tick alone says it is met. It was
+   dimmed before, which was wrong for what these missions ask. A secondary objective usually has
+   to be met in the same battle as the primary one. A primary already met is therefore a
+   condition to meet again, not one the player is finished with. */
 
 /* Sits between two conditions of an "or" group, indented to the text column so it reads as a
-   break in that list rather than as another condition. */
+   break in that list rather than as another condition. It labels the pair, so it takes the
+   heading grey. The small size and the wide letter spacing already keep it from reading as a
+   condition of its own, which is the work the dimmer grey did before.
+
+   The word itself comes from the client, which writes it in lower case. Raising it here rather
+   than in Python keeps the case a matter of style and leaves the string the client's. A script
+   with no upper case is left as it is, which is the correct answer for that script. */
 .zanju-ct-or {
     display: block;
     margin-left: 18rem;
     padding-bottom: 3rem;
     font-size: 12rem;
-    color: #7d848b;
+    text-transform: uppercase;
+    color: #9ca4ab;
     letter-spacing: 0.06em;
 }
 
+/* The same weight as the requirement counter below it. Both answer "how far along is this",
+   and one of them reading quieter than the other made the mission's own goal look like the
+   lesser number. */
 .zanju-ct-cond-count {
     display: block;
     min-width: 56rem;
     margin-left: 8rem;
     text-align: right;
-    color: #9ca4ab;
+    color: #d7dbe0;
 }

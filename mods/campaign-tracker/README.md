@@ -12,7 +12,7 @@
 
 ## Translations
 
-Reference language `en` defines 16 strings. Translations are community-maintained and may lag behind; see [Translating](../../docs/translating.md) to add or update one, then regenerate this table with `zwm lint i18n`.
+Reference language `en` defines 11 strings. Translations are community-maintained and may lag behind; see [Translating](../../docs/translating.md) to add or update one, then regenerate this table with `zwm lint i18n`.
 
 | Language | Coverage | Missing |
 | --- | --- | --- |
