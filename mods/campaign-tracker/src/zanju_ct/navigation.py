@@ -1,19 +1,10 @@
 # -*- coding: utf-8 -*-
 """Opens the client's own screen for a campaign's active mission.
 
-The two campaign styles show a mission in different places, so a banner click lands in a
-different screen depending on which campaign it belongs to:
-
-- **Campaigns 1 and 2** (`regular`, `pm2`) give every mission its own screen. The mission is
-  the thing to open, so this opens it by id. It is the same call the game makes when the
-  player clicks a personal-missions flag in the garage header, which is the closest thing the
-  client has to this widget.
-- **Campaign 3** (`pm3`) has no per-mission screen. Its missions are a list, filtered by the
-  category the line maps to, so the list is what opens.
-
-Both entry points are the client's own dispatchers, and both refuse the navigation themselves
-when the page cannot be opened (`canOpenPMPage`). That check is left to them rather than
-reproduced here.
+Campaigns 1 and 2 give every mission its own screen, and campaign 3 has none -- its missions
+are a filtered list, so the list is what opens. Both entry points are the client's own
+dispatchers and both refuse the navigation themselves when the page cannot be opened, so that
+check is left to them. See docs/reference/personal-missions.md.
 
 Every client import stays inside a function, so this module is importable outside the game.
 """

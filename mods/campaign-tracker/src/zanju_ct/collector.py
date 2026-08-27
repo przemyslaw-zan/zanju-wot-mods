@@ -6,10 +6,9 @@ missions cache. The mod asks it questions rather than reproducing what it knows:
 campaigns the server has active, which mission the player selected in each line, and whether
 a line accepts the vehicle in the garage.
 
-**One trap in that API.** It names a campaign two ways. `getActiveCampaigns()` answers with
-branch *names* (`'regular'`, `'pm2'`, `'pm3'`), while every other call takes a branch *number*
-(`PM_BRANCH.REGULAR` and friends). Passing one where the other belongs returns an empty
-result instead of an error, so the two are converted at one point below and never mixed.
+That API names a campaign two ways, and mixing them returns an empty result instead of an
+error. The two are converted at one point below and never mixed -- see
+docs/reference/personal-missions.md.
 
 Every client import stays inside a function, so this module is importable outside the game.
 """

@@ -1,9 +1,9 @@
 /* Zanju Campaign Tracker — garage widget styling.
  *
- * Only CSS this renderer is known to support is used: flex, min-width, text-align and plain
- * box properties. Gameface ignores font-variant-numeric / font-feature-settings and rejects
- * `align-items: baseline`; `display: inline-block` and `ch` units appear nowhere in the game's
- * own stylesheets. See docs/reference/gameface-mod-widgets.md.
+ * Nothing here is used before the game's own stylesheets are known to use it. This renderer
+ * lays out with flex and not with inline flow, ignores several text properties outright, and
+ * reads some flex shorthands its own way. docs/reference/gameface-mod-widgets.md has the list
+ * and the evidence behind each entry.
  *
  * Sizes are in rem, which the game's own UI uses and which its interface-scale setting
  * follows, so the widgets scale with the rest of the UI.
@@ -38,13 +38,10 @@
     right: 0;
     bottom: 0;
     pointer-events: none;
-    /* This number decides where EVERYTHING in this mod sits against other mods' overlays, and
-       it cannot be pushed down onto the hover card instead. `position: fixed` makes this a
-       stacking context on its own -- with or without a z-index -- so the whole subtree is
-       sealed into one layer of the page, and a card asking for a higher number inside it still
-       cannot rise above something the root sits under. Left without a number the root sorts as
-       zero, which lost to directives-helper's own overlay at 900 and put every hover card
-       behind it. Above 900 so the cards clear it. */
+    /* Where everything in this mod sits against other mods' overlays. It has to be here rather
+       than on the hover card: `position: fixed` makes this a stacking context on its own, so
+       nothing inside can rise above what the root sits under. Above directives-helper's 900 --
+       the reference doc keeps the register. */
     z-index: 1000;
 }
 
@@ -64,16 +61,14 @@
    since the card is placed at 50% of this box.
 
    Sized to the widest thing a banner carries and no wider: every spare pixel here is spare
-   pixels between the banners. The mission id is short even at its longest (`SPG-13`), the
-   battles row shorter still, and the icon row tops out at 44rem -- two icons at their widest,
-   and no banner ever draws a third, because a stage icon is drawn only when neither pause nor
-   lock is.
+   pixels between the banners. The mission id is short even at its longest (`SPG-13`), and the
+   icon row tops out at 44rem -- two icons, never three, because a stage icon is drawn only
+   when neither pause nor lock is.
 
-   The score row is the one that can outgrow this. A mission counting in thousands asks for
-   `10,000 / 20,000`, which measures 68rem against the 46rem of room inside these borders, and
-   no font size this stylesheet is allowed to use brings it under. The row is left to overflow
-   rather than solved here: fitting it needs either a much wider banner or a shorter way of
-   writing the numbers, and both are decisions about the whole row of banners. */
+   The score row can outgrow this and is left to. `10,000 / 20,000` measures 68rem against the
+   46rem inside these borders, and no font size allowed here brings it under. Fitting it needs
+   a much wider banner or a shorter way of writing the numbers, and both are decisions about
+   the whole row of banners rather than about this rule. */
 .zanju-ct-widget {
     position: fixed;
     pointer-events: auto;
@@ -175,29 +170,15 @@
     background: rgba(255, 255, 255, 0.3);
 }
 
-/* Both number rows hang off their slash rather than off their own centre, so that a row of
-   `0 / 3` and a row of `0 / 20` line up under each other.
+/* Both number rows hang off their slash, so `0 / 3` and `0 / 20` line up under each other.
+   Equal halves put the slash in the middle of the face whatever the numbers are.
 
-   Two halves of the same stated width, with the row centred inside the face. That puts the
-   middle of the slash at the middle of the face on every row, whatever the numbers are and
-   whatever size the slash itself is set in -- the arithmetic cancels, because the halves
-   flanking it are equal.
+   Stated rather than shared out: `flex: 1` does not zero the basis in this renderer, and the
+   slash drifted by half the difference between the two numbers. See the reference doc.
 
-   The width is stated rather than shared out. `flex: 1` is the obvious way to write "half
-   each" and it does not work here: this renderer keeps sizing the item from its content
-   rather than from the zero basis that shorthand implies, so each half comes out its own
-   width plus an equal share of the slack, and the slash drifts by half the difference between
-   the two numbers. It sat 2.5rem out on `0 / 20` against `0 / 3`, which is exactly that.
-   `flex: 0 0 <rem>` states the basis in a unit, and is the game's own fixed-width flex item --
-   48 uses of `flex: 0 0 13rem` in its stylesheets.
-
-   19rem each, against the slash's stated 8rem, comes to the 46rem between the banner's
-   borders exactly -- see the separator below for why that matters. A longer number runs past
-   its half, away from the slash, which keeps the pair centred and readable while it
-   overflows.
-
-   Blockified, because a flex item that carries text is not reliably blockified for us in this
-   renderer, and `text-align` is exactly the property that needs it. */
+   19 + 8 + 19 is the 46rem between the banner's borders exactly -- see the separator below.
+   A longer number runs past its half, away from the slash, which keeps the pair centred while
+   it overflows. Blockified because `text-align` on an unblockified flex item does nothing. */
 .zanju-ct-half {
     display: block;
     flex: 0 0 19rem;
@@ -233,17 +214,10 @@
     display: block;
 }
 
-/* The fixed point both rows are lined up on, so it is stated rather than measured.
-   19 + 8 + 19 comes to the 46rem between the banner's borders exactly. With no slack left over
-   there is nothing for `justify-content` to share out, so every edge in both rows falls on a
-   whole rem and the two rows round the same way. Sized from its own margins before, the row
-   came to 45.6rem in one row and 45.3rem in the other, and the half-rem of centring left over
-   rounded differently in each -- which is what put the left number of the shorter row a pixel
-   nearer its slash.
-
-   Its own font size for the same reason: the glyph is centred in this box, so a slash set in
-   each row's own size would sit at a different fraction of a rem in each. 12rem is the smaller
-   of the two rows, and a separator is never worth more weight than the numbers it divides. */
+/* Stated rather than measured, so the two rows round the same way. Sized from its own glyph
+   the row came to 45.6rem in one row and 45.3rem in the other, and the centring left over
+   rounded differently in each -- which put one row's left number a pixel nearer its slash.
+   Its own font size for the same reason: the glyph is centred in this box. */
 .zanju-ct-tally-sep,
 .zanju-ct-battles-sep {
     display: block;
@@ -262,9 +236,8 @@
     color: #f0f2f5;
 }
 
-/* The goal, at the level of the battles left above it. Both are reference numbers beside the
-   total. The goal read dimmer than the count of battles before. That made the number the total
-   is measured against look like the lesser of the two. */
+/* The goal, at the same weight as the battles below it. Both are reference numbers the total
+   is read against, so neither outranks the other. */
 .zanju-ct-tally-target {
     color: #9ca4ab;
 }
@@ -279,12 +252,9 @@
 }
 
 /* The banner's fourth row: the battles this mission has spent out of the battles it allows.
-   Its own row rather than a third number beside the score, which is what it was: two scores and
-   a budget on one line read as three scores, and the line ran off the banner as soon as a
-   mission counted in thousands.
-
-   Quieter and smaller than the score above it. It is the allowance the score is being spent
-   out of, and reading it at the same weight would make the banner ask which pair to look at. */
+   Its own row rather than a third number beside the score, where it read as another score and
+   pushed the line off the banner as soon as a mission counted in thousands. Quieter and
+   smaller than the score, because it is the allowance the score is being spent out of. */
 .zanju-ct-battles {
     display: flex;
     justify-content: center;
@@ -535,12 +505,9 @@
 /* Blue marks text that tells the player what they can do, rather than what is true -- the
    colour the research progress bar already gives its own click hints
    (TOOLTIP_CLICK_HINT_TEXT_COLOR). Dimmed here to the same hue rather than to grey, so the
-   whole block reads as one thing and the lit line reads as the live one within it.
-
-   The dim blue holds a contrast ratio of about 4.6 against the card, which every other text
-   colour on the card also clears. It was darker before and read at 3.4, the weakest text in the
-   mod and the smallest at the same time. The lit line stays far above at 8.2, so a glance still
-   separates the two. */
+   whole block reads as one thing and the lit line reads as the live one within it. It holds a
+   contrast ratio of 4.6 against the card, the floor every other text colour here clears, and
+   the lit line sits far above at 8.2. */
 .zanju-ct-hint {
     display: block;
     font-size: 13rem;
@@ -703,12 +670,11 @@
 
 /* Sits between two conditions of an "or" group, indented to the text column so it reads as a
    break in that list rather than as another condition. It labels the pair, so it takes the
-   heading grey. The small size and the wide letter spacing already keep it from reading as a
-   condition of its own, which is the work the dimmer grey did before.
+   heading grey; its small size and wide letter spacing are what keep it from reading as a
+   condition of its own.
 
-   The word itself comes from the client, which writes it in lower case. Raising it here rather
-   than in Python keeps the case a matter of style and leaves the string the client's. A script
-   with no upper case is left as it is, which is the correct answer for that script. */
+   The client writes the word in lower case. Raising it here keeps the case a matter of style
+   and leaves the string the client's, and a script with no upper case is left as it is. */
 .zanju-ct-or {
     display: block;
     margin-left: 18rem;

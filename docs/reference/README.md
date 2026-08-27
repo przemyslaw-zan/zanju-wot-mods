@@ -15,5 +15,6 @@ Use it when you need import paths, runtime locations, API entry points, or versi
 - [UI And Scaleform](ui-and-scaleform.md)
 - [Research Progress Bar UI](research-progress-bar-ui.md)
 - [Gameface Mod Widgets](gameface-mod-widgets.md)
+- [Personal Missions](personal-missions.md)
 - [WoT Plus Subscriptions](wot-plus-subscriptions.md)
 - [Directives And Battle Boosters](directives-and-battle-boosters.md)

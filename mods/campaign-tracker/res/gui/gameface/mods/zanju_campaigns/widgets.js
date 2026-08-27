@@ -157,11 +157,9 @@ function bindModelPush() {
     // `viewEnv.onDataChanged` is the engine's own signal that a model in this document was
     // written, and it is what OpenWG's own ModelObserver subscribes to.
     //
-    // The subscription names ONE sub-view, and the garage replaces the view our model rides on
-    // whenever the player picks a different tank. `findDataModel` recovers from that on its own
-    // by rescanning, so the data keeps arriving -- but the subscription is left naming a view
-    // that no longer exists, and every push after the first tank change went nowhere. Renewing
-    // it whenever the id moves is what keeps the channel alive for the rest of the session.
+    // The subscription names ONE sub-view, and the garage replaces ours on every tank change,
+    // so it is renewed whenever the id moves. The reference doc has why the symptom of getting
+    // this wrong is lateness rather than silence.
     if (dataResId === null || document[PUSH_RES_ID_FLAG] === dataResId) {
         return false;
     }
@@ -267,29 +265,27 @@ function faceId(entry) {
     return entry.missionId || IDLE_ID;
 }
 
-// The banner's third row, for the missions that count their battles. Every shape reads the same
-// way — what is in hand, out of what it takes, and how many battles are left to get there — but
-// the numbers come from different places:
+// What the banner counts: what is in hand out of what it takes, plus the battles that buys it
+// from where a mission sets a limit. Every shape reads the same way, but the numbers come from
+// different places:
 //
 // - **battles** — a fixed run of battles, so many of which have to meet the condition.
-//   Successes in hand, successes needed, battles still allowed. A battle that misses the
-//   condition spends one of those without adding a success.
-// - **score** — a fixed run of battles to reach a total. How far the total has come, what it
-//   has to reach, and how many battles are left to do it in.
-// - **count** — the objective met so many times, either in a row or in any order. How many are
-//   in hand, and how many it takes. The "in a row" kind goes back to zero on a lost battle,
-//   which is the whole point of showing it. The other only ever climbs. Nothing caps the
-//   battles, so this one has no third number.
+//   Successes in hand out of successes needed. A battle that misses the condition spends one
+//   of the run without adding a success.
+// - **score** — a fixed run of battles to reach a total. How far the total has come, out of
+//   what it has to reach.
+// - **count** — the objective met so many times, in a row or in any order. The "in a row" kind
+//   goes back to zero on a lost battle, which is the whole point of showing it. Nothing caps
+//   the battles, so this shape reports none.
 //
-// The primary objective is the one worth watching, until it is finished -- then the secondary
+// The primary objective is the one worth watching until it is finished, and then the secondary
 // one is what the remaining battles are being spent on. `attempts` arrives primary-first, so
 // the first unfinished one is exactly that rule.
 //
 // There is no case where every objective is finished: the game deselects a mission the moment
-// it is, and only a selected mission reaches a banner. So "none unfinished" means the banner has
-// nothing to count rather than something to fall back on. A requirement of any other shape
-// gets nothing rather than the next objective's numbers, which would be numbers for a
-// different objective than the banner is standing on.
+// it is. So "none unfinished" means the banner has nothing to count rather than something to
+// fall back on, and a requirement of any other shape gets nothing rather than numbers that
+// belong to an objective the banner is not standing on.
 function bannerTally(entry) {
     const attempts = (entry && entry.attempts) || [];
     const chosen = attempts.filter(function (attempt) { return !attempt.done; })[0];
@@ -388,17 +384,17 @@ function isClickable(entry) {
 // asks for.
 //
 // A warning is one that costs the player battles if they miss it -- the mission is paused, or
-// this tank is already spent on it, and either way nothing they play right now counts. The rest
-// -- no mission for this tank, campaign unavailable -- are just the state of things, and
-// reading them as warnings would cost the warning its meaning.
+// this tank is already spent on it, and either way nothing they play right now counts. Having
+// no mission at all is just the state of things, and reading that as a warning would cost the
+// warning its meaning.
 //
 // A list rather than a single note, because the two warnings are separate facts. In this
 // client's data they cannot both apply: pause belongs to campaign 2 and the vehicle lock to
-// campaign 3, and those two are never active together. The card does not rely on that.
+// campaign 3. The card does not rely on that.
 //
-// The stage note is the one piece of good news, and it comes last in every sense. It only says
-// what the battles now buy, which is worth nothing next to a note saying the battles buy
-// nothing at all, so anything already said wins the line.
+// The stage note is the one piece of good news, and it comes last in every sense. What the
+// battles now buy is worth nothing next to a note saying they buy nothing at all, so anything
+// already said wins the line.
 function cardNotes(entry, labels) {
     const notes = [];
     const state = stateNote(entry, labels);
@@ -498,13 +494,10 @@ function buildRestriction(condition) {
     return line;
 }
 
-// One box per word, because this renderer wraps flex lines and not text. A sentence in a single
-// box is one column: put a coloured word beside it and every line after the first hangs under
-// the sentence rather than under the word. Split into words, the row wraps like a paragraph.
-//
-// This is the game's own answer, not a way around it. Its formatted-text component splits on
-// spaces and gives each word an element, and its stylesheets carry `display: flex` thousands of
-// times against three uses of `display: inline`.
+// One box per word, because this renderer wraps flex lines and not text: a sentence in a single
+// box is one column, and every line after the first would hang under it rather than under the
+// coloured word beside it. This is the game's own answer, not a way around it -- its
+// formatted-text component splits on spaces the same way. See the reference doc.
 //
 // The label is split too: it is one word in English and need not be in every language.
 function appendWords(line, text, className) {
@@ -778,7 +771,7 @@ function buildHint(action, text) {
     return row;
 }
 
-// The banner's fourth row: the states that change what the player should do with this tank,
+// The banner's fifth row: the states that change what the player should do with this tank,
 // said with an icon rather than a word because the banner has no room for a word.
 //
 // - **paused** — the mission is on pause, so nothing played in it counts.

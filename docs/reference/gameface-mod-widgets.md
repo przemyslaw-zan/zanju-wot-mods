@@ -68,6 +68,7 @@ does, and it is the reference for the exact call shapes. Two things it does not 
   to locate its own model has to remember which one it found and re-check that one directly,
   falling back to the scan only when it comes up empty — otherwise the push costs more than the
   poll it replaced.
+- **The subscription names one sub-view, and the garage replaces it.** `addDataChangedCallback` is registered against a single `resId`. Picking a different tank tears the sub-view down and builds a new one with a new id, and the subscription is left naming a view that no longer exists — every push after the first tank change goes nowhere. A model *finder* that rescans on demand hides this, because the data keeps arriving on the poll: the symptom is not "no data" but "data that is a second late, but only after the player has switched tank once". Re-register whenever the id you found moves, and do not guard the whole thing behind a "already subscribed" flag on the document.
 - **Keep the interval as a backstop, and make its rate adaptive.** `engine` and `viewEnv` are
   not guaranteed to be there, and the subscription cannot be made until the sub-view carrying
   the model exists — which is often *not* true on the first tick. Poll fast until the
@@ -140,6 +141,19 @@ Hold the tracked presenters weakly and key visibility on "any panel on screen of
 incoming mode's panel can load before the outgoing one is torn down. Degrade to *visible* if
 the hook cannot be installed — a widget in the wrong place is a nuisance, one that never
 appears is a broken mod.
+
+## Stacking against other mods
+
+**`position: fixed` creates a stacking context on its own**, with or without a `z-index`. A mod's overlay root is usually fixed and full-screen, which seals its whole subtree into one layer of the page: a tooltip inside it asking for a huge `z-index` still cannot rise above anything the *root* sits under. So the number that decides where a mod sits against other mods belongs on that root, and nowhere else. Left unset, a fixed root sorts as zero and loses to every mod that named a number.
+
+Mods in this repository take these, so a new one has somewhere to sit without a collision:
+
+| Mod | Root | Number |
+| --- | --- | --- |
+| `directives-helper` | window overlay | 900 |
+| `campaign-tracker` | widget root | 1000 |
+
+Ordering *within* a root is a separate question from the number above. Sibling widgets paint in document order, so a later sibling covers the hover card of an earlier one. Lift the whole widget on `:hover` rather than just its card, or the card appears to detach from the thing it describes.
 
 ## Layout and units
 

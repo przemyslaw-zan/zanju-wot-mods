@@ -1,28 +1,10 @@
 # -*- coding: utf-8 -*-
 """Which campaigns exist, and which mission in one accepts a given vehicle.
 
-A personal-missions campaign is a *branch* in the client's own words. There are three of
-them, and the client names them `regular`, `pm2` and `pm3`. The first two run together; the
-third one is exclusive, so the server reports either the first two or the third as active.
-`PersonalMissionsCache.getActiveCampaigns()` is that report, and it carries branch names
-rather than numbers.
-
-A campaign is divided into lines (the client calls a line a *chain*) and into operations, each
-of which awards a vehicle at its end. Each line classifies vehicles a different way:
-
-| Campaign | Client name | Lines | Classified by |
-| --- | --- | --- | --- |
-| 1 | `regular` | 5 | vehicle class -- light, medium, heavy, destroyer, artillery |
-| 2 | `pm2` | 4 | alliance -- a group of nations |
-| 3 | `pm3` | 3 | common role -- Assault, Sniper, Support |
-
-Campaign 3 reads as a matrix of class and role, but the client collapses it into one
-classifier: each common role maps to a set of `ROLE_TYPE` values that already carry both the
-class and the role (`HT_ASSAULT`, `MT_SNIPER`, `LT_WHEELED`, ...). See
-`COMMON_ROLE_TO_ROLE_TYPE` in the client's `constants` module.
-
-The three classifiers are mutually exclusive within their campaign, so one vehicle matches at
-most one line, and therefore at most one active mission per campaign.
+The client's vocabulary, the three campaigns and how each one classifies vehicles are in
+docs/reference/personal-missions.md. What matters here is that the classifiers never overlap
+inside a campaign, so one vehicle matches at most one line and therefore at most one active
+mission per campaign.
 
 This module holds no client imports at module scope, so its logic can be tested outside the
 game. The objects it is given are the client's own -- it asks them questions instead of

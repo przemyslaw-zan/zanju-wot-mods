@@ -1,20 +1,15 @@
 # -*- coding: utf-8 -*-
 """Pauses, resumes and resets a campaign's active mission.
 
-The client already has a processor for each of these, and each one carries its own validators
-and its own confirmation dialog. This module builds the processor and asks it to run. Nothing
-here talks to the server, and nothing here decides whether the player may do the thing: the
-processor refuses on its own and says why, in the game's own system message.
+The client already has a processor for each of these, carrying its own validators and its own
+confirmation dialog. This module builds the processor and asks it to run. Nothing here talks
+to the server, and nothing here decides whether the player may do the thing: the processor
+refuses on its own and says why, in the game's own system message. That is also why a reset
+needs no confirmation of ours.
 
-That is also why a reset needs no confirmation of ours. `PMDiscard` carries
-`PMDiscardConfirmator`, so the game raises its own dialog and the reset only happens if the
-player accepts it.
-
-Only one operation allows either action. The client keeps the list in
-`gui.server_events.pm_constants`, where `PAUSABLE_OPERATIONS_IDS` and
-`DISCARDABLE_OPERATIONS_IDS` both hold operation 7 alone -- Object 279 (e), the last operation
-of campaign 2. The lists are read from the client rather than copied here, so a client that
-opens this up to more operations opens this mod up with it.
+Which operations allow either action is read from the client rather than copied here, so a
+client that opens this up opens this mod up with it. See
+docs/reference/personal-missions.md.
 
 Every client import stays inside a function, so this module is importable outside the game.
 """

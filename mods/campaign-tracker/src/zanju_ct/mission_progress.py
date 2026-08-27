@@ -1,23 +1,17 @@
 # -*- coding: utf-8 -*-
 """Progress for one mission, as plain rows the widget can render.
 
-The client keeps a mission's progress in a `LobbyProgressStorage`, built from the mission's
-condition config and the player's saved progress. This is the same object the game's own
-mission card and mission tooltip build, so the numbers here are the numbers the game shows.
+The client keeps a mission's progress in a `LobbyProgressStorage`, the same object its own
+mission card builds, so the numbers here are the numbers the game shows. Its two kinds of row
+and the traps in reading them are in docs/reference/personal-missions.md. Three of them shape
+this module:
 
-It holds two kinds of row, and both are read here:
-
-- **conditions** (the storage's *body* progresses) -- one per condition: its text, how far the
-  player is, and whether it is done.
+- **conditions** (body progresses) -- one row each, with the extra rule a condition can carry
+  split back out of its description.
+- **attempts** (header progresses) -- the requirement over an objective as a whole. An
+  objective the client gives none still gets a row here, for the reason in `_unlimited_attempt`.
 - **vehicles** -- the "complete it in N different vehicles" requirement campaign 3 uses, and
-  which vehicles have already been spent on it. A vehicle that completes such a mission is
-  locked out of it afterwards, so the list is what tells a player which tanks are still worth
-  taking out.
-- **attempts** (the storage's *header* progresses) -- the requirement over the conditions as a
-  whole, which is where "complete the primary condition in 3 battles out of 5" lives. Campaign
-  2 uses this most. A mission with no such requirement has no header progress at all, and then
-  there is nothing to show: the game fills that gap with an "over any number of battles" line,
-  which says nothing a player needs.
+  which vehicles are already spent on it.
 
 The whole read is optional. A mission with unreadable progress still gives its name, which is
 the part the widget cannot do without, so a failure here empties the rows and keeps the rest.
@@ -74,13 +68,11 @@ def _mission_stage(storage, quest, logger):
     - **improving** -- the player met the primary condition in a battle. Meeting both in one
       battle completes the mission with honors and pays the secondary reward.
 
-    Pawned is tested first, the way the client's own status panel tests it. `areTokensPawned`
-    is defined as `isMainCompleted` and a pawned progress, so a pawned mission answers yes to
-    the improving test as well.
-
-    `isMainCompleted` is asked rather than `isCompleted`. The client defines that one as main
-    OR full, so it cannot tell the two states apart. A mission with no secondary objective is
-    never improving: nothing is left to improve once the primary objective is met.
+    Pawned is tested first, the way the client's own status panel tests it: `areTokensPawned`
+    is `isMainCompleted` and a pawned progress, so a pawned mission answers yes to the
+    improving test too. `isMainCompleted` rather than `isCompleted`, which the client defines
+    as main OR full and so cannot tell the two apart. A mission with no secondary objective is
+    never improving: nothing is left to improve once the primary one is met.
     """
     try:
         if quest.isFullCompleted():
@@ -135,14 +127,8 @@ def _read_conditions(storage, quest, logger):
 def _read_attempts(storage, quest, logger):
     """One row per objective, saying how many battles it has to be met in. Main first.
 
-    An objective with no limit has no header progress at all, and the client fills that gap
-    itself with an "over any number of battles" line. This does the same, in the client's own
-    words, because the absence of a limit is worth saying: it is the difference between a
-    mission to work at and one that fails if it is not done in time.
-
-    It also keeps the objectives in step. Without a row of its own an unlimited primary was
-    skipped, and everything that reads "the first unfinished objective" -- the banner's counter
-    most visibly -- silently answered with the secondary one instead.
+    An objective the client gives no header progress gets a row built here anyway -- see
+    `_unlimited_attempt` for what goes in it and why the row has to exist at all.
     """
     try:
         progresses = list(storage.getHeaderProgresses().itervalues())
@@ -171,14 +157,11 @@ def _read_attempts(storage, quest, logger):
 def _unlimited_attempt(storage, quest, is_main, logger):
     """A row for an objective the client gives no header progress of its own, or None.
 
-    Two missions arrive here and they want different things said:
+    Two missions arrive here. One has no battle limit, and takes the client's own "over any
+    number of battles" line. One runs in a single battle, and has no budget to describe at
+    all -- the client draws nothing there, and so does this.
 
-    - **No battle limit.** The client fills the gap with its own "over any number of battles"
-      line, and so does this.
-    - **One battle.** There is no budget to describe at all, and the client draws nothing. The
-      row is still built, with no text of its own.
-
-    The row is built either way because it does a second job. The banner reads the objectives
+    The row is built either way, because it does a second job: the banner reads the objectives
     to know which one it is counting, and an objective with no row sends the counter to the
     other half of the mission.
 
@@ -489,16 +472,13 @@ def _split_restriction(progress, logger):
     comes with "Destroy 2 enemy vehicles" to stop an empty scoreboard from meeting it.
 
     The client composes the two into one description, as `condition`, a newline, the word
-    "Restriction!" in Scaleform markup, then the limiter. They are split back apart here
-    because the widget cannot render that markup, and because two rules on one line read as one
-    sentence.
+    "Restriction!" in Scaleform markup, then the limiter. They are split apart here because the
+    widget cannot render that markup, and because two rules on one line read as one sentence.
 
-    `getLimiter` decides whether there is a second part, rather than the newline alone: the
-    client's own answer costs nothing and a description may hold a newline for its own reasons.
-    The split itself takes the last newline, which is the one the client put there.
-
-    Only the restriction is cleaned of markup. The condition above it carries none, and reading
-    every description for markup the client does not put there buys nothing.
+    `getLimiter` decides whether there is a second part rather than the newline alone, since a
+    description may hold a newline for its own reasons, and the split takes the last newline --
+    the one the client put there. Only the restriction is cleaned of markup, which is the one
+    place the client puts any.
     """
     description = progress.getDescription() or ''
     try:
