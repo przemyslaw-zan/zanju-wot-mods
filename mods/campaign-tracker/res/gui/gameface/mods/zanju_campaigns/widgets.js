@@ -708,12 +708,10 @@ function renderCard(card, entry, labels) {
         return;
     }
 
-    const conditions = entry.conditions || [];
-    if (conditions.length) {
-        appendConditions(card, conditions, labels, entry.attempts, entry.paces);
-    } else {
-        card.appendChild(el('div', 'zanju-ct-note', labels.noConditions));
-    }
+    // Unguarded, because an empty list appends nothing on its own. A running mission always
+    // has a primary condition, so the list is empty only when the progress read failed -- and
+    // that already wrote the reason to python.log, which says far more than a card could.
+    appendConditions(card, entry.conditions || [], labels, entry.attempts, entry.paces);
 
     // Last, because it is a rule about which tanks may be used rather than about what to do
     // in a battle. Missions without the requirement carry nothing here.

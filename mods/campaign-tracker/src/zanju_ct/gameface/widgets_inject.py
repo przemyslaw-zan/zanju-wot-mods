@@ -183,7 +183,6 @@ def _build_payload(logger):
             'vehicleLocked': _loc('LABEL_VEHICLE_LOCKED'),
             'improving': _client_text(_KEY_IMPROVING, logger),
             'pawned': _loc('LABEL_PAWNED'),
-            'noConditions': _loc('LABEL_NO_CONDITIONS'),
             'hintOpen': _loc('LABEL_HINT_OPEN'),
             'hintPause': _loc('LABEL_HINT_PAUSE'),
             'hintResume': _loc('LABEL_HINT_RESUME'),

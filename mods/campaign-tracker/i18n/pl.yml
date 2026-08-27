@@ -1,0 +1,15 @@
+# Widget states
+LABEL_NO_MISSION: "Brak misji dla tego pojazdu"
+LABEL_PAUSED: "Misja wstrzymana"
+
+# Hover card
+LABEL_LOCKED_VEHICLES: "Zablokowane pojazdy:"
+LABEL_VEHICLE_LOCKED: "Pojazd zablokowany"
+LABEL_PAWNED: "Odzyskiwanie rozkazu"
+LABEL_PACE: "{percent}% docelowej średniej na bitwę"
+
+# Click hints, at the foot of the hover card
+LABEL_HINT_OPEN: "Kliknij, aby otworzyć misję"
+LABEL_HINT_PAUSE: "Shift + kliknij, aby wstrzymać misję"
+LABEL_HINT_RESUME: "Shift + kliknij, aby wznowić misję"
+LABEL_HINT_RESET: "Ctrl + kliknij, aby zresetować misję"

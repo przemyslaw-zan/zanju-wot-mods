@@ -126,7 +126,6 @@ const LABELS = {
     vehicleLocked: 'Vehicle locked',
     improving: 'Result Improvement',
     pawned: 'Retrieving an order',
-    noConditions: 'No conditions to show',
     hintOpen: 'Click to open the mission',
     hintPause: 'Shift + Click to pause the mission',
     hintResume: 'Shift + Click to resume the mission',
@@ -1141,10 +1140,13 @@ test('no OR is placed against a neighbour outside the or-group', () => {
     ]);
 });
 
-test('the hover card says so when a running mission reports no conditions', () => {
+test('a mission whose conditions could not be read still builds a card', () => {
+    // Only an already-logged failure empties the list, so the card drops the conditions and
+    // keeps everything that does not depend on them.
     const card = document.createElement('div');
     widgets.renderCard(card, entry({ conditions: [] }), LABELS);
-    assert.ok(card.textContent.includes(LABELS.noConditions));
+    assert.deepEqual(card.children.map((node) => node.className),
+        ['zanju-ct-card-head', 'zanju-ct-hints']);
 });
 
 test('the hover card of an idle campaign carries the state and nothing else', () => {

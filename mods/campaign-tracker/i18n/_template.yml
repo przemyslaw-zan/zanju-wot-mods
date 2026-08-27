@@ -24,8 +24,6 @@ LABEL_PAWNED: ""
 # {percent} of the average the mission needs per battle, not of the total. 100 is on target.
 # en: "{percent}% of the target average per battle"
 LABEL_PACE: ""
-# en: "No conditions to show"
-LABEL_NO_CONDITIONS: ""
 
 # Click hints, at the foot of the hover card
 # en: "Click to open the mission"
