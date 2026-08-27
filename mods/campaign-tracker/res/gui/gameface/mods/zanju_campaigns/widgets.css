@@ -63,11 +63,17 @@
    the banners the same size as each other, and gives the hover card a stable centre to hang off,
    since the card is placed at 50% of this box.
 
-   Sized to the widest thing a banner carries, which is the third row at its longest
-   (`12 / 25 . 10`), and no wider: every spare pixel here is spare pixels between the banners.
-   The mission id is shorter than that even at its longest (`SPG-13`), and the fourth row
-   shorter still. Two icons at their widest come to 44rem, and no banner ever draws a third.
-   Pause and lock can both apply, but a stage icon is drawn only when neither of them is. */
+   Sized to the widest thing a banner carries and no wider: every spare pixel here is spare
+   pixels between the banners. The mission id is short even at its longest (`SPG-13`), the
+   battles row shorter still, and the icon row tops out at 44rem -- two icons at their widest,
+   and no banner ever draws a third, because a stage icon is drawn only when neither pause nor
+   lock is.
+
+   The score row is the one that can outgrow this. A mission counting in thousands asks for
+   `10,000 / 20,000`, which measures 68rem against the 46rem of room inside these borders, and
+   no font size this stylesheet is allowed to use brings it under. The row is left to overflow
+   rather than solved here: fitting it needs either a much wider banner or a shorter way of
+   writing the numbers, and both are decisions about the whole row of banners. */
 .zanju-ct-widget {
     position: fixed;
     pointer-events: auto;
@@ -169,9 +175,45 @@
     background: rgba(255, 255, 255, 0.3);
 }
 
-/* The banner's third row, on the missions that count their battles: what is in hand, what it
-   takes, and the battles the mission still allows. Blockified children, because a flex item
-   that carries text is not reliably blockified for us in this renderer. */
+/* Both number rows hang off their slash rather than off their own centre, so that a row of
+   `0 / 3` and a row of `0 / 20` line up under each other.
+
+   Two halves of the same stated width, with the row centred inside the face. That puts the
+   middle of the slash at the middle of the face on every row, whatever the numbers are and
+   whatever size the slash itself is set in -- the arithmetic cancels, because the halves
+   flanking it are equal.
+
+   The width is stated rather than shared out. `flex: 1` is the obvious way to write "half
+   each" and it does not work here: this renderer keeps sizing the item from its content
+   rather than from the zero basis that shorthand implies, so each half comes out its own
+   width plus an equal share of the slack, and the slash drifts by half the difference between
+   the two numbers. It sat 2.5rem out on `0 / 20` against `0 / 3`, which is exactly that.
+   `flex: 0 0 <rem>` states the basis in a unit, and is the game's own fixed-width flex item --
+   48 uses of `flex: 0 0 13rem` in its stylesheets.
+
+   19rem each, against the slash's stated 8rem, comes to the 46rem between the banner's
+   borders exactly -- see the separator below for why that matters. A longer number runs past
+   its half, away from the slash, which keeps the pair centred and readable while it
+   overflows.
+
+   Blockified, because a flex item that carries text is not reliably blockified for us in this
+   renderer, and `text-align` is exactly the property that needs it. */
+.zanju-ct-half {
+    display: block;
+    flex: 0 0 19rem;
+    white-space: nowrap;
+}
+
+.zanju-ct-half-left {
+    text-align: right;
+}
+
+.zanju-ct-half-right {
+    text-align: left;
+}
+
+/* The banner's third row, on the missions that count their battles: what is in hand and what
+   it takes. */
 .zanju-ct-tally {
     display: flex;
     justify-content: center;
@@ -186,25 +228,33 @@
 }
 
 .zanju-ct-tally-done,
-.zanju-ct-tally-left,
 .zanju-ct-tally-score,
-.zanju-ct-tally-target,
-.zanju-ct-tally-sep {
+.zanju-ct-tally-target {
     display: block;
 }
 
-.zanju-ct-tally-sep {
-    margin-left: 2rem;
-    margin-right: 2rem;
+/* The fixed point both rows are lined up on, so it is stated rather than measured.
+   19 + 8 + 19 comes to the 46rem between the banner's borders exactly. With no slack left over
+   there is nothing for `justify-content` to share out, so every edge in both rows falls on a
+   whole rem and the two rows round the same way. Sized from its own margins before, the row
+   came to 45.6rem in one row and 45.3rem in the other, and the half-rem of centring left over
+   rounded differently in each -- which is what put the left number of the shorter row a pixel
+   nearer its slash.
+
+   Its own font size for the same reason: the glyph is centred in this box, so a slash set in
+   each row's own size would sit at a different fraction of a rem in each. 12rem is the smaller
+   of the two rows, and a separator is never worth more weight than the numbers it divides. */
+.zanju-ct-tally-sep,
+.zanju-ct-battles-sep {
+    display: block;
+    flex: 0 0 8rem;
+    font-size: 12rem;
+    text-align: center;
     color: rgba(255, 255, 255, 0.25);
 }
 
 .zanju-ct-tally-done {
     color: #9ccb68;
-}
-
-.zanju-ct-tally-left {
-    color: #9ca4ab;
 }
 
 /* The running total and what it has to reach. The total leads, so it carries the weight. */
@@ -228,7 +278,34 @@
     color: #cc6b5a;
 }
 
-/* The banner's fourth row: one small icon per state worth flagging. Shares the tally's shape --
+/* The banner's fourth row: the battles this mission has spent out of the battles it allows.
+   Its own row rather than a third number beside the score, which is what it was: two scores and
+   a budget on one line read as three scores, and the line ran off the banner as soon as a
+   mission counted in thousands.
+
+   Quieter and smaller than the score above it. It is the allowance the score is being spent
+   out of, and reading it at the same weight would make the banner ask which pair to look at. */
+.zanju-ct-battles {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    margin-top: 1rem;
+    font-size: 12rem;
+    line-height: 1.2em;
+}
+
+.zanju-ct-battles-empty {
+    display: none;
+}
+
+.zanju-ct-battles-used,
+.zanju-ct-battles-total {
+    display: block;
+    color: #9ca4ab;
+}
+
+
+/* The banner's fifth row: one small icon per state worth flagging. Shares the tally's shape --
    a centred flex row that disappears entirely when there is nothing to say, rather than holding
    a line of height open on every banner that has neither. */
 .zanju-ct-flags {

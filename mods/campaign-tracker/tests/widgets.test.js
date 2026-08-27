@@ -224,7 +224,7 @@ test('the banner tally shows the successes, the number needed and the battles le
             battles: ['done', 'failed', 'done', 'pending', 'pending'],
         })],
     }));
-    assert.deepEqual(tally, { kind: 'battles', current: 2, goal: 3, left: 2 });
+    assert.deepEqual(tally, { kind: 'battles', current: 2, goal: 3, used: 3, allowed: 5 });
 });
 
 test('an unlimited objective says so, and carries no numbers beside it', () => {
@@ -276,7 +276,7 @@ test('the banner tally follows the primary objective', () => {
             attempt({ battles: ['failed', 'failed'], main: false, current: 0, goal: 2 }),
         ],
     }));
-    assert.deepEqual(tally, { kind: 'battles', current: 1, goal: 3, left: 1 });
+    assert.deepEqual(tally, { kind: 'battles', current: 1, goal: 3, used: 1, allowed: 2 });
 });
 
 test('the banner tally moves to the secondary objective once the primary is done', () => {
@@ -286,7 +286,7 @@ test('the banner tally moves to the secondary objective once the primary is done
             attempt({ battles: ['failed', 'pending'], main: false, current: 0, goal: 2 }),
         ],
     }));
-    assert.deepEqual(tally, { kind: 'battles', current: 0, goal: 2, left: 1 });
+    assert.deepEqual(tally, { kind: 'battles', current: 0, goal: 2, used: 1, allowed: 2 });
 });
 
 test('the banner tally shows nothing once every objective is finished', () => {
@@ -299,10 +299,11 @@ test('the banner tally shows nothing once every objective is finished', () => {
 
 test('the tally row is emptied and hidden when there is nothing to count', () => {
     const node = document.createElement('div');
-    widgets.renderTally(node, { kind: 'battles', current: 2, goal: 3, left: 2 });
+    widgets.renderTally(node, { kind: 'battles', current: 2, goal: 3, used: 3, allowed: 5 });
+    // The score and its target, and nothing else: the battles have a row of their own.
+    assert.deepEqual(node.children.map((child) => child.textContent), ['2', '/', '3']);
     assert.equal(node.querySelector('.zanju-ct-tally-done').textContent, '2');
     assert.equal(node.querySelector('.zanju-ct-tally-target').textContent, '3');
-    assert.equal(node.querySelector('.zanju-ct-tally-left').textContent, '2');
 
     widgets.renderTally(node, null);
     assert.ok(node.className.includes('zanju-ct-tally-empty'));
@@ -315,7 +316,7 @@ test('a running-total mission reports score, target and battles left', () => {
         attempts: [attempt({ type: 'limited', battles: [], current: 2, goal: 5 })],
         conditions: [condition('Earn rewards', { counted: true, current: 6, goal: 15 })],
     }));
-    assert.deepEqual(tally, { kind: 'score', current: '6', goal: '15', left: 3, ahead: null });
+    assert.deepEqual(tally, { kind: 'score', current: '6', goal: '15', used: 2, allowed: 5, ahead: null });
 });
 
 test('a running-total mission with no counted condition reports nothing', () => {
@@ -337,15 +338,53 @@ test('the running total is taken from the objective the banner is standing on', 
             condition('Secondary total', { counted: true, current: 2, goal: 8, main: false }),
         ],
     }));
-    assert.deepEqual(tally, { kind: 'score', current: '2', goal: '8', left: 3, ahead: null });
+    assert.deepEqual(tally, { kind: 'score', current: '2', goal: '8', used: 1, allowed: 4, ahead: null });
 });
 
-test('the score row shows the total, its target and the battles left', () => {
+test('the score row shows the total and its target, and nothing more', () => {
     const node = document.createElement('div');
-    widgets.renderTally(node, { kind: 'score', current: 6, goal: 15, left: 3, ahead: null });
+    widgets.renderTally(node, { kind: 'score', current: 6, goal: 15, used: 2, allowed: 5, ahead: null });
     assert.equal(node.querySelector('.zanju-ct-tally-score').textContent, '6');
     assert.equal(node.querySelector('.zanju-ct-tally-target').textContent, '15');
-    assert.equal(node.querySelector('.zanju-ct-tally-left').textContent, '3');
+    assert.equal(node.children.length, 3);
+});
+
+test('both number rows are built to hang off their slash', () => {
+    // The two halves each take half of what the slash leaves, so the slash lands at the same
+    // place on both rows however long the numbers are. Centring the rows instead left the two
+    // slashes visibly out of step.
+    const score = document.createElement('div');
+    widgets.renderTally(score, { kind: 'score', current: '10,000', goal: '20,000', used: 2, allowed: 5, ahead: null });
+    const battles = document.createElement('div');
+    widgets.renderBattles(battles, { kind: 'score', current: '10,000', goal: '20,000', used: 2, allowed: 5 });
+
+    for (const row of [score, battles]) {
+        const halves = row.children.map((child) => child.className);
+        assert.ok(halves[0].includes('zanju-ct-half zanju-ct-half-left'), halves[0]);
+        assert.ok(halves[2].includes('zanju-ct-half zanju-ct-half-right'), halves[2]);
+        assert.equal(row.children[1].textContent, '/');
+    }
+    // The colour classes ride along with the halves rather than being replaced by them.
+    assert.ok(score.children[0].className.includes('zanju-ct-tally-score'));
+    assert.ok(battles.children[0].className.includes('zanju-ct-battles-used'));
+});
+
+test('the battles get a row of their own, spent out of allowed', () => {
+    const node = document.createElement('div');
+    widgets.renderBattles(node, { kind: 'score', current: 6, goal: 15, used: 2, allowed: 5 });
+    assert.deepEqual(node.children.map((child) => child.textContent), ['2', '/', '5']);
+    assert.equal(node.querySelector('.zanju-ct-battles-used').textContent, '2');
+    assert.equal(node.querySelector('.zanju-ct-battles-total').textContent, '5');
+});
+
+test('a mission with no battle limit draws no battles row at all', () => {
+    const node = document.createElement('div');
+    widgets.renderBattles(node, { kind: 'count', current: 3, goal: 5 });
+    assert.ok(node.className.includes('zanju-ct-battles-empty'));
+    assert.equal(node.children.length, 0);
+
+    widgets.renderBattles(node, null);
+    assert.ok(node.className.includes('zanju-ct-battles-empty'));
 });
 
 test('the banner score is tinted from the pace Python worked out', () => {
@@ -881,7 +920,7 @@ test('the count row puts what is in hand in green, against its target', () => {
     widgets.renderTally(node, { kind: 'count', current: 3, goal: 5 });
     assert.equal(node.querySelector('.zanju-ct-tally-done').textContent, '3');
     assert.equal(node.querySelector('.zanju-ct-tally-target').textContent, '5');
-    assert.equal(node.querySelectorAll('.zanju-ct-tally-left').length, 0);
+    assert.equal(node.children.length, 3);
 });
 
 test('a requirement of some other shape gets no banner row', () => {
@@ -917,14 +956,18 @@ test('the banner stacks the campaign numeral over the mission id', () => {
     assert.ok(widget.querySelector('.zanju-ct-tally').className.includes('tally-empty'));
 });
 
-test('the banner grows a third row for a mission with a battle limit', () => {
+test('the banner grows a score row and a battles row for a mission with a limit', () => {
     const widget = widgets.buildWidget(entry({}));
     widgets.renderWidget(widget, entry({
         attempts: [attempt({ battles: ['done', 'failed', 'pending'] })],
     }), LABELS);
     const tally = widget.querySelector('.zanju-ct-tally');
     assert.ok(!tally.className.includes('tally-empty'));
-    assert.equal(tally.textContent, '1/3\u00b71');
+    // The score alone. Two battles of the three allowed are spent, and they read below it.
+    assert.equal(tally.textContent, '1/3');
+    const battles = widget.querySelector('.zanju-ct-battles');
+    assert.ok(!battles.className.includes('battles-empty'));
+    assert.equal(battles.textContent, '2/3');
 });
 
 test('the hover card heads with the operation over the full mission name', () => {
@@ -1138,6 +1181,30 @@ test('no OR is placed against a neighbour outside the or-group', () => {
     assert.deepEqual(rows, [
         'zanju-ct-cond', 'zanju-ct-cond', 'zanju-ct-or', 'zanju-ct-cond',
     ]);
+});
+
+test('a one-battle objective carries no line about how long it has', () => {
+    // Python hands over the row with no text: the row is what tells the banner which objective
+    // it counts, but a one-battle mission has no battle budget to describe.
+    const card = document.createElement('div');
+    const one = { text: '', type: null, current: null, goal: null, battles: [], main: true };
+    widgets.appendConditions(card, [
+        { text: 'Destroy 3 enemy vehicles.', counted: true, currentText: '0', goalText: '3', main: true },
+    ], LABELS, [one], []);
+    assert.deepEqual(card.children.map((node) => node.className), ['zanju-ct-cond']);
+});
+
+test('an objective with no battle limit keeps the line the client gives it', () => {
+    const card = document.createElement('div');
+    const unlimited = {
+        text: 'Complete the primary condition over any number of battles',
+        type: null, current: null, goal: null, battles: [], main: true,
+    };
+    widgets.appendConditions(card, [
+        { text: 'Destroy 3 enemy vehicles.', counted: true, currentText: '0', goalText: '3', main: true },
+    ], LABELS, [unlimited], []);
+    assert.deepEqual(card.children.map((node) => node.className),
+        ['zanju-ct-cond', 'zanju-ct-attempt']);
 });
 
 test('a mission whose conditions could not be read still builds a card', () => {

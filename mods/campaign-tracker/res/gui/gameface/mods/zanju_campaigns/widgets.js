@@ -306,7 +306,10 @@ function bannerTally(entry) {
             // The five live in the marks, and a mark nobody played yet is a battle left.
             current: chosen.current,
             goal: chosen.goal,
-            left: battles.filter(function (b) { return b === 'pending'; }).length,
+            // The battles spent out of the battles allowed, which the row below draws. The
+            // allowance lives in the marks, and a mark nobody played yet is a battle to come.
+            used: battles.length - battles.filter(function (b) { return b === 'pending'; }).length,
+            allowed: battles.length,
         };
     }
 
@@ -340,7 +343,8 @@ function bannerTally(entry) {
                 current: score.currentText,
                 goal: score.goalText,
                 // The requirement's own numbers are battles used out of battles allowed.
-                left: Math.max(chosen.goal - chosen.current, 0),
+                used: chosen.current,
+                allowed: chosen.goal,
                 // Taken from the pace Python worked out for this same objective rather than
                 // recomputed here, so the banner's colour and the card's line cannot disagree.
                 ahead: paceFor(entry.paces, chosen.main),
@@ -599,7 +603,13 @@ function appendAttempt(card, attempts, isMain, paces) {
     if (!attempt) {
         return;
     }
-    card.appendChild(buildAttempt(attempt));
+    // A one-battle mission has an objective but nothing to say about how long it has: there is
+    // no battle budget to describe, and the game says nothing there either. The row still has
+    // to exist for the banner to know which objective it counts, so it is skipped here rather
+    // than dropped where the banner would miss it.
+    if (attempt.text) {
+        card.appendChild(buildAttempt(attempt));
+    }
     // Each objective carries its own pace: they share the battle allowance but not the total,
     // so the secondary usually asks for a steeper average than the primary.
     const pace = (paces || []).filter(function (row) { return Boolean(row.main) === isMain; })[0];
@@ -671,15 +681,34 @@ function renderTally(node, tally) {
         return;
     }
     node.className = 'zanju-ct-tally';
-    node.appendChild(el('div', tallyLeadClass(tally), String(tally.current)));
+    node.appendChild(el('div', 'zanju-ct-half zanju-ct-half-left ' + tallyLeadClass(tally),
+        String(tally.current)));
     node.appendChild(el('div', 'zanju-ct-tally-sep', '/'));
-    node.appendChild(el('div', 'zanju-ct-tally-target', String(tally.goal)));
-    if (typeof tally.left === 'number') {
-        // The battles the mission still allows, kept grey and behind a lighter separator: it
-        // is the budget the first two numbers are spent out of, not a third score.
-        node.appendChild(el('div', 'zanju-ct-tally-sep', '\u00b7'));
-        node.appendChild(el('div', 'zanju-ct-tally-left', String(tally.left)));
+    node.appendChild(el('div', 'zanju-ct-half zanju-ct-half-right zanju-ct-tally-target',
+        String(tally.goal)));
+}
+
+// The battles spent out of the battles the mission allows, on a row of its own under the score.
+// It was a third number on that row before, where it read as another score rather than as the
+// budget the first two are spent out of -- and on a mission counting in thousands it was what
+// pushed the row past the edge of the banner.
+function renderBattles(node, tally) {
+    if (!node) {
+        return;
     }
+    node.textContent = '';
+    if (!tally || typeof tally.allowed !== 'number') {
+        // Most missions set no limit on the battles, and an empty row would still cost the
+        // banner a line of height.
+        node.className = 'zanju-ct-battles zanju-ct-battles-empty';
+        return;
+    }
+    node.className = 'zanju-ct-battles';
+    node.appendChild(el('div', 'zanju-ct-half zanju-ct-half-left zanju-ct-battles-used',
+        String(tally.used)));
+    node.appendChild(el('div', 'zanju-ct-battles-sep', '/'));
+    node.appendChild(el('div', 'zanju-ct-half zanju-ct-half-right zanju-ct-battles-total',
+        String(tally.allowed)));
 }
 
 function renderCard(card, entry, labels) {
@@ -807,6 +836,7 @@ function buildWidget(entry) {
     face.appendChild(el('div', 'zanju-ct-numeral', entry.numeral || ''));
     face.appendChild(el('div', 'zanju-ct-id', ''));
     face.appendChild(el('div', 'zanju-ct-tally'));
+    face.appendChild(el('div', 'zanju-ct-battles'));
     face.appendChild(el('div', 'zanju-ct-flags'));
     widget.appendChild(face);
 
@@ -838,7 +868,9 @@ function renderWidget(widget, entry, labels) {
     if (id) {
         id.textContent = faceId(entry);
     }
-    renderTally(widget.querySelector('.zanju-ct-tally'), bannerTally(entry));
+    const tally = bannerTally(entry);
+    renderTally(widget.querySelector('.zanju-ct-tally'), tally);
+    renderBattles(widget.querySelector('.zanju-ct-battles'), tally);
     renderFlags(widget.querySelector('.zanju-ct-flags'), bannerFlags(entry));
     renderCard(widget.querySelector('.zanju-ct-card'), entry, labels);
     // The card was just rebuilt, so its hint lines start dim. Light the right one again for
@@ -1308,6 +1340,7 @@ export {
     pollRateFor,
     renderCard,
     renderFlags,
+    renderBattles,
     renderTally,
     renderWidget,
     renderWidgets,

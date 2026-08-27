@@ -169,7 +169,18 @@ def _read_attempts(storage, quest, logger):
 
 
 def _unlimited_attempt(storage, quest, is_main, logger):
-    """The client's own "over any number of battles" line, or None when there is no objective.
+    """A row for an objective the client gives no header progress of its own, or None.
+
+    Two missions arrive here and they want different things said:
+
+    - **No battle limit.** The client fills the gap with its own "over any number of battles"
+      line, and so does this.
+    - **One battle.** There is no budget to describe at all, and the client draws nothing. The
+      row is still built, with no text of its own.
+
+    The row is built either way because it does a second job. The banner reads the objectives
+    to know which one it is counting, and an objective with no row sends the counter to the
+    other half of the mission.
 
     A mission need not have a secondary objective at all, and one that does not should say
     nothing about it rather than claim it is unlimited.
@@ -177,12 +188,8 @@ def _unlimited_attempt(storage, quest, is_main, logger):
     try:
         if not _has_conditions(storage, is_main):
             return None
-        from gui.Scaleform.locale.PERSONAL_MISSIONS import PERSONAL_MISSIONS
-        from helpers import i18n
-        key = (PERSONAL_MISSIONS.CONDITIONS_UNLIMITED_LABEL_MAIN if is_main
-               else PERSONAL_MISSIONS.CONDITIONS_UNLIMITED_LABEL_ADD)
         return {
-            'text': i18n.makeString(key),
+            'text': _unlimited_label(quest, is_main),
             # No shape, no numbers: there is no limit here to count against. Every reader
             # tests for these before using them.
             'type': None,
@@ -197,6 +204,22 @@ def _unlimited_attempt(storage, quest, is_main, logger):
         logger.exception('Failed to read the unlimited-battles line of mission %s',
                          _mission_id(quest))
         return None
+
+
+def _unlimited_label(quest, is_main):
+    """The client's "over any number of battles" line, or nothing for a one-battle mission.
+
+    `isOneBattleQuest` is the client's own test, and the same one it gates this line with:
+    `getDummyHeaderType` answers `DISPLAY_TYPE.NONE` for exactly these missions, and a header
+    typed NONE draws nothing.
+    """
+    if quest.isOneBattleQuest():
+        return ''
+    from gui.Scaleform.locale.PERSONAL_MISSIONS import PERSONAL_MISSIONS
+    from helpers import i18n
+    key = (PERSONAL_MISSIONS.CONDITIONS_UNLIMITED_LABEL_MAIN if is_main
+           else PERSONAL_MISSIONS.CONDITIONS_UNLIMITED_LABEL_ADD)
+    return i18n.makeString(key)
 
 
 def _has_conditions(storage, is_main):

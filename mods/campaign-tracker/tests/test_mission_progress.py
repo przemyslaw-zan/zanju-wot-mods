@@ -110,5 +110,32 @@ class SplitRestrictionTests(unittest.TestCase):
         self.assertEqual(len(logger.failures), 1)
 
 
+class UnlimitedLabelTests(unittest.TestCase):
+    """A one-battle mission has no battle budget, so it must not claim an unlimited one.
+
+    The client gates its own line the same way: `getDummyHeaderType` answers `DISPLAY_TYPE.NONE`
+    for exactly these missions, and a header typed NONE draws nothing.
+    """
+
+    class _Quest(object):
+
+        def __init__(self, one_battle):
+            self._one_battle = one_battle
+
+        def isOneBattleQuest(self):
+            return self._one_battle
+
+    def test_a_one_battle_mission_says_nothing_about_its_battles(self):
+        for is_main in (True, False):
+            self.assertEqual(
+                mission_progress._unlimited_label(self._Quest(True), is_main), '')
+
+    def test_a_mission_with_no_limit_asks_the_client_for_the_wording(self):
+        # No client here, so the lookup raises rather than answering. What matters is that it
+        # is reached at all: a mission with no battle limit must not fall silent.
+        self.assertRaises(Exception,
+                          mission_progress._unlimited_label, self._Quest(False), True)
+
+
 if __name__ == '__main__':
     unittest.main()
