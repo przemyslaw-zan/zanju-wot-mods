@@ -168,6 +168,54 @@ class BuildMissionIdTest(unittest.TestCase):
         self.assertEqual(campaigns.build_mission_id(None, None, None), '')
 
 
+class PaceTest(unittest.TestCase):
+    """25 to reach in 10 battles is 2.5 a battle -- what the readings below measure against."""
+
+    def test_reads_the_total_as_a_percentage_of_the_average(self):
+        # 2.5 a battle expects 5 by the second battle, so 6 stands at 120 percent of it.
+        self.assertEqual(campaigns.pace(6, 25, 2, 10)['percent'], 120)
+        self.assertEqual(campaigns.pace(4, 25, 2, 10)['percent'], 80)
+
+    def test_reports_behind_when_the_total_trails_the_average(self):
+        reading = campaigns.pace(7, 25, 3, 10)
+        self.assertFalse(reading['ahead'])
+        # 7.5 expected by the third battle, and 7 is 93 percent of that.
+        self.assertEqual(reading['percent'], 93)
+
+    def test_reports_ahead_when_the_total_leads_the_average(self):
+        reading = campaigns.pace(8, 25, 3, 10)
+        self.assertTrue(reading['ahead'])
+        self.assertEqual(reading['percent'], 106)
+
+    def test_counts_exactly_on_the_average_as_ahead(self):
+        # 5 after 2 battles is exactly 2.5 a battle. On the average is not behind it.
+        reading = campaigns.pace(5, 25, 2, 10)
+        self.assertTrue(reading['ahead'])
+        self.assertEqual(reading['percent'], 100)
+
+    def test_never_reads_a_hundred_while_the_total_is_behind(self):
+        # 1000 in 10 battles expects 500 by the fifth, and 498 is 99.6 percent of that.
+        # Rounding to the nearest would paint a behind reading as one that is on the average.
+        reading = campaigns.pace(498, 1000, 5, 10)
+        self.assertFalse(reading['ahead'])
+        self.assertEqual(reading['percent'], 99)
+
+    def test_says_nothing_before_the_first_battle(self):
+        self.assertIsNone(campaigns.pace(0, 25, 0, 10))
+
+    def test_says_nothing_once_the_total_is_reached(self):
+        self.assertIsNone(campaigns.pace(25, 25, 3, 10))
+        self.assertIsNone(campaigns.pace(26, 25, 3, 10))
+
+    def test_says_nothing_when_no_battles_are_left(self):
+        self.assertIsNone(campaigns.pace(7, 25, 10, 10))
+
+    def test_tolerates_missing_or_nonsense_numbers(self):
+        self.assertIsNone(campaigns.pace(None, 25, 3, 10))
+        self.assertIsNone(campaigns.pace(7, 0, 3, 10))
+        self.assertIsNone(campaigns.pace(7, 25, 3, 0))
+
+
 class NumeralTest(unittest.TestCase):
     def test_numbers_the_campaigns_the_way_players_name_them(self):
         self.assertEqual(campaigns.numeral('regular'), 'I')

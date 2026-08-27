@@ -182,6 +182,40 @@ def _abbreviate_stem(stem):
     return stem[:_ABBREVIATED_LENGTH].upper()
 
 
+def pace(current, goal, battles_used, battles_allowed):
+    """Where the running total stands against the average the mission asks for, as a percentage.
+
+    Missions of the "reach a total inside N battles" kind carry one constant average: 25 hits in
+    10 battles is 2.5 a battle, and it stays 2.5 whatever the player does. That average expects 5
+    hits by the second battle, so a player with 6 stands at 120 percent of it and one with 4
+    stands at 80.
+
+    The percentage is the whole reading. 100 is exactly on the average, and one number answers
+    what the raw totals cannot: 6 of 25 says nothing about whether 6 is enough by now.
+
+    Returns `percent` and `ahead` (whether the total is at or above the average). None when there
+    is no useful answer: nothing played yet, the total is already reached, or no battles are
+    left to reach it in.
+    """
+    if None in (current, goal, battles_used, battles_allowed):
+        return None
+    if goal <= 0 or battles_allowed <= 0 or current >= goal:
+        return None
+    # Nothing played yet, so there is nothing to measure against the average.
+    if battles_used <= 0:
+        return None
+    if battles_allowed - battles_used <= 0:
+        return None
+
+    return {
+        # Cross-multiplied rather than divided twice, so the percentage is exact. Rounded down
+        # rather than to the nearest, which keeps it and `ahead` from ever disagreeing: the
+        # reading reaches 100 exactly when the total is on the average, and not a step earlier.
+        'percent': int(current * battles_allowed * 100 // (goal * battles_used)),
+        'ahead': current * battles_allowed >= goal * battles_used,
+    }
+
+
 def _as_text(value):
     if value is None:
         return u''

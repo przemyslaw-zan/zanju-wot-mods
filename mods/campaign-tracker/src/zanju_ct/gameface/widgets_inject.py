@@ -7,8 +7,10 @@ loads whatever a `ModInjectModel` on one of that document's SUB-views lists. We 
 model, plus our own data model (`zanjuCtWidgets`) carrying the campaign snapshot, which
 widgets.js reads.
 
-The data model is one-way. The badges are fixed beside the garage's vehicle name block and
-nothing on them can be clicked, so there is no JS-to-Python channel and nothing to persist.
+The badges are fixed beside the garage's vehicle name block, so no position is persisted. The
+one thing they send back is a click: the JS reports which campaign was clicked and which keys
+were held with it, and Python either opens the client's own screen for that campaign's mission
+(see navigation) or pauses or resets it (see mission_actions).
 
 Placement is collision-aware. `gf_mod_inject` always writes to the fixed field name
 `ModInjectModel`, so two mods that pick the same sub-view silently clobber each other, last
@@ -26,7 +28,7 @@ import logging
 
 from frameworks.wulf import ViewModel
 
-from .. import collector, route_gate, view_claim
+from .. import collector, held_keys, mission_actions, navigation, route_gate, view_claim
 from ..constants import LOGGER_NAME
 from ..localization import get_text as _loc
 
@@ -70,7 +72,7 @@ class _WidgetsDataModel(ViewModel):
 
     def __init__(self, payload):
         self._payload = payload
-        super(_WidgetsDataModel, self).__init__(properties=2, commands=0)
+        super(_WidgetsDataModel, self).__init__(properties=2, commands=1)
 
     def _initialize(self):
         super(_WidgetsDataModel, self)._initialize()
@@ -81,10 +83,20 @@ class _WidgetsDataModel(ViewModel):
         # the setters below address them. This view is usually built before the lobby has
         # settled, so `visible` starts from whatever the route gate can answer at that point.
         self._addBoolProperty('visible', route_gate.is_visible())
+        # Which modifier keys are held, as one string. Pushed on its own rather than folded
+        # into the snapshot: a key change must not cost a rebuild of every card, and the
+        # snapshot is far too big to resend for two booleans.
+        self._addStringProperty('heldKeys', held_keys.text())
+        # JS -> Python. `_addCommand` takes only the name and returns a Command; the handler
+        # is bound to it with `+=` (it wraps an Event), which is how the game's own generated
+        # view models declare theirs. A wulf command carries exactly one map argument.
+        self.missionAction = self._addCommand('missionAction')
+        self.missionAction += self.__onMissionAction
 
     # Indices matching the declaration order in _initialize.
     _SNAPSHOT_INDEX = 0
     _VISIBLE_INDEX = 1
+    _HELD_KEYS_INDEX = 2
 
     def setSnapshot(self, payload):
         self._payload = payload
@@ -92,6 +104,46 @@ class _WidgetsDataModel(ViewModel):
 
     def setVisible(self, visible):
         self._setBool(self._VISIBLE_INDEX, bool(visible))
+
+    def setHeldKeys(self, text):
+        self._setString(self._HELD_KEYS_INDEX, text)
+
+    def __onMissionAction(self, *args):
+        """A badge was clicked. Which action it asks for depends on the keys held with it."""
+        arg = args[0] if args else None
+        branch = _map_get(arg, 'branch')
+        if not branch:
+            return
+        action = _map_get(arg, 'action') or mission_actions.ACTION_OPEN
+        if action == mission_actions.ACTION_OPEN:
+            navigation.open_mission(branch, _module_logger)
+            return
+
+        # Resolved here rather than in `mission_actions`, which stays free of `collector` so
+        # the two do not import each other. Resolved fresh on every click for the same reason
+        # `navigation` does: the mission behind a badge can change between render and click.
+        quest = collector.find_active_mission(branch, _module_logger)
+        if quest is None:
+            _module_logger.info('Campaign %s has no active mission to %s', branch, action)
+            return
+        mission_actions.perform(quest, action, _module_logger)
+
+
+def _map_get(arg, key):
+    """Read a key from the single map argument a wulf command carries.
+
+    It may arrive as a plain dict or as a wrapped map exposing .get(); tolerate both, and
+    treat anything unreadable as absent rather than raising inside a UI callback.
+    """
+    if isinstance(arg, dict):
+        return arg.get(key)
+    getter = getattr(arg, 'get', None)
+    if callable(getter):
+        try:
+            return arg.get(key)
+        except Exception:
+            return None
+    return None
 
 
 def _build_payload(logger):
@@ -112,10 +164,16 @@ def _build_payload(logger):
             'noVehicle': _loc('LABEL_NO_VEHICLE'),
             'disabled': _loc('LABEL_DISABLED'),
             'paused': _loc('LABEL_PAUSED'),
-            'mainConditions': _loc('LABEL_MAIN_CONDITIONS'),
-            'addConditions': _loc('LABEL_ADD_CONDITIONS'),
+            'primaryConditions': _loc('LABEL_PRIMARY_CONDITIONS'),
+            'secondaryConditions': _loc('LABEL_SECONDARY_CONDITIONS'),
             'or': _loc('LABEL_OR'),
+            'lockedVehicles': _loc('LABEL_LOCKED_VEHICLES'),
+            'vehicleLocked': _loc('LABEL_VEHICLE_LOCKED'),
             'noConditions': _loc('LABEL_NO_CONDITIONS'),
+            'hintOpen': _loc('LABEL_HINT_OPEN'),
+            'hintPause': _loc('LABEL_HINT_PAUSE'),
+            'hintResume': _loc('LABEL_HINT_RESUME'),
+            'hintReset': _loc('LABEL_HINT_RESET'),
         }
         return json.dumps(snapshot)
     except Exception:
@@ -162,6 +220,15 @@ def refresh(logger):
         return
     payload = _build_payload(logger)
     _push(lambda model: model.setSnapshot(payload), logger)
+
+
+def _apply_held_keys(logger):
+    text = held_keys.text()
+    _push(lambda model: model.setHeldKeys(text), logger)
+
+
+def _on_held_keys_changed():
+    _apply_held_keys(_module_logger)
 
 
 def _apply_visibility(logger):
@@ -221,6 +288,9 @@ def _bind_events(logger):
     # The lobby state machine belongs to the lobby app, so it is a different object after every
     # teardown; `install` compares identity and only re-subscribes when it actually changed.
     route_gate.install(logger, _on_route_visibility)
+    # Unlike the route gate, this subscribes to a module-level singleton that survives every
+    # lobby teardown, so it is made once here and never retried.
+    held_keys.install(logger, _on_held_keys_changed)
 
 
 def _bind_missions(logger):
@@ -285,6 +355,9 @@ def install(logger):
     # Almost certainly a no-op here -- the lobby app that owns the state machine does not exist
     # this early -- but it costs nothing and `_bind_events` retries on every hangar build.
     route_gate.install(logger, _on_route_visibility)
+    # Unlike the route gate, this subscribes to a module-level singleton that survives every
+    # lobby teardown, so it is made once here and never retried.
+    held_keys.install(logger, _on_held_keys_changed)
 
     for module_path, class_name in _CANDIDATE_MODELS:
         model_class = _import_model(module_path, class_name, logger)
@@ -347,6 +420,7 @@ def uninstall(logger):
     _claimed_class = None
     _unbind_events(logger)
     route_gate.uninstall(logger)
+    held_keys.uninstall(logger)
     del _models[:]
     while _patched:
         model_class, original = _patched.pop()

@@ -19,12 +19,39 @@ LABEL_PAUSED: ""
 # {name} is the vehicle the operation awards, which is what the game names each operation after.
 # en: "Operation {name}"
 LABEL_OPERATION_TITLE: ""
-# en: "Main conditions"
-LABEL_MAIN_CONDITIONS: ""
-# en: "Additional conditions"
-LABEL_ADD_CONDITIONS: ""
+# "Primary" and "secondary" are the words the game itself uses for these two groups.
+# Its own key names say main/add, but no text it shows a player ever does.
+# en: "Primary conditions"
+LABEL_PRIMARY_CONDITIONS: ""
+# en: "Secondary conditions"
+LABEL_SECONDARY_CONDITIONS: ""
 # Separates two conditions where meeting either one is enough.
 # en: "OR"
 LABEL_OR: ""
+# Heads the list of vehicles that already completed a mission and cannot repeat it.
+# en: "Locked vehicles:"
+LABEL_LOCKED_VEHICLES: ""
+# Warns that the vehicle in the garage is one of those, so no battle in it counts towards the
+# mission. Shown where the pause warning is shown, and in the same colour.
+# en: "Vehicle locked"
+LABEL_VEHICLE_LOCKED: ""
+# Pace on a mission that must reach a total inside a fixed run of battles. The mission asks for
+# one constant average -- 25 hits in 10 battles is 2.5 a battle -- and {percent} says where the
+# player stands against it. 100 is exactly on the average, above it is ahead, below it is behind.
+# The average is named rather than the total, because a player at 6 hits of 25 is at 24 percent
+# of the total but 120 percent of the average that gets them there.
+# en: "{percent}% of the target average per battle"
+LABEL_PACE: ""
+# What a click on a badge does, listed at the foot of the hover card. Only campaign 2's last
+# operation accepts pause and reset, so most cards show the first line alone.
+# en: "Click to open the mission"
+LABEL_HINT_OPEN: ""
+# en: "Shift + Click to pause the mission"
+LABEL_HINT_PAUSE: ""
+# Shown in place of the line above once the mission is paused.
+# en: "Shift + Click to resume the mission"
+LABEL_HINT_RESUME: ""
+# en: "Ctrl + Click to reset the mission"
+LABEL_HINT_RESET: ""
 # en: "No conditions to show"
 LABEL_NO_CONDITIONS: ""

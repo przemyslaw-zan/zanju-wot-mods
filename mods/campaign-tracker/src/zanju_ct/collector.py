@@ -15,7 +15,7 @@ Every client import stays inside a function, so this module is importable outsid
 """
 from __future__ import absolute_import, print_function, unicode_literals
 
-from . import campaigns, mission_progress
+from . import campaigns, mission_actions, mission_progress
 from .localization import get_text as _loc
 
 # What the widget face and its hover card show for one campaign.
@@ -47,6 +47,27 @@ def collect(logger):
     return snapshot
 
 
+def find_active_mission(branch_name, logger):
+    """The mission this campaign is running for the tank in the garage, or None.
+
+    The same answer the snapshot's badge is built from, resolved again on demand. Clicking a
+    badge reads it fresh rather than trusting a mission id carried in the payload: the player
+    can pick a different mission, or a different tank, between the snapshot and the click.
+    """
+    try:
+        from personal_missions import PM_BRANCH
+        missions = _personal_missions(logger)
+        vehicle = _current_vehicle(logger)
+        branch_id = PM_BRANCH.NAME_TO_TYPE.get(branch_name)
+        if missions is None or vehicle is None or branch_id is None:
+            return None
+        return campaigns.find_matching_mission(
+            _selected_missions(missions, branch_id, logger), vehicle['type'], vehicle['level'])
+    except Exception:
+        logger.exception('Failed to find the active mission of campaign %s', branch_name)
+        return None
+
+
 def _read_campaign(missions, branch_name, vehicle, logger):
     """One campaign's widget data, or None when the campaign cannot be read at all."""
     from personal_missions import PM_BRANCH
@@ -66,6 +87,11 @@ def _read_campaign(missions, branch_name, vehicle, logger):
         'missionId': '',
         'operationTitle': '',
         'conditions': [],
+        'attempts': [],
+        'vehicles': None,
+        'paces': [],
+        'canPause': False,
+        'canReset': False,
     }
 
     if not _is_enabled(missions, branch_id, logger):
@@ -80,11 +106,11 @@ def _read_campaign(missions, branch_name, vehicle, logger):
     if quest is None:
         return entry
 
-    _describe_mission(entry, missions, branch_id, quest, logger)
+    _describe_mission(entry, missions, branch_id, quest, vehicle, logger)
     return entry
 
 
-def _describe_mission(entry, missions, branch_id, quest, logger):
+def _describe_mission(entry, missions, branch_id, quest, vehicle, logger):
     """Fill in the matched mission: its name, where it sits, and how far it has come.
 
     The three values the badge id is built from are locals rather than entry fields. Only the
@@ -127,7 +153,83 @@ def _describe_mission(entry, missions, branch_id, quest, logger):
             entry['state'] = STATE_DISABLED
 
     entry['missionId'] = campaigns.build_mission_id(short_name, line, internal_id)
-    entry['conditions'] = mission_progress.read_conditions(quest, logger)
+    progress = mission_progress.read_progress(quest, logger, vehicle.get('intCD'))
+    entry['conditions'] = progress['conditions']
+    entry['attempts'] = progress['attempts']
+    entry['vehicles'] = progress['vehicles']
+    entry['paces'] = _read_paces(progress['conditions'], progress['attempts'], logger)
+
+    # Which of the two mission actions the card may offer. `paused` is dropped rather than
+    # carried: the entry already says so in `state`, and one answer in two places goes stale
+    # in two ways.
+    actions = mission_actions.read_actions(quest, progress['hasProgress'], logger)
+    entry['canPause'] = actions['canPause']
+    entry['canReset'] = actions['canReset']
+
+
+# The requirement shape that carries an average: a total to reach in a fixed run of battles.
+_LIMITED = 'limited'
+
+
+def _read_paces(conditions, attempts, logger):
+    """One pace reading per objective that has an average to keep up with.
+
+    Both objectives get their own: they share the battle allowance but not the total, so the
+    secondary usually asks for a steeper average than the primary. An objective already at its
+    total drops out on its own, because there is no longer a pace to keep.
+    """
+    rows = []
+    for attempt in attempts or ():
+        row = _read_pace(conditions, attempt, logger)
+        if row is not None:
+            rows.append(row)
+    return rows
+
+
+def _read_pace(conditions, attempt, logger):
+    """Where one objective's running total stands against the average the mission asks for."""
+    try:
+        if attempt.get('type') != _LIMITED:
+            return None
+
+        score = _score_condition(conditions, attempt.get('main'))
+        if score is None:
+            return None
+
+        reading = campaigns.pace(
+            score.get('current'), score.get('goal'),
+            attempt.get('current'), attempt.get('goal'))
+        if reading is None:
+            return None
+
+        return {
+            # Composed here rather than in the widget, so the line stays translatable and a
+            # language can order it its own way.
+            'text': _loc('LABEL_PACE', percent=_format_number(reading['percent'], logger)),
+            'ahead': reading['ahead'],
+            'main': bool(attempt.get('main')),
+        }
+    except Exception:
+        logger.exception('Failed to work out the pace of a mission')
+        return None
+
+
+def _score_condition(conditions, is_main):
+    """The running total an objective is building, or None when it has no counted condition."""
+    for condition in conditions:
+        if bool(condition.get('main')) == bool(is_main) and condition.get('counted'):
+            return condition
+    return None
+
+
+def _format_number(value, logger):
+    """A whole number as the client would write it, so its grouping suits the language."""
+    try:
+        from gui.impl import backport
+        return backport.getNiceNumberFormat(value)
+    except Exception:
+        logger.exception('Failed to format a number; falling back to a plain one')
+        return '{0}'.format(value)
 
 
 def _chain_name(operation, quest, logger):
@@ -229,8 +331,11 @@ def _current_vehicle(logger):
     """The tank in the garage, as the two facts a mission is matched against, or None.
 
     `type` is the vehicle descriptor's type, which is what the client's own line classifiers
-    read, and `level` is its tier. Vehicles restricted to one battle mode are reported as no vehicle at all, because
-    personal missions do not accept them -- the same test the client's own vehicle search makes.
+    read, and `level` is its tier. `intCD` is the compact descriptor, which is how the client
+    records the vehicles a mission has already been completed in.
+
+    Vehicles restricted to one battle mode are reported as no vehicle at all, because personal
+    missions do not accept them -- the same test the client's own vehicle search makes.
     """
     try:
         from CurrentVehicle import g_currentVehicle
@@ -240,7 +345,7 @@ def _current_vehicle(logger):
         vehicle_type = item.descriptor.type
         if _is_mode_locked(vehicle_type, logger):
             return None
-        return {'type': vehicle_type, 'level': item.level}
+        return {'type': vehicle_type, 'level': item.level, 'intCD': item.intCD}
     except Exception:
         logger.exception('Failed to read the vehicle in the garage')
         return None

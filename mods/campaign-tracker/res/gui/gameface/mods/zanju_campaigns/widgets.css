@@ -30,14 +30,42 @@
     right: 0;
     bottom: 0;
     pointer-events: none;
-    z-index: 900;
+    /* This number decides where EVERYTHING in this mod sits against other mods' overlays, and
+       it cannot be pushed down onto the hover card instead. `position: fixed` makes this a
+       stacking context on its own -- with or without a z-index -- so the whole subtree is
+       sealed into one layer of the page, and a card asking for a higher number inside it still
+       cannot rise above something the root sits under. Left without a number the root sorts as
+       zero, which lost to directives-helper's own overlay at 900 and put every hover card
+       behind it. Above 900 so the cards clear it. */
+    z-index: 1000;
 }
 
+/* Ordering WITHIN the root, which is a separate question from the number above: the badges are
+   siblings, so without this the next badge along paints over the card of the one before it.
+   Lifting the whole badge rather than just its card keeps the two together, so the card never
+   appears to detach from the badge it belongs to. */
+.zanju-ct-widget:hover {
+    z-index: 1;
+}
+
+/* A fixed-width slot that the badge fills exactly. The width is deliberate rather than left to
+   the content: a badge sized to its own content changes width whenever that content does -- a
+   tally row appearing after a battle, a longer mission id on another tank, a mission going on
+   pause -- and every one of those drags the row with it. Fixing it holds the row still, keeps
+   the badges the same size as each other, and gives the hover card a stable centre to hang off,
+   since the card is placed at 50% of this box.
+
+   Sized to the widest thing a badge carries, which is the third row at its longest
+   (`12 / 25 . 10`), and no wider: every spare pixel here is spare pixels between the badges.
+   The mission id is shorter than that even at its longest (`SPG-13`), and the fourth row
+   shorter still -- a badge can only ever carry one icon there, because the two states it
+   flags belong to campaigns that are never active at the same time. */
 .zanju-ct-widget {
     position: fixed;
     pointer-events: auto;
     display: flex;
     flex-direction: column;
+    width: 58rem;
     font-size: 15rem;
     line-height: 1.35em;
     color: #d7dbe0;
@@ -45,19 +73,59 @@
 
 /* The badge: campaign numeral over the mission's short id. Stacked rather than side by side so
    the widget stays narrow — it sits beside the vehicle name, where horizontal room is what is
-   scarce. `min-width` sizes it for a two-line id like SPG-13 and lets a longer one push wider,
-   so every badge in the row matches unless its id genuinely needs the space. */
+   scarce. It fills its slot rather than sizing to its content, which is what keeps every badge
+   the same size and keeps a content change from moving anything. */
 .zanju-ct-face {
     display: flex;
     flex-direction: column;
     align-items: center;
-    min-width: 54rem;
-    padding: 3rem 7rem 4rem 7rem;
+    width: 100%;
+    padding: 3rem 4rem 4rem 4rem;
     background: rgba(17, 19, 22, 0.9);
-    border: 1rem solid rgba(255, 255, 255, 0.13);
-    border-radius: 3rem;
+    /* Two units rather than one. The game's own hangar frames are drawn at this weight, and on
+       the diagonals of the point below a single unit is thin enough to alias visibly. */
+    border: 2rem solid rgba(255, 255, 255, 0.13);
+    /* Square, and open at the bottom. The banner this is modelled on is a hard rectangle, and
+       the point below continues its outline rather than starting a second shape. */
+    border-bottom: none;
     color: #f0f2f5;
     letter-spacing: 0.02em;
+}
+
+/* The point the banner hangs to. Two layers rather than one: `clip-path` cuts away the
+   element's border along with everything else outside the shape, so an outlined point has to be
+   drawn as a filled shape with a slightly smaller filled shape on top of it. The game's own
+   hangar stylesheet builds its frames the same way.
+   
+   Its own element, and a fixed height, so the point is identical on every badge -- badges in a
+   row differ in height by a row or two, and a point measured as a share of that would come out
+   a different shape on each. Kept off the widget itself, which must never be clipped: the hover
+   card hangs outside the widget's box and would be cut away with it. */
+.zanju-ct-tail {
+    display: block;
+    width: 100%;
+    height: 13rem;
+    background: rgba(255, 255, 255, 0.13);
+    clip-path: polygon(0 0, 100% 0, 50% 100%);
+}
+
+/* Inset on both sides and shorter, which is what leaves the outline showing along the two
+   diagonals. Its top edge stays flush with the sides above it, so the inside of the badge runs
+   into the point with nothing drawn across the join.
+
+   The outline on a slope is thinner than the same inset on an upright edge -- it is measured
+   at a right angle to the edge, and the shallower the slope the less of the inset that is
+   worth. Matching the 2rem sides exactly would need an inset of over 8rem, which would step
+   the interior visibly inwards at the join. Deepening the point instead and cutting the fill
+   back further thickens the outline where the eye actually reads it, at the tip: it now runs
+   from about 0.8rem where it leaves the sides to about 4.5rem at the point. */
+.zanju-ct-tail-fill {
+    display: block;
+    height: 8rem;
+    margin-left: 2rem;
+    margin-right: 2rem;
+    background: rgba(17, 19, 22, 0.9);
+    clip-path: polygon(0 0, 100% 0, 50% 100%);
 }
 
 /* The campaign number, which is how players name these campaigns. */
@@ -67,7 +135,7 @@
     padding-bottom: 2rem;
     margin-bottom: 3rem;
     border-bottom: 1rem solid rgba(255, 255, 255, 0.13);
-    font-size: 12rem;
+    font-size: 14rem;
     text-align: center;
     color: #9ca4ab;
 }
@@ -77,6 +145,113 @@
     width: 100%;
     text-align: center;
     font-weight: 500;
+}
+
+/* A badge with a mission behind it opens that mission's screen, so it says so. A grey badge
+   has nothing to open and keeps the default cursor. */
+.zanju-ct-widget-clickable {
+    cursor: pointer;
+}
+
+.zanju-ct-widget-clickable:hover .zanju-ct-face {
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.zanju-ct-widget-clickable:hover .zanju-ct-tail {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+/* The badge's third row, on the missions that count their battles: what is in hand, what it
+   takes, and the battles the mission still allows. Blockified children, because a flex item
+   that carries text is not reliably blockified for us in this renderer. */
+.zanju-ct-tally {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    margin-top: 1rem;
+    font-size: 13rem;
+    line-height: 1.2em;
+}
+
+.zanju-ct-tally-empty {
+    display: none;
+}
+
+.zanju-ct-tally-done,
+.zanju-ct-tally-left,
+.zanju-ct-tally-score,
+.zanju-ct-tally-target,
+.zanju-ct-tally-sep {
+    display: block;
+}
+
+.zanju-ct-tally-sep {
+    margin-left: 2rem;
+    margin-right: 2rem;
+    color: rgba(255, 255, 255, 0.25);
+}
+
+.zanju-ct-tally-done {
+    color: #9ccb68;
+}
+
+.zanju-ct-tally-left {
+    color: #9ca4ab;
+}
+
+/* The running total and what it has to reach. The total leads, so it carries the weight. */
+.zanju-ct-tally-score {
+    color: #f0f2f5;
+}
+
+.zanju-ct-tally-target {
+    color: #7d848b;
+}
+
+/* The running total, tinted by whether it is keeping up with the battles it is spending. */
+.zanju-ct-tally-ahead {
+    color: #9ccb68;
+}
+
+.zanju-ct-tally-behind {
+    color: #cc6b5a;
+}
+
+/* The badge's fourth row: one small icon per state worth flagging. Shares the tally's shape --
+   a centred flex row that disappears entirely when there is nothing to say, rather than holding
+   a line of height open on every badge that has neither. */
+.zanju-ct-flags {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    margin-top: 2rem;
+}
+
+.zanju-ct-flags-empty {
+    display: none;
+}
+
+/* The icons are white with the shape in their alpha channel, so they take the colour of
+   whatever is set here rather than carrying one of their own. Drawn as a background rather
+   than as an <img> so the box keeps its size whatever the file turns out to be. */
+.zanju-ct-flag {
+    display: block;
+    width: 20rem;
+    height: 20rem;
+    margin-left: 1rem;
+    margin-right: 1rem;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
+    opacity: 0.75;
+}
+
+.zanju-ct-flag-paused {
+    background-image: url('coui://gui/gameface/mods/zanju_campaigns/pause.png');
+}
+
+.zanju-ct-flag-locked {
+    background-image: url('coui://gui/gameface/mods/zanju_campaigns/lock.png');
 }
 
 /* No mission running for this tank: the whole widget drops back to grey. */
@@ -89,6 +264,14 @@
 .zanju-ct-widget-idle .zanju-ct-numeral {
     color: #5e646a;
     border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+.zanju-ct-widget-idle .zanju-ct-tail {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.zanju-ct-widget-idle .zanju-ct-tail-fill {
+    background: rgba(17, 19, 22, 0.72);
 }
 
 /* The hover card. It sits below the face and outside the widget's own box, so the pointer
@@ -118,9 +301,20 @@
     display: flex;
 }
 
+/* Everything describing the mission itself, divided from what it asks for. The rule belongs to
+   this block rather than to the last line inside it, which is what lets the lines vary -- a
+   card with no mission has no subtitle, most have no note, and the divider stays where it is
+   through all of them. */
+.zanju-ct-card-head {
+    display: flex;
+    flex-direction: column;
+    padding-bottom: 6rem;
+    margin-bottom: 6rem;
+    border-bottom: 1rem solid rgba(255, 255, 255, 0.1);
+}
+
 /* The operation heads the card but is the quieter of the two: the mission underneath it is
-   what the player came to read, so that one carries the weight. The rule stays on whichever
-   line is last, which is the subtitle whenever there is one. */
+   what the player came to read, so that one carries the weight. */
 .zanju-ct-card-title {
     display: block;
     color: #9ca4ab;
@@ -128,24 +322,24 @@
 
 .zanju-ct-card-subtitle {
     display: block;
-    padding-bottom: 6rem;
-    margin-bottom: 6rem;
-    border-bottom: 1rem solid rgba(255, 255, 255, 0.1);
     color: #f0f2f5;
     font-weight: 500;
 }
 
-/* Carries the rule instead when there is no subtitle to carry it, so an idle card keeps the
-   same shape as one describing a running mission. */
-.zanju-ct-card-title-alone {
-    padding-bottom: 6rem;
-    margin-bottom: 6rem;
-    border-bottom: 1rem solid rgba(255, 255, 255, 0.1);
-}
-
+/* Set off from the mission name above it, so a warning does not read as part of the name. */
 .zanju-ct-note {
     display: block;
+    margin-top: 4rem;
     color: #7d848b;
+}
+
+/* The one note worth interrupting for: a paused mission counts nothing the player plays, so it
+   is the only state on this card they are losing time by not acting on. Yellow and full weight,
+   the attention colour the research progress bar already uses for tooltip text
+   (TOOLTIP_HIGHLIGHT_TEXT_COLOR). */
+.zanju-ct-note-warning {
+    color: #f0cf74;
+    font-weight: 500;
 }
 
 .zanju-ct-group {
@@ -154,6 +348,155 @@
     margin-bottom: 4rem;
     color: #9ca4ab;
     letter-spacing: 0.02em;
+}
+
+/* Divides the secondary group from the primary one above it. Carried by the heading rather
+   than by the group, because the heading is the first thing in it. */
+.zanju-ct-group-split {
+    padding-top: 8rem;
+    border-top: 1rem solid rgba(255, 255, 255, 0.1);
+}
+
+/* The requirement over a group of conditions -- how many battles it must be met in, and how
+   that is going. It belongs to the conditions above it, so nothing divides them. */
+.zanju-ct-attempt {
+    display: block;
+    margin-top: 4rem;
+}
+
+.zanju-ct-attempt-line {
+    display: flex;
+    align-items: center;
+}
+
+.zanju-ct-attempt-text {
+    display: block;
+    flex: 1 1 auto;
+    color: #9ca4ab;
+}
+
+.zanju-ct-attempt-count {
+    display: block;
+    min-width: 56rem;
+    margin-left: 8rem;
+    text-align: right;
+    color: #d7dbe0;
+}
+
+.zanju-ct-attempt-done .zanju-ct-attempt-count {
+    color: #9ccb68;
+}
+
+.zanju-ct-attempt-failed .zanju-ct-attempt-count {
+    color: #cc6b5a;
+}
+
+/* The pace line under a requirement that builds a total: where the total stands against the
+   average the mission asks for, as a percentage of it. 100 is exactly on the average, so the
+   line is coloured either way -- there is no neutral state to leave it grey for. */
+.zanju-ct-pace {
+    display: block;
+    margin-top: 2rem;
+    font-size: 14rem;
+}
+
+.zanju-ct-pace-ahead {
+    color: #9ccb68;
+}
+
+.zanju-ct-pace-behind {
+    color: #cc6b5a;
+}
+
+/* What a click on this badge does, at the foot of the card. One line for each action the
+   mission accepts, with the line for the keys held right now lit and the rest dim. Set off from
+   everything above it: those describe the mission, these describe the badge. */
+.zanju-ct-hints {
+    display: flex;
+    flex-direction: column;
+    margin-top: 8rem;
+    padding-top: 6rem;
+    border-top: 1rem solid rgba(255, 255, 255, 0.1);
+}
+
+/* Blue marks text that tells the player what they can do, rather than what is true -- the
+   colour the research progress bar already gives its own click hints
+   (TOOLTIP_CLICK_HINT_TEXT_COLOR). Dimmed here to the same hue rather than to grey, so the
+   whole block reads as one thing and the lit line reads as the live one within it. */
+.zanju-ct-hint {
+    display: block;
+    font-size: 13rem;
+    color: #4a6d85;
+}
+
+/* The action the click would take right now. Full strength, and still blue: green and red
+   already mean ahead and behind on this card, and this is neither. */
+.zanju-ct-hint-active {
+    color: #5fb2f2;
+}
+
+/* Which vehicles a mission still wants, and which are already spent on it. Set off from the
+   conditions above it: it governs the tank you take out, not what you do in the battle. */
+.zanju-ct-vehicles {
+    display: block;
+    margin-top: 8rem;
+    padding-top: 6rem;
+    border-top: 1rem solid rgba(255, 255, 255, 0.1);
+}
+
+.zanju-ct-locked-label {
+    display: block;
+    margin-top: 3rem;
+    color: #7d848b;
+}
+
+.zanju-ct-locked-row {
+    display: flex;
+    align-items: center;
+    margin-top: 2rem;
+}
+
+/* The same lock the badge shows, so a tank named here and a badge wearing the icon read as one
+   fact rather than two. */
+.zanju-ct-locked-icon {
+    display: block;
+    width: 13rem;
+    height: 13rem;
+    margin-right: 6rem;
+    background-image: url('coui://gui/gameface/mods/zanju_campaigns/lock.png');
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
+    opacity: 0.75;
+}
+
+.zanju-ct-locked-name {
+    display: block;
+    flex: 1 1 auto;
+    color: #9ca4ab;
+}
+
+/* One mark per allowed battle, in the order they were played. */
+.zanju-ct-pips {
+    display: flex;
+    margin-top: 4rem;
+}
+
+.zanju-ct-pip {
+    display: block;
+    width: 14rem;
+    height: 4rem;
+    margin-right: 3rem;
+    border-radius: 2rem;
+    background: rgba(255, 255, 255, 0.16);
+}
+
+.zanju-ct-pip-done {
+    background: #9ccb68;
+}
+
+.zanju-ct-pip-failed {
+    background: #cc6b5a;
 }
 
 .zanju-ct-cond {
