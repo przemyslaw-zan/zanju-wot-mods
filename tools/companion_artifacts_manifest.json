@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-08-06T15:03:18Z",
+  "updatedAt": "2026-08-28T00:01:10Z",
   "bundles": {
     "research-progress-bar": {
       "description": "Standalone configurator companion chain for Research Progress Bar.",
@@ -18,6 +18,12 @@
     },
     "directives-helper": {
       "description": "Gameface runtime for the Directives Helper window. No configurator chain: the mod has no settings.",
+      "artifactIds": [
+        "openwg_gameface"
+      ]
+    },
+    "campaign-tracker": {
+      "description": "Gameface runtime for the campaign banners. No configurator chain: the mod has no settings.",
       "artifactIds": [
         "openwg_gameface"
       ]
@@ -39,11 +45,11 @@
       "displayName": "ModsList API",
       "provider": "gitlab-release-description",
       "project": "wot-public-mods/mods-list",
-      "releaseTag": "v1.7.8",
-      "version": "1.7.8",
-      "filename": "me.poliroid.modslistapi_1.7.8.wotmod",
-      "downloadUrl": "https://gitlab.com/-/project/26509092/uploads/aaa518f7e2f84b6877ab1b4911fcc356/me.poliroid.modslistapi_1.7.8.wotmod",
-      "sha256": "3cc0cc1b5c9a3b43f3de153836636b4d999a48b62c1baea3cf7654fa02e2e1b2",
+      "releaseTag": "v1.7.9",
+      "version": "1.7.9",
+      "filename": "me.poliroid.modslistapi_1.7.9.wotmod",
+      "downloadUrl": "https://gitlab.com/-/project/26509092/uploads/6149d25ddb182b6c9e95fbe470c33fda/me.poliroid.modslistapi_1.7.9.wotmod",
+      "sha256": "d62237cd755412189f1d62855219c9035d0d0fea315a0d4505971639c86d8283",
       "notes": "Standalone configurator list/popup dependency."
     },
     "openwg_gameface": {
