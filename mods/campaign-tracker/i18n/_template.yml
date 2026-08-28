@@ -1,0 +1,36 @@
+# Auto-generated translation template -- regenerate with `zwm lint i18n`; do not edit by hand.
+#
+# To start a new language, copy this file to `<language-code>.yml` (the code the WoT client
+# uses: `pl`, `de`, `fr`, `ru`, ...) and fill in the values. Each key's English source text is
+# in the `# en:` comment above it. Keys left empty ("") simply fall back to English in-game,
+# so partial translations are fine.
+
+# Widget states
+# Also shown when there is no vehicle in the garage at all, so keep the wording general.
+# en: "No mission for this vehicle"
+LABEL_NO_MISSION: ""
+# en: "Mission on pause"
+LABEL_PAUSED: ""
+
+# Hover card
+# "Locked" means the vehicle already completed this mission and cannot repeat it.
+# en: "Locked vehicles:"
+LABEL_LOCKED_VEHICLES: ""
+# en: "Vehicle locked"
+LABEL_VEHICLE_LOCKED: ""
+# An order is the game item that completes a primary condition. Stays singular for any number.
+# en: "Retrieving an order"
+LABEL_PAWNED: ""
+# {percent} of the average the mission needs per battle, not of the total. 100 is on target.
+# en: "{percent}% of the target average per battle"
+LABEL_PACE: ""
+
+# Click hints, at the foot of the hover card
+# en: "Click to open the mission"
+LABEL_HINT_OPEN: ""
+# en: "Shift + Click to pause the mission"
+LABEL_HINT_PAUSE: ""
+# en: "Shift + Click to resume the mission"
+LABEL_HINT_RESUME: ""
+# en: "Ctrl + Click to reset the mission"
+LABEL_HINT_RESET: ""

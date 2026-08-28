@@ -2,7 +2,7 @@
 
 ![Mod showcase image](./images/mod.png)
 
-### This mod makes using directives easy while avoiding accidental spending of bonds.
+### This mod makes fitting directives quick, and warns you before auto-resupply spends anything.
 
 - **Quick directives access** — directives can be installed and taken off your tank with a single click, without entering directives menu.
 - **Only what is needed** — unlike the game's menu, the directives which have no effect are filtered out.

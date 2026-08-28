@@ -68,6 +68,7 @@ does, and it is the reference for the exact call shapes. Two things it does not 
   to locate its own model has to remember which one it found and re-check that one directly,
   falling back to the scan only when it comes up empty — otherwise the push costs more than the
   poll it replaced.
+- **The subscription names one sub-view, and the garage replaces it.** `addDataChangedCallback` is registered against a single `resId`. Picking a different tank tears the sub-view down and builds a new one with a new id, and the subscription is left naming a view that no longer exists — every push after the first tank change goes nowhere. A model *finder* that rescans on demand hides this, because the data keeps arriving on the poll: the symptom is not "no data" but "data that is a second late, but only after the player has switched tank once". Re-register whenever the id you found moves, and do not guard the whole thing behind a "already subscribed" flag on the document.
 - **Keep the interval as a backstop, and make its rate adaptive.** `engine` and `viewEnv` are
   not guaranteed to be there, and the subscription cannot be made until the sub-view carrying
   the model exists — which is often *not* true on the first tick. Poll fast until the
@@ -141,6 +142,19 @@ incoming mode's panel can load before the outgoing one is torn down. Degrade to 
 the hook cannot be installed — a widget in the wrong place is a nuisance, one that never
 appears is a broken mod.
 
+## Stacking against other mods
+
+**`position: fixed` creates a stacking context on its own**, with or without a `z-index`. A mod's overlay root is usually fixed and full-screen, which seals its whole subtree into one layer of the page: a tooltip inside it asking for a huge `z-index` still cannot rise above anything the *root* sits under. So the number that decides where a mod sits against other mods belongs on that root, and nowhere else. Left unset, a fixed root sorts as zero and loses to every mod that named a number.
+
+Mods in this repository take these, so a new one has somewhere to sit without a collision:
+
+| Mod | Root | Number |
+| --- | --- | --- |
+| `directives-helper` | window overlay | 900 |
+| `campaign-tracker` | widget root | 1000 |
+
+Ordering *within* a root is a separate question from the number above. Sibling widgets paint in document order, so a later sibling covers the hover card of an earlier one. Lift the whole widget on `:hover` rather than just its card, or the card appears to detach from the thing it describes.
+
 ## Layout and units
 
 - `position: fixed` for the root.
@@ -156,7 +170,7 @@ Confirmed by the game's own stylesheets never using them, and by live warnings:
 | --- | --- |
 | `font-variant-numeric`, `font-feature-settings` | Ignored — tabular figures unavailable even though PFDINMax ships `tnum` |
 | `align-items: baseline` | Rejected outright: *"Trying to set alignItems property to invalid value"* |
-| `display: inline-block`, `ch` units | Never used by the game; avoid |
+| `display: inline`, `display: inline-block`, `ch` units | Effectively unavailable — see "Text wraps by flex line" below |
 | `display: flex`, `min-width`, `text-align`, `letter-spacing` | Used heavily by the game; safe |
 
 **Blockify flex items yourself.** A flex item is supposed to be blockified automatically, so a
@@ -166,6 +180,10 @@ it: set `display: block` (or use a `div`) whenever you give a flex child a `widt
 because it is silent and *asymmetric* — the identical rule works wherever something else already
 forced the element to `display: block`, so the same class centres correctly in one place and not
 another, and no amount of tuning the text properties fixes the broken one.
+
+**`flex: 1` does not zero the basis.** The shorthand is supposed to mean `flex-grow: 1; flex-shrink: 1; flex-basis: 0`, which makes sibling items come out the same width. Here the item keeps being sized from its content and then given an equal share of the slack, so two items with different text end up different widths — the `flex-basis: auto` behaviour. The symptom is a layout that is *almost* right: two rows of `X / Y` centred on their separator drifted apart by half the difference between their numbers, about 2.5rem. State the basis with a unit instead — `flex: 0 0 19rem` — which is the game's own fixed-width flex item (48 uses of `flex: 0 0 13rem`). To centre something between two flexible sides, give both sides the same stated width and centre the row: the offsets cancel and the middle lands in the middle whatever the content is.
+
+**Text wraps by flex line, not by inline flow.** There is no usable inline layout here. The game's own stylesheets carry `display: flex` 7821 times, `display: block` 114 times, and `display: inline` 3 times. None of those three uses puts two inline boxes on one line. A paragraph with one coloured word in it cannot be a block with a `<span>` inside: the span stacks above the text and reads as a heading above it. The game's own answer is to split the string on spaces, give every word its own element, and wrap the row with `display: flex; flex-wrap: wrap` — its formatted-text component does exactly this, and `.FormatText_base` carries those two properties. Supply the gap between words yourself with `margin-right`, because the split threw the real space away. Measure it rather than guess it: PFDINMax, the family `body` sets, gives its space an advance of 0.195 em, and the inherited `letter-spacing: 0.02em` supplies the rest. See `buildRestriction` and `appendWords` in `campaign-tracker`.
 
 **Prefer drawing a small mark to typing it.** `text-align: center` centres a glyph's *advance
 width*, not its ink, so a character with uneven side bearings (`!` is the classic) sits visibly

@@ -1,0 +1,19 @@
+# Widget states
+# Also shown when there is no vehicle in the garage at all, so keep the wording general.
+LABEL_NO_MISSION: "No mission for this vehicle"
+LABEL_PAUSED: "Mission on pause"
+
+# Hover card
+# "Locked" means the vehicle already completed this mission and cannot repeat it.
+LABEL_LOCKED_VEHICLES: "Locked vehicles:"
+LABEL_VEHICLE_LOCKED: "Vehicle locked"
+# An order is the game item that completes a primary condition. Stays singular for any number.
+LABEL_PAWNED: "Retrieving an order"
+# {percent} of the average the mission needs per battle, not of the total. 100 is on target.
+LABEL_PACE: "{percent}% of the target average per battle"
+
+# Click hints, at the foot of the hover card
+LABEL_HINT_OPEN: "Click to open the mission"
+LABEL_HINT_PAUSE: "Shift + Click to pause the mission"
+LABEL_HINT_RESUME: "Shift + Click to resume the mission"
+LABEL_HINT_RESET: "Ctrl + Click to reset the mission"

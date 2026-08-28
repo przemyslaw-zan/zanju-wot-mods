@@ -2,7 +2,7 @@
 
 ![Mod showcase image](./images/mod.png)
 
-### This mod adds a fully customisable progress bar which shows your progress in:
+### This mod adds a fully customisable progress bar for every kind of tank progress.
 
 - **Module and vehicle research**
   - See how close you are to researching modules and vehicles _without entering any menu_.

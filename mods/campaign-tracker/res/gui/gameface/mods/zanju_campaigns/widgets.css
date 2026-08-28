@@ -1,0 +1,704 @@
+/* Zanju Campaign Tracker — garage widget styling.
+ *
+ * Nothing here is used before the game's own stylesheets are known to use it. This renderer
+ * lays out with flex and not with inline flow, ignores several text properties outright, and
+ * reads some flex shorthands its own way. docs/reference/gameface-mod-widgets.md has the list
+ * and the evidence behind each entry.
+ *
+ * Sizes are in rem, which the game's own UI uses and which its interface-scale setting
+ * follows, so the widgets scale with the rest of the UI.
+ *
+ * Palette. Four greys carry the text, and each one has one job. #f0f2f5 is the answer the
+ * player looks for: the mission id on the banner, and the mission name on the card. #d7dbe0 is
+ * a live value, such as a condition and its counter. #9ca4ab names or labels something, such as
+ * a heading, an operation, or a reference number. #7d848b marks what is spent or inactive, such
+ * as an idle banner, or a campaign with no mission. A fifth grey, #5e646a,
+ * drops the numeral on an idle banner below all of them.
+ *
+ * Four accents sit on the greys. Green #9ccb68 and red #cc6b5a mean done and failed, and also
+ * ahead and behind. Yellow #f0cf74 marks a state that costs the player battles. Blue #5b83a0 and
+ * #5fb2f2 mark what a click does, dim and lit. The yellow and the blue both come from the
+ * research progress bar, which gives them the same two jobs.
+ */
+
+/* Container only: it holds the widgets so the drag handler can decide ownership by subtree.
+   The garage listens for drag-to-rotate on the scene, so this stays transparent to input and
+   each widget re-enables it for itself.
+
+   It covers the viewport rather than collapsing to nothing. A zero-sized parent is the shape
+   this renderer is least reliable about: children of a `pointer-events: none` root are already
+   documented as unreliable receivers here, and giving the root no box of its own invites the
+   hit test to skip the subtree entirely. The game's own overlay layer
+   (`HangarScreen_hangarPage`) is exactly this shape — full size, transparent to input, with
+   children opting back in — so it is the shape known to work. */
+.zanju-ct-root {
+    position: fixed;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+    /* Where everything in this mod sits against other mods' overlays. It has to be here rather
+       than on the hover card: `position: fixed` makes this a stacking context on its own, so
+       nothing inside can rise above what the root sits under. Above directives-helper's 900 --
+       the reference doc keeps the register. */
+    z-index: 1000;
+}
+
+/* Ordering WITHIN the root, which is a separate question from the number above: the banners are
+   siblings, so without this the next banner along paints over the card of the one before it.
+   Lifting the whole banner rather than just its card keeps the two together, so the card never
+   appears to detach from the banner it belongs to. */
+.zanju-ct-widget:hover {
+    z-index: 1;
+}
+
+/* A fixed-width slot that the banner fills exactly. The width is deliberate rather than left to
+   the content: a banner sized to its own content changes width whenever that content does -- a
+   tally row appearing after a battle, a longer mission id on another tank, a mission going on
+   pause -- and every one of those drags the row with it. Fixing it holds the row still, keeps
+   the banners the same size as each other, and gives the hover card a stable centre to hang off,
+   since the card is placed at 50% of this box.
+
+   Sized to the widest thing a banner carries and no wider: every spare pixel here is spare
+   pixels between the banners. The mission id is short even at its longest (`SPG-13`), and the
+   icon row tops out at 44rem -- two icons, never three, because a stage icon is drawn only
+   when neither pause nor lock is.
+
+   The score row can outgrow this and is left to. `10,000 / 20,000` measures 68rem against the
+   46rem inside these borders, and no font size allowed here brings it under. Fitting it needs
+   a much wider banner or a shorter way of writing the numbers, and both are decisions about
+   the whole row of banners rather than about this rule. */
+.zanju-ct-widget {
+    position: fixed;
+    pointer-events: auto;
+    display: flex;
+    flex-direction: column;
+    width: 58rem;
+    font-size: 15rem;
+    line-height: 1.35em;
+    color: #d7dbe0;
+}
+
+/* The banner: campaign numeral over the mission's short id. Stacked rather than side by side so
+   the widget stays narrow — it sits beside the vehicle name, where horizontal room is what is
+   scarce. It fills its slot rather than sizing to its content, which is what keeps every banner
+   the same size and keeps a content change from moving anything. */
+.zanju-ct-face {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    padding: 3rem 4rem 4rem 4rem;
+    background: rgba(17, 19, 22, 0.9);
+    /* Two units rather than one. The game's own hangar frames are drawn at this weight, and on
+       the diagonals of the point below a single unit is thin enough to alias visibly. */
+    border: 2rem solid rgba(255, 255, 255, 0.13);
+    /* Square, and open at the bottom. The banner this is modelled on is a hard rectangle, and
+       the point below continues its outline rather than starting a second shape. */
+    border-bottom: none;
+    color: #f0f2f5;
+    letter-spacing: 0.02em;
+}
+
+/* The point the banner hangs to. Two layers rather than one: `clip-path` cuts away the
+   element's border along with everything else outside the shape, so an outlined point has to be
+   drawn as a filled shape with a slightly smaller filled shape on top of it. The game's own
+   hangar stylesheet builds its frames the same way.
+   
+   Its own element, and a fixed height, so the point is identical on every banner -- banners in a
+   row differ in height by a row or two, and a point measured as a share of that would come out
+   a different shape on each. Kept off the widget itself, which must never be clipped: the hover
+   card hangs outside the widget's box and would be cut away with it. */
+.zanju-ct-tail {
+    display: block;
+    width: 100%;
+    height: 13rem;
+    background: rgba(255, 255, 255, 0.13);
+    clip-path: polygon(0 0, 100% 0, 50% 100%);
+}
+
+/* Inset on both sides and shorter, which is what leaves the outline showing along the two
+   diagonals. Its top edge stays flush with the sides above it, so the inside of the banner runs
+   into the point with nothing drawn across the join.
+
+   The outline on a slope is thinner than the same inset on an upright edge -- it is measured
+   at a right angle to the edge, and the shallower the slope the less of the inset that is
+   worth. Matching the 2rem sides exactly would need an inset of over 8rem, which would step
+   the interior visibly inwards at the join. Deepening the point instead and cutting the fill
+   back further thickens the outline where the eye actually reads it, at the tip: it now runs
+   from about 0.8rem where it leaves the sides to about 4.5rem at the point. */
+.zanju-ct-tail-fill {
+    display: block;
+    height: 8rem;
+    margin-left: 2rem;
+    margin-right: 2rem;
+    background: rgba(17, 19, 22, 0.9);
+    clip-path: polygon(0 0, 100% 0, 50% 100%);
+}
+
+/* The campaign number, which is how players name these campaigns. */
+.zanju-ct-numeral {
+    display: block;
+    width: 100%;
+    padding-bottom: 2rem;
+    margin-bottom: 3rem;
+    border-bottom: 1rem solid rgba(255, 255, 255, 0.13);
+    font-size: 14rem;
+    text-align: center;
+    color: #9ca4ab;
+}
+
+.zanju-ct-id {
+    display: block;
+    width: 100%;
+    text-align: center;
+    font-weight: 500;
+}
+
+/* A banner with a mission behind it opens that mission's screen, so it says so. A grey banner
+   has nothing to open and keeps the default cursor. */
+.zanju-ct-widget-clickable {
+    cursor: pointer;
+}
+
+.zanju-ct-widget-clickable:hover .zanju-ct-face {
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.zanju-ct-widget-clickable:hover .zanju-ct-tail {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+/* Both number rows hang off their slash, so `0 / 3` and `0 / 20` line up under each other.
+   Equal halves put the slash in the middle of the face whatever the numbers are.
+
+   Stated rather than shared out: `flex: 1` does not zero the basis in this renderer, and the
+   slash drifted by half the difference between the two numbers. See the reference doc.
+
+   19 + 8 + 19 is the 46rem between the banner's borders exactly -- see the separator below.
+   A longer number runs past its half, away from the slash, which keeps the pair centred while
+   it overflows. Blockified because `text-align` on an unblockified flex item does nothing. */
+.zanju-ct-half {
+    display: block;
+    flex: 0 0 19rem;
+    white-space: nowrap;
+}
+
+.zanju-ct-half-left {
+    text-align: right;
+}
+
+.zanju-ct-half-right {
+    text-align: left;
+}
+
+/* The banner's third row, on the missions that count their battles: what is in hand and what
+   it takes. */
+.zanju-ct-tally {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    margin-top: 1rem;
+    font-size: 13rem;
+    line-height: 1.2em;
+}
+
+.zanju-ct-tally-empty {
+    display: none;
+}
+
+.zanju-ct-tally-done,
+.zanju-ct-tally-score,
+.zanju-ct-tally-target {
+    display: block;
+}
+
+/* Stated rather than measured, so the two rows round the same way. Sized from its own glyph
+   the row came to 45.6rem in one row and 45.3rem in the other, and the centring left over
+   rounded differently in each -- which put one row's left number a pixel nearer its slash.
+   Its own font size for the same reason: the glyph is centred in this box. */
+.zanju-ct-tally-sep,
+.zanju-ct-battles-sep {
+    display: block;
+    flex: 0 0 8rem;
+    font-size: 12rem;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.25);
+}
+
+.zanju-ct-tally-done {
+    color: #9ccb68;
+}
+
+/* The running total and what it has to reach. The total leads, so it carries the weight. */
+.zanju-ct-tally-score {
+    color: #f0f2f5;
+}
+
+/* The goal, at the same weight as the battles below it. Both are reference numbers the total
+   is read against, so neither outranks the other. */
+.zanju-ct-tally-target {
+    color: #9ca4ab;
+}
+
+/* The running total, tinted by whether it is keeping up with the battles it is spending. */
+.zanju-ct-tally-ahead {
+    color: #9ccb68;
+}
+
+.zanju-ct-tally-behind {
+    color: #cc6b5a;
+}
+
+/* The banner's fourth row: the battles this mission has spent out of the battles it allows.
+   Its own row rather than a third number beside the score, where it read as another score and
+   pushed the line off the banner as soon as a mission counted in thousands. Quieter and
+   smaller than the score, because it is the allowance the score is being spent out of. */
+.zanju-ct-battles {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    margin-top: 1rem;
+    font-size: 12rem;
+    line-height: 1.2em;
+}
+
+.zanju-ct-battles-empty {
+    display: none;
+}
+
+/* The battles spent are a live value and the allowance is a fixed reference, so they take the
+   two greys the palette gives those jobs -- the same lead-and-reference shape as the score
+   above. The row stays subordinate through its size, not by flattening both numbers. */
+.zanju-ct-battles-used {
+    display: block;
+    color: #d7dbe0;
+}
+
+.zanju-ct-battles-total {
+    display: block;
+    color: #9ca4ab;
+}
+
+
+/* The banner's fifth row: one small icon per state worth flagging. Shares the tally's shape --
+   a centred flex row that disappears entirely when there is nothing to say, rather than holding
+   a line of height open on every banner that has neither. */
+.zanju-ct-flags {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    margin-top: 2rem;
+}
+
+.zanju-ct-flags-empty {
+    display: none;
+}
+
+/* The icons are white with the shape in their alpha channel, so they take the colour of
+   whatever is set here rather than carrying one of their own. Drawn as a background rather
+   than as an <img> so the box keeps its size whatever the file turns out to be. */
+.zanju-ct-flag {
+    display: block;
+    width: 20rem;
+    height: 20rem;
+    margin-left: 1rem;
+    margin-right: 1rem;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
+    opacity: 0.75;
+}
+
+.zanju-ct-flag-paused {
+    background-image: url('coui://gui/gameface/mods/zanju_campaigns/pause.png');
+}
+
+.zanju-ct-flag-locked {
+    background-image: url('coui://gui/gameface/mods/zanju_campaigns/lock.png');
+}
+
+.zanju-ct-flag-improving {
+    background-image: url('coui://gui/gameface/mods/zanju_campaigns/improvement.png');
+}
+
+.zanju-ct-flag-pawned {
+    background-image: url('coui://gui/gameface/mods/zanju_campaigns/order.png');
+}
+
+/* No mission running for this tank: the whole widget drops back to grey. */
+.zanju-ct-widget-idle .zanju-ct-face {
+    background: rgba(17, 19, 22, 0.72);
+    border-color: rgba(255, 255, 255, 0.08);
+    color: #7d848b;
+}
+
+.zanju-ct-widget-idle .zanju-ct-numeral {
+    color: #5e646a;
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+.zanju-ct-widget-idle .zanju-ct-tail {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.zanju-ct-widget-idle .zanju-ct-tail-fill {
+    background: rgba(17, 19, 22, 0.72);
+}
+
+/* The hover card. It sits below the face and outside the widget's own box, so the pointer
+   leaving the face closes it — which is what should happen, since nothing on the card can be
+   clicked. Transparent to input for the same reason: an open card must never swallow the
+   garage's drag-to-rotate. */
+.zanju-ct-card {
+    display: none;
+    pointer-events: none;
+    position: absolute;
+    /* Centred on the banner rather than left-aligned to it: the banner is narrow and sits near
+       the middle of the screen, so hanging the card off one corner would throw it well off to
+       one side of what it describes. */
+    left: 50%;
+    transform: translateX(-50%);
+    top: 100%;
+    margin-top: 4rem;
+    min-width: 300rem;
+    flex-direction: column;
+    padding: 8rem 10rem 10rem 10rem;
+    background: rgba(17, 19, 22, 0.96);
+    border: 1rem solid rgba(255, 255, 255, 0.13);
+    border-radius: 3rem;
+}
+
+.zanju-ct-widget:hover .zanju-ct-card {
+    display: flex;
+}
+
+/* Everything describing the mission itself, divided from what it asks for. The rule belongs to
+   this block rather than to the last line inside it, which is what lets the lines vary -- a
+   card with no mission has no subtitle, most have no note, and the divider stays where it is
+   through all of them. */
+.zanju-ct-card-head {
+    display: flex;
+    flex-direction: column;
+    padding-bottom: 6rem;
+    margin-bottom: 6rem;
+    border-bottom: 1rem solid rgba(255, 255, 255, 0.1);
+}
+
+/* A card with no mission carries nothing under the head, and a rule there would divide the head
+   from nothing. The space goes with the rule: it was there to set the conditions off from the
+   line, and the card's own padding already holds the bottom edge clear. */
+.zanju-ct-card-head-alone {
+    padding-bottom: 0;
+    margin-bottom: 0;
+    border-bottom: none;
+}
+
+/* The operation heads the card but is the quieter of the two: the mission underneath it is
+   what the player came to read, so that one carries the weight. */
+.zanju-ct-card-title {
+    display: block;
+    color: #9ca4ab;
+}
+
+.zanju-ct-card-subtitle {
+    display: block;
+    color: #f0f2f5;
+    font-weight: 500;
+}
+
+/* Set off from the mission name above it, so a warning does not read as part of the name. */
+.zanju-ct-note {
+    display: block;
+    margin-top: 4rem;
+    color: #7d848b;
+}
+
+/* The one note worth interrupting for: a paused mission counts nothing the player plays, so it
+   is the only state on this card they are losing time by not acting on. Yellow and full weight,
+   the attention colour the research progress bar already uses for tooltip text
+   (TOOLTIP_HIGHLIGHT_TEXT_COLOR). */
+.zanju-ct-note-warning {
+    color: #f0cf74;
+    font-weight: 500;
+}
+
+/* The good-news note, in the palette's green and at the weight of the warning above it. It sits
+   where the warnings sit and is drawn instead of them, never with them, so the two colours never
+   argue over one card. */
+.zanju-ct-note-good {
+    color: #9ccb68;
+    font-weight: 500;
+}
+
+.zanju-ct-group {
+    display: block;
+    margin-top: 8rem;
+    margin-bottom: 4rem;
+    color: #9ca4ab;
+    letter-spacing: 0.02em;
+}
+
+/* Divides the secondary group from the primary one above it. Carried by the heading rather
+   than by the group, because the heading is the first thing in it. */
+.zanju-ct-group-split {
+    padding-top: 8rem;
+    border-top: 1rem solid rgba(255, 255, 255, 0.1);
+}
+
+/* The requirement over a group of conditions -- how many battles it must be met in, and how
+   that is going. It belongs to the conditions above it, so nothing divides them. */
+.zanju-ct-attempt {
+    display: block;
+    margin-top: 4rem;
+}
+
+.zanju-ct-attempt-line {
+    display: flex;
+    align-items: center;
+}
+
+.zanju-ct-attempt-text {
+    display: block;
+    flex: 1 1 auto;
+    color: #9ca4ab;
+}
+
+.zanju-ct-attempt-count {
+    display: block;
+    min-width: 56rem;
+    margin-left: 8rem;
+    text-align: right;
+    color: #d7dbe0;
+}
+
+.zanju-ct-attempt-done .zanju-ct-attempt-count {
+    color: #9ccb68;
+}
+
+.zanju-ct-attempt-failed .zanju-ct-attempt-count {
+    color: #cc6b5a;
+}
+
+/* The pace line under a requirement that builds a total: where the total stands against the
+   average the mission asks for, as a percentage of it. 100 is exactly on the average, so the
+   line is coloured either way -- there is no neutral state to leave it grey for. */
+.zanju-ct-pace {
+    display: block;
+    margin-top: 2rem;
+    font-size: 14rem;
+}
+
+.zanju-ct-pace-ahead {
+    color: #9ccb68;
+}
+
+.zanju-ct-pace-behind {
+    color: #cc6b5a;
+}
+
+/* What a click on this banner does, at the foot of the card. One line for each action the
+   mission accepts, with the line for the keys held right now lit and the rest dim. Set off from
+   everything above it: those describe the mission, these describe the banner. */
+.zanju-ct-hints {
+    display: flex;
+    flex-direction: column;
+    margin-top: 8rem;
+    padding-top: 6rem;
+    border-top: 1rem solid rgba(255, 255, 255, 0.1);
+}
+
+/* Blue marks text that tells the player what they can do, rather than what is true -- the
+   colour the research progress bar already gives its own click hints
+   (TOOLTIP_CLICK_HINT_TEXT_COLOR). Dimmed here to the same hue rather than to grey, so the
+   whole block reads as one thing and the lit line reads as the live one within it. It holds a
+   contrast ratio of 4.6 against the card, the floor every other text colour here clears, and
+   the lit line sits far above at 8.2. */
+.zanju-ct-hint {
+    display: block;
+    font-size: 13rem;
+    color: #5b83a0;
+}
+
+/* The action the click would take right now. Full strength, and still blue: green and red
+   already mean ahead and behind on this card, and this is neither. */
+.zanju-ct-hint-active {
+    color: #5fb2f2;
+}
+
+/* Which vehicles a mission still wants, and which are already spent on it. Set off from the
+   conditions above it: it governs the tank you take out, not what you do in the battle. */
+.zanju-ct-vehicles {
+    display: block;
+    margin-top: 8rem;
+    padding-top: 6rem;
+    border-top: 1rem solid rgba(255, 255, 255, 0.1);
+}
+
+/* A heading, so it takes the heading grey -- the same one the condition groups carry. It sat a
+   step lower before, which put it at the exact weight of a condition already met. */
+.zanju-ct-locked-label {
+    display: block;
+    margin-top: 3rem;
+    color: #9ca4ab;
+}
+
+.zanju-ct-locked-row {
+    display: flex;
+    align-items: center;
+    margin-top: 2rem;
+}
+
+/* The same lock the banner shows, so a tank named here and a banner wearing the icon read as one
+   fact rather than two. */
+.zanju-ct-locked-icon {
+    display: block;
+    width: 13rem;
+    height: 13rem;
+    margin-right: 6rem;
+    background-image: url('coui://gui/gameface/mods/zanju_campaigns/lock.png');
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
+    opacity: 0.75;
+}
+
+.zanju-ct-locked-name {
+    display: block;
+    flex: 1 1 auto;
+    color: #9ca4ab;
+}
+
+/* One mark per allowed battle, in the order they were played. */
+.zanju-ct-pips {
+    display: flex;
+    margin-top: 4rem;
+}
+
+.zanju-ct-pip {
+    display: block;
+    width: 14rem;
+    height: 4rem;
+    margin-right: 3rem;
+    border-radius: 2rem;
+    background: rgba(255, 255, 255, 0.16);
+}
+
+.zanju-ct-pip-done {
+    background: #9ccb68;
+}
+
+.zanju-ct-pip-failed {
+    background: #cc6b5a;
+}
+
+.zanju-ct-cond {
+    display: block;
+    padding-bottom: 3rem;
+}
+
+/* The tick, the text and the counter. Its own level under the condition, because the condition
+   can carry a second line under this one and a flex row cannot hold it. */
+.zanju-ct-cond-line {
+    display: flex;
+    align-items: center;
+}
+
+/* The extra rule a condition can carry, which has to hold before the condition counts at all.
+   Indented to the text column, so it reads as part of the condition above it rather than as
+   another condition -- the same indent the "or" separator takes, for the same reason. */
+/* A paragraph, wrapped by the flex row rather than by inline layout. One box per word arrives
+   from `appendWords`, and `flex-wrap` puts the words that do not fit on the next line -- which
+   is what brings a wrapped rule back to the left edge, under the word that introduces it. The
+   game's own formatted text is built exactly this way. */
+.zanju-ct-cond-limit {
+    display: flex;
+    flex-wrap: wrap;
+    margin-left: 18rem;
+    font-size: 13rem;
+}
+
+/* The gap between two words, which a flex row does not draw for us: the space that separated
+   them went with the split. Measured rather than guessed. PFDINMax is the font the document
+   sets, and its space carries an advance of 0.195em. That is 2.5rem at the 13rem this line is
+   set in, and the line's letter spacing supplies the rest of a real gap on its own. Move this
+   with the font size, or the words drift apart again. */
+.zanju-ct-cond-limit-label,
+.zanju-ct-cond-limit-text {
+    display: block;
+    margin-right: 2.5rem;
+}
+
+/* The client leads this line with a word of its own and draws it in orange. Yellow here
+   instead: the palette already carries one attention colour, and a second one this close to it
+   would be two words for one job. */
+.zanju-ct-cond-limit-label {
+    color: #f0cf74;
+}
+
+.zanju-ct-cond-limit-text {
+    color: #9ca4ab;
+}
+
+/* The tick is a box that fills when the condition is done rather than a check glyph: the
+   game's font is not guaranteed to carry one, and a missing glyph renders as an empty box —
+   which reads as exactly the opposite state. */
+.zanju-ct-mark {
+    display: block;
+    min-width: 10rem;
+    width: 10rem;
+    height: 10rem;
+    margin-right: 8rem;
+    border: 1rem solid rgba(255, 255, 255, 0.25);
+    border-radius: 2rem;
+    background: transparent;
+}
+
+.zanju-ct-cond-done .zanju-ct-mark {
+    background: #9ccb68;
+    border-color: #9ccb68;
+}
+
+.zanju-ct-cond-failed .zanju-ct-mark {
+    background: #cc6b5a;
+    border-color: #cc6b5a;
+}
+
+.zanju-ct-cond-text {
+    display: block;
+    flex: 1 1 auto;
+}
+
+/* A met condition keeps the full text colour, and the filled tick alone says it is met. It was
+   dimmed before, which was wrong for what these missions ask. A secondary objective usually has
+   to be met in the same battle as the primary one. A primary already met is therefore a
+   condition to meet again, not one the player is finished with. */
+
+/* Sits between two conditions of an "or" group, indented to the text column so it reads as a
+   break in that list rather than as another condition. It labels the pair, so it takes the
+   heading grey; its small size and wide letter spacing are what keep it from reading as a
+   condition of its own.
+
+   The client writes the word in lower case. Raising it here keeps the case a matter of style
+   and leaves the string the client's, and a script with no upper case is left as it is. */
+.zanju-ct-or {
+    display: block;
+    margin-left: 18rem;
+    padding-bottom: 3rem;
+    font-size: 12rem;
+    text-transform: uppercase;
+    color: #9ca4ab;
+    letter-spacing: 0.06em;
+}
+
+/* The same weight as the requirement counter below it. Both answer "how far along is this",
+   and one of them reading quieter than the other made the mission's own goal look like the
+   lesser number. */
+.zanju-ct-cond-count {
+    display: block;
+    min-width: 56rem;
+    margin-left: 8rem;
+    text-align: right;
+    color: #d7dbe0;
+}

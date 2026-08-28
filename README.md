@@ -9,6 +9,19 @@ Source repository for World of Tanks mods, build tooling, and game-facing techni
 <table>
   <tr>
     <td width="1%">
+      <a href="mods/campaign-tracker/README.md"><b>Zanju's&nbsp;Campaign&nbsp;Tracker</b></a>
+    </td>
+    <td>
+      <a href="https://github.com/przemyslaw-zan/zanju-wot-mods/releases/latest"><img alt="release" src="https://img.shields.io/github/v/release/przemyslaw-zan/zanju-wot-mods?filter=CT%40*&amp;color=green&amp;style=flat"></a>
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2">
+      Garage banners showing the personal mission your tank is on, restoring what the UI rework removed.
+    </td>
+  </tr>
+  <tr>
+    <td width="1%">
       <a href="mods/directives-helper/README.md"><b>Zanju's&nbsp;Directives&nbsp;Helper</b></a>
     </td>
     <td>
@@ -17,7 +30,7 @@ Source repository for World of Tanks mods, build tooling, and game-facing techni
   </tr>
   <tr>
     <td colspan="2">
-      Garage window for fitting directives and warning before auto-resupply spends any resources.
+      Garage window for fitting directives, with a warning before auto-resupply spends your resources.
     </td>
   </tr>
   <tr>
@@ -30,7 +43,7 @@ Source repository for World of Tanks mods, build tooling, and game-facing techni
   </tr>
   <tr>
     <td colspan="2">
-      Shows actual remaining premium account time in the lobby header, with the exact end time in its tooltip.
+      Lobby header display of the exact premium account time you have left.
     </td>
   </tr>
   <tr>
@@ -43,7 +56,7 @@ Source repository for World of Tanks mods, build tooling, and game-facing techni
   </tr>
   <tr>
     <td colspan="2">
-      Hangar progress bar covering research, field modifications, Tier XI upgrades, and elite progress modes.
+      Hangar progress bar covering research, field modifications, Tier XI upgrades, and elite progress.
     </td>
   </tr>
   <tr>
@@ -56,7 +69,7 @@ Source repository for World of Tanks mods, build tooling, and game-facing techni
   </tr>
   <tr>
     <td colspan="2">
-      Strips the fixed shell-spread offset from the reticle of twin-gun vehicles in Salvo Fire mode, so the circle shows dispersion only, like every other vehicle's does.
+      Reticle fix for twin-gun vehicles in Salvo Fire mode, showing true dispersion.
     </td>
   </tr>
 </table>
@@ -76,6 +89,8 @@ Use this path if you want to build `.wotmod` packages yourself without changing 
 - The target WoT version is pinned in `tools/wot_version_manifest.json`
 - Standalone configurator bundles additionally require the pinned companion artifacts fetched into the local ignored cache
 
+Read next:
+
 - [Building From Source](docs/building-from-source.md)
 - [Architecture](docs/architecture.md)
 
@@ -89,6 +104,8 @@ Use this path if you want to change code, add features, or create new mods in th
 - Run `zwm help` to list the available commands
 - Run `zwm lint check` before build or deploy, and `zwm test --all` to run the mods' unit tests
 
+Read next:
+
 - [Developing Mods](docs/developing-mods.md)
 - [Testing](docs/testing.md)
 - [Architecture](docs/architecture.md)
@@ -101,6 +118,8 @@ Use this path if you want to add or update a language for a mod.
 
 - Prerequisites: **Python 3 and Git only** — no Docker or Dev Container (that is only for building packages)
 - Edit `mods/<mod-name>/i18n/<code>.yml`, then run `python3 -m tools.commands.lint i18n` to refresh the coverage table
+
+Read next:
 
 - [Translating](docs/translating.md)
 
