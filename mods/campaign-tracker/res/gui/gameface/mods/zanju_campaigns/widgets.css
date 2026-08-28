@@ -268,7 +268,14 @@
     display: none;
 }
 
-.zanju-ct-battles-used,
+/* The battles spent are a live value and the allowance is a fixed reference, so they take the
+   two greys the palette gives those jobs -- the same lead-and-reference shape as the score
+   above. The row stays subordinate through its size, not by flattening both numbers. */
+.zanju-ct-battles-used {
+    display: block;
+    color: #d7dbe0;
+}
+
 .zanju-ct-battles-total {
     display: block;
     color: #9ca4ab;
