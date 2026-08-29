@@ -3,6 +3,8 @@
 How to put a mod's own interactive HTML widget into the garage, and the traps this
 renderer sets. Verified against WoT **2.3.1.0**.
 
+[Choosing A UI Approach](choosing-a-ui-approach.md) says when to take this route rather than one of the other two.
+
 Sources: the `premium-time` header integration in this repo, and
 [drizzer14/garage-progress-bar](https://github.com/drizzer14/garage-progress-bar), whose
 widget solves the same problems and whose author documented the reasoning in-code.
@@ -152,6 +154,8 @@ Mods in this repository take these, so a new one has somewhere to sit without a 
 | --- | --- | --- |
 | `directives-helper` | window overlay | 900 |
 | `campaign-tracker` | widget root | 1000 |
+
+The number decides nothing outside this document. Every view is a document of its own, and the band it sits in decides which document draws over which. A Scaleform mod view on `WINDOW` therefore covers everything here, whatever number the roots carry. See [Window Layers](ui-and-scaleform.md#window-layers).
 
 Ordering *within* a root is a separate question from the number above. Sibling widgets paint in document order, so a later sibling covers the hover card of an earlier one. Lift the whole widget on `:hover` rather than just its card, or the card appears to detach from the thing it describes.
 

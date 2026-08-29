@@ -12,6 +12,7 @@ Use it when you need import paths, runtime locations, API entry points, or versi
 - [Events And Callbacks](events-and-callbacks.md)
 - [In-Game Settings (ModsSettings API)](in-game-settings.md)
 - [Gun Marker Sizing And Salvo Fire](gun-marker-sizing.md)
+- [Choosing A UI Approach](choosing-a-ui-approach.md)
 - [UI And Scaleform](ui-and-scaleform.md)
 - [Research Progress Bar UI](research-progress-bar-ui.md)
 - [Gameface Mod Widgets](gameface-mod-widgets.md)

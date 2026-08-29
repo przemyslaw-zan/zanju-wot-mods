@@ -1,5 +1,7 @@
 # UI And Scaleform
 
+This page covers the Scaleform route and the layer model both routes share. [Choosing A UI Approach](choosing-a-ui-approach.md) compares it against the other two.
+
 ## Preferred UI Pattern In This Repo
 
 For custom lobby UI, the stable pattern is:
@@ -15,6 +17,51 @@ A plain `Sprite` root is not enough for this load path.
 
 If a mod has `ui/compile_ui.py`, `zwm build` runs it automatically before packaging.
 Generated SWF output belongs in ignored build folders under `ui/build/`.
+
+## Window Layers
+
+Every view the client shows, Scaleform or Gameface, sits in a numbered band. The band alone decides what draws over what. A view is its own document, so a CSS `z-index` inside one view never lifts anything over another view. `WindowLayer` in `frameworks.wulf.gui_constants` holds the bands. The values below come from the client itself, and the third column names what this repository saw in each band.
+
+| Band | Value | Seen there |
+| --- | --- | --- |
+| `UNDEFINED` | 0 | |
+| `ROOT` | 1 | |
+| `HIDDEN_SERVICE_LAYOUT` | 2 | |
+| `MARKER` | 3 | `lobbyVehicleMarkerView` |
+| `VIEW` | 4 | `lobby`, `login` — the main view of the client |
+| `SUB_VIEW` | 5 | `hangar` — the Gameface garage document, and every mod injected into it |
+| `TOP_SUB_VIEW` | 6 | screens the client draws over the garage |
+| `WINDOW` | 7 | native windows, and every third-party mod view in one log: `GUIFlash`, `xfw_injector`, `ModsListButton`, `TomatoGGLobbyUI`, `ExpectedVehicleValueGarage` |
+| `FULLSCREEN_WINDOW` | 8 | |
+| `SYSTEM_MESSAGE` | 9 | |
+| `TOP_WINDOW` | 10 | |
+| `OVERLAY` | 11 | |
+| `IME` | 12 | |
+| `SERVICE_LAYOUT` | 13 | |
+| `TOOLTIP` | 14 | |
+| `CURSOR` | 15 | |
+| `WAITING` | 16 | `waiting` |
+
+To read the table from your own client, take one file out of the scripts package. Load it with the interpreter the client uses:
+
+```bash
+unzip -j res/packages/scripts.pkg scripts/client/frameworks/wulf/gui_constants.pyc
+python2.7 -c "import marshal; f=open('gui_constants.pyc','rb'); f.read(8); c=marshal.load(f); print [(x.co_names, x.co_consts) for x in c.co_consts if getattr(x,'co_name','')=='WindowLayer']"
+```
+
+**A mod view belongs on `WINDOW` or above.** `VIEW` and `SUB_VIEW` belong to the client. A mod view on `VIEW` takes the place of the lobby view. That lobby view owns the container the garage document needs, so the garage container never appears and the client shows an empty garage:
+
+```
+Loading of view WulfPackageLayoutAdapter (key = ViewKey[alias=hangar, ...], layer=5 ...) is requested but the container 5 is still not exist!
+GFxLayerItem name= mono/hangar/main creation on layer= 5 has failed. The layer was not found.
+SFChildInjector: adding view wrapper to container 5 is failed.
+```
+
+Three things follow for stacking against other mods. A mod SWF on `WINDOW` draws above the whole garage document. It therefore covers every Gameface mod widget, and every tooltip those widgets open, whatever `z-index` they carry.
+
+No band below the garage document is open to a mod, so a Scaleform mod view cannot go under a Gameface one. A band also applies to a whole view and not to an element inside it. A tooltip drawn inside a view stays in the band of that view, so a bar on `WINDOW` plus a tooltip over the platoon window needs two views.
+
+`research-progress-bar` names its band in one place, the `ViewSettings` call in `scaleform/hooks.py`. To try another band, change that constant and rebuild. Nothing above `WINDOW` is proven for a mod view: no mod in the log above sits higher than band 7.
 
 ## Window Lifetime
 

@@ -115,7 +115,10 @@ insufficient for that flow or fixing the wrong thing.
 
 ## Research Progress Bar Guardrails
 
-- Fix the garage layering / z-index issue between the mod UI and the filters window; some mod tooltips still render below foreground elements.
+- Garage layering, half settled. The bar sits on `WindowLayer.WINDOW`. That is the lowest band a mod view can take. The bar therefore draws over the Gameface garage document, and over every mod tooltip inside it. `VIEW` and `SUB_VIEW` belong to the client, and a mod view on `VIEW` gives an empty garage. The band table is in [Window Layers](docs/reference/ui-and-scaleform.md#window-layers). Only a rewrite of the bar as a Gameface widget can lower it further.
+  - What remains: our own tooltips draw under native windows such as the platoon window. A band applies to a whole view. So the fix is a second view that holds the tooltip alone, on a high band, fed by the view that owns the bar.
+  - Measure before you build. Does a mod view on `TOP_WINDOW` or `OVERLAY` draw over the platoon window? Does it still get its own clicks, and does it pass clicks to the garage under it? Change the band in the `ViewSettings` call in `scaleform/hooks.py` and rebuild to try one.
+  - Each mod keeps its own tooltip view rather than one shared view. Two mods that ship on their own schedules would need a version contract to share one. Every combination of installed mods has to work.
 - Evaluate whether tank research totals should include the cost of prerequisite modules before a tank unlock.
 - Check which upgrade is actually reachable right now and list all currently missing upgrades.
 - Turn `research-progress-bar` `configVersion` into a real migration hook: add versioned forward migrations, defaults for new keys, and pruning for renamed/removed keys instead of only carrying `configVersion = 1` forward on save.
