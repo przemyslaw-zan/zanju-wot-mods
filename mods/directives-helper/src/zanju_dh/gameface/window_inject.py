@@ -51,9 +51,23 @@ _claimed_class = None
 
 _patched = []
 # Live data models, so a change in the depot or the selected tank can be pushed to whichever
-# hangar views are currently carrying one. Entries are dropped as soon as one stops accepting
-# updates, which is how a torn-down view leaves the list.
+# hangar views are currently carrying one.
+#
+# Entries accumulate, and that is left alone deliberately. Nothing here can tell when a view
+# dies: a torn-down view model accepts updates and ignores them rather than refusing them, so
+# the drop path in `_push` never runs -- measured on EU 2.3.1.3, a session that attached 27
+# models dropped none. Holding them weakly does not help, because the client keeps every model
+# it built for the whole session, so the count climbs either way.
+#
+# The cost is one ignored property set per dead entry, since the payload is built once per
+# refresh whatever this list holds. A weak reference would trade that measured, harmless leak
+# for the risk of a model vanishing while it is still in use, which is silent and much worse.
 _models = []
+
+# Set when a refresh had to be dropped because the account was mid-sync. The items cache tells
+# us when it has finished, and this is what turns that signal into the one refresh that was
+# owed rather than a rebuild on every sync the client runs.
+_pending_refresh = False
 
 # Visibility is the conjunction of three questions, each owned by the module that can answer it:
 # does this mode offer directives at all (loadout_panel), is the garage what the player is
@@ -219,6 +233,19 @@ def _build_payload(logger):
     except Exception:
         logger.exception('Failed to serialise the directives snapshot')
         return '{}'
+
+
+def _initial_payload(logger):
+    """The payload a new window model is created with.
+
+    A window built while the account is mid-sync gets the empty snapshot, which is what the
+    garage looks like at that point anyway. The refresh it owes is recorded here, because no
+    client update has to follow the sync that would otherwise fill the window.
+    """
+    global _pending_refresh
+    if not collector.requesters_synced():
+        _pending_refresh = True
+    return _build_payload(logger)
 
 
 def _is_claimed(model, logger):
@@ -418,9 +445,23 @@ def _find_booster(vehicle, int_cd, logger):
 
 
 def refresh(logger):
-    """Rebuild the snapshot and push it to every live window model."""
+    """Rebuild the snapshot and push it to every live window model.
+
+    A rebuild that lands mid-sync is dropped rather than pushed. The window then keeps the
+    directives it is already showing instead of blanking to the empty snapshot such a read
+    returns, and `_on_items_synced` rebuilds it once the account is whole again.
+    """
+    global _pending_refresh
     if not _models:
         return
+    if not collector.requesters_synced():
+        if not _pending_refresh:
+            # One line per deferral, not per call: several refreshes can arrive inside one
+            # sync. Measured on EU 2.3.1.3, this fires once on every return to the garage.
+            logger.info('Refresh held back until the account finishes syncing')
+        _pending_refresh = True
+        return
+    _pending_refresh = False
     payload = _build_payload(logger)
     _push(lambda model: model.setSnapshot(payload), logger)
 
@@ -435,13 +476,16 @@ def _apply_visibility(logger):
 
 
 def _push(action, logger):
-    """Apply `action` to each live model, forgetting the ones that have been torn down."""
+    """Apply `action` to each model still alive, dropping any that refuses the update."""
     for model in list(_models):
         try:
             action(model)
         except Exception:
-            # A view that has gone away rejects updates; drop it rather than log on a timer.
+            # Not the teardown path: a torn-down view accepts updates and ignores them, so
+            # nothing reaches here when one dies. This covers a model that fails for some
+            # other reason, which has not been seen and is worth a line if it ever is.
             _forget(model)
+            logger.info('Dropped a window model that refused an update (%d live)', len(_models))
 
 
 def _forget(model):
@@ -496,6 +540,18 @@ def _bind_events(logger):
         logger.exception('Failed to subscribe to client updates; the window will not refresh')
 
     try:
+        from helpers import dependency
+        from skeletons.gui.shared import IItemsCache
+        items_cache = dependency.instance(IItemsCache)
+        # The end of a sync is the only signal that the account is readable again, so it is
+        # what a refresh dropped mid-sync waits for.
+        if _on_items_synced not in items_cache.onSyncCompleted:
+            items_cache.onSyncCompleted += _on_items_synced
+            logger.info('Subscribed to items cache syncs')
+    except Exception:
+        logger.exception('Failed to subscribe to items cache syncs')
+
+    try:
         from CurrentVehicle import g_currentVehicle
         if _on_vehicle_changed not in g_currentVehicle.onChanged:
             g_currentVehicle.onChanged += _on_vehicle_changed
@@ -522,6 +578,12 @@ def _unbind_events(logger):
     except Exception:
         pass
     try:
+        from helpers import dependency
+        from skeletons.gui.shared import IItemsCache
+        dependency.instance(IItemsCache).onSyncCompleted -= _on_items_synced
+    except Exception:
+        pass
+    try:
         from CurrentVehicle import g_currentVehicle
         g_currentVehicle.onChanged -= _on_vehicle_changed
     except Exception:
@@ -540,6 +602,14 @@ def _on_vehicle_changed(*args):
     # The new tank may have no directives slot, which hides the window rather than emptying it.
     _apply_visibility(_module_logger)
     refresh(_module_logger)
+
+
+def _on_items_synced(*args):
+    # Only the refresh held back by a sync is picked up here. Every other change already
+    # arrived as a client update, and rebuilding on each sync as well would double the work
+    # for a payload that cannot have changed twice.
+    if _pending_refresh:
+        refresh(_module_logger)
 
 
 def install(logger):
@@ -605,11 +675,12 @@ def _patch(model_class, gf_mod_inject, logger):
                 styles=[str(_STYLE_URL)],
                 modules=[str(_MODULE_URL)],
             )
-            data_model = _WindowDataModel(_build_payload(logger), config.current())
+            data_model = _WindowDataModel(_initial_payload(logger), config.current())
             self._addViewModelProperty(str(_DATA_PROPERTY), data_model)
             _models.append(data_model)
             _bind_events(logger)
-            logger.info('Directives window attached to %s', model_class.__name__)
+            logger.info('Directives window attached to %s (%d live)',
+                        model_class.__name__, len(_models))
         except Exception:
             _claimed_class = None
             logger.exception('Failed to attach the directives window model')
@@ -619,8 +690,9 @@ def _patch(model_class, gf_mod_inject, logger):
 
 
 def uninstall(logger):
-    global _claimed_class
+    global _claimed_class, _pending_refresh
     _claimed_class = None
+    _pending_refresh = False
     _unbind_events(logger)
     loadout_panel.uninstall(logger)
     route_gate.uninstall(logger)

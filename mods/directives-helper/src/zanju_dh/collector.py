@@ -262,8 +262,40 @@ def _skill_gain(item, vehicle):
         return None
 
 
+def requesters_synced():
+    """False while the requesters a directive is built from are still filling.
+
+    Account data lands one requester at a time, and a directive built before the ones it draws
+    on have arrived carries whatever they had not filled in yet. `ItemsRequester` makes the
+    same test before it builds any fitting item, and logs a notice when the test fails, so an
+    early read is both wrong and noisy.
+
+    The set it tests -- inventory, stats, shop, vehicle rotation and recycle bin -- is read
+    from the client itself, so this asks the client's own question rather than a copy of it
+    that a patch can put out of date. Where that set cannot be read, `ItemsRequester.isSynced`
+    answers a wider version of the same question. An unreadable answer counts as synced,
+    because a read that is merely early still beats no read at all.
+    """
+    try:
+        from helpers import dependency
+        from skeletons.gui.shared import IItemsCache
+        items = dependency.instance(IItemsCache).items
+        fitting = getattr(items, '_ItemsRequester__fittingItemRequesters', None)
+        if fitting is not None:
+            return all(requester.isSynced() for requester in fitting)
+        is_synced = getattr(items, 'isSynced', None)
+        return not callable(is_synced) or bool(is_synced())
+    except Exception:
+        return True
+
+
 def _battle_booster_items(logger):
-    """Every battle booster the client knows about, or None without a client."""
+    """Every battle booster the client knows about, or None without a usable client."""
+    if not requesters_synced():
+        # Half of the account is still on its way, so the directives read out of it would
+        # carry empty counts and prices. An empty snapshot is the honest answer until the
+        # sync ends.
+        return None
     try:
         from gui.shared.gui_items import GUI_ITEM_TYPE
         from gui.shared.utils.requesters.ItemsRequester import REQ_CRITERIA

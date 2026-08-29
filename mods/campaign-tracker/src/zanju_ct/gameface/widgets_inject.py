@@ -74,8 +74,15 @@ _claimed_class = None
 
 _patched = []
 # Live data models, so a change of tank or of mission progress can be pushed to whichever
-# hangar views are currently carrying one. Entries are dropped as soon as one stops accepting
-# updates, which is how a torn-down view leaves the list.
+# hangar views are currently carrying one.
+#
+# Entries accumulate, and that is left alone deliberately. Nothing here can tell when a view
+# dies: a torn-down view model accepts updates and ignores them rather than refusing them, so
+# the drop path in `_push` never runs. Holding them weakly does not help either, because the
+# client keeps every model it built for the whole session, so the count climbs either way.
+# Measured on EU 2.3.1.3 across this mod and the sibling directives mod, which shares the
+# pattern. The cost is one ignored property set per dead entry, since the payload is built
+# once per refresh whatever this list holds.
 _models = []
 
 
@@ -266,13 +273,16 @@ def _apply_visibility(logger):
 
 
 def _push(action, logger):
-    """Apply `action` to each live model, forgetting the ones that have been torn down."""
+    """Apply `action` to each model still alive, dropping any that refuses the update."""
     for model in list(_models):
         try:
             action(model)
         except Exception:
-            # A view that has gone away rejects updates; drop it rather than log on a timer.
+            # Not the teardown path: a torn-down view accepts updates and ignores them, so
+            # nothing reaches here when one dies. This covers a model that fails for some
+            # other reason, which has not been seen and is worth a line if it ever is.
             _forget(model)
+            logger.info('Dropped a widgets model that refused an update (%d live)', len(_models))
 
 
 def _forget(model):
@@ -435,7 +445,8 @@ def _patch(model_class, gf_mod_inject, logger):
             data_model = _WidgetsDataModel(_build_payload(logger))
             self._addViewModelProperty(str(_DATA_PROPERTY), data_model)
             _models.append(data_model)
-            logger.info('Campaign widgets attached to %s', model_class.__name__)
+            logger.info('Campaign widgets attached to %s (%d live)',
+                        model_class.__name__, len(_models))
         except Exception:
             _claimed_class = None
             logger.exception('Failed to attach the campaign widgets model')

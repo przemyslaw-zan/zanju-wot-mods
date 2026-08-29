@@ -97,6 +97,31 @@ class EmptySnapshotTest(unittest.TestCase):
         self.assertTrue(logger.exceptions, 'the failure should be reported')
 
 
+class RequestersSyncedTest(unittest.TestCase):
+    """The account arrives requester by requester, and directives read too early are wrong.
+
+    The client itself says so: it logs a notice for every fitting item built while any
+    requester is still syncing. The read waits until the sync is done.
+    """
+
+    def setUp(self):
+        self.original = collector.requesters_synced
+        self.addCleanup(self.restore)
+
+    def restore(self):
+        collector.requesters_synced = self.original
+
+    def test_counts_as_synced_without_a_client(self):
+        # Outside the game the check cannot be made, and False here would stop every read.
+        self.assertTrue(collector.requesters_synced())
+
+    def test_collect_holds_off_while_the_account_syncs(self):
+        logger = SilentLogger()
+        collector.requesters_synced = lambda: False
+        self.assertEqual(collector.collect(logger), collector.empty_snapshot())
+        self.assertEqual(logger.exceptions, [], 'a sync in progress is not a failure')
+
+
 class DescribeTest(unittest.TestCase):
 
     def setUp(self):
