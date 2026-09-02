@@ -2,7 +2,7 @@ from __future__ import print_function, unicode_literals
 
 from gui.Scaleform.framework.managers.loaders import SFViewLoadParams
 
-from ..constants import SCALEFORM_VIEW_ALIAS
+from ..constants import SCALEFORM_VIEW_ALIAS, TOOLTIP_VIEW_ALIAS
 
 
 def _refresh_scaleform_layout(scaleform_view, reason, logger):
@@ -103,7 +103,11 @@ def _request_scaleform_view_load(
 
     try:
         app.loadView(SFViewLoadParams(SCALEFORM_VIEW_ALIAS))
-        logger.info('Requested scaleform garage view load (%s)', reason)
+        # The tooltip is a second view on its own band, loaded with the bar and torn down with
+        # it. Loading it here keeps the two in step: a bar without its tooltip shows nothing on
+        # hover, and a tooltip without a bar has nothing to report one.
+        app.loadView(SFViewLoadParams(TOOLTIP_VIEW_ALIAS))
+        logger.info('Requested scaleform garage and tooltip view load (%s)', reason)
         return True
     except Exception:
         logger.exception('Failed to request scaleform garage view load (%s)', reason)

@@ -4,6 +4,11 @@ This page links to public resources that are useful for coding, debugging, migra
 
 ## Source Repositories And Community Knowledge
 
+- **WoT Modding Guide: https://modding.wot-tools.dev/** — the broadest and most careful public
+  handbook, 79 pages covering lifecycle, hooks, Gameface, BigWorld, packaging and update
+  migration. This repository now defers to it for everything general. Read
+  [The Upstream Modding Guide](reference/upstream-guide.md) first: it lists what to use it for and
+  the three claims that fail against client 2.3.1.3.
 - wgmods.dev modding documentation: https://wgmods.dev/docs/wot/getting-started
   (also at https://github.com/wgmods-dev/wgmods.dev). Beginner-oriented and strongest on the
   areas this repository does not touch: battle-side APIs (`Avatar`, arena), Wwise sound events,

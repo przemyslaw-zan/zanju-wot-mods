@@ -151,7 +151,7 @@ zwm cycle --fresh-log research-progress-bar
 - Keep a thin top-level `mod_*.py` bootstrap in `src/`.
 - Put implementation into a uniquely named internal package.
 - Use explicit relative imports inside the package.
-- Keep user config under `mods/configs/<mod-name>/`.
+- Let each mod create its own config in AppData on first run. Nothing ships as a loose file, so a modpack reinstall cannot wipe it.
 - Treat generated SWF output and release bundles as build artifacts, not source.
 - A mod opts into unit tests by adding `tests/`; `zwm test` discovers them by convention.
 

@@ -17,14 +17,9 @@ from items.vehicles import VehicleDescr, getItemByCompactDescr, getVehicleType
 from items import getTypeOfCompactDescr
 ```
 
-Additional useful imports seen in this repo's WoT-facing code:
-
-```python
-from gui.shared.gui_items.vehicle_equipment import VehicleEquipment
-from gui.shared.money import Money, Currency, DynamicMoney
-from items.vehicles import getItemByCompactDescr, getVehicleType
-from dossiers2.custom.cache import getCache as getDossiersCache
-```
+For how to find a symbol you do not already know, and how much a definition proves on its own,
+read the guide's [source-navigation](https://modding.wot-tools.dev/source-navigation.html) rather
+than growing this list. See [The Upstream Modding Guide](upstream-guide.md).
 
 ## Account And Player State
 
@@ -58,13 +53,14 @@ class MyMod(object):
     itemsCache = dependency.descriptor(IItemsCache)
 ```
 
-That gives access to:
+That gives inventory data, vehicle objects, account stats, unlock state and XP pools. Note that
+`dependency` comes from `helpers`. It is not exported by `frameworks.wulf`, whatever the upstream
+guide's dependency page says — see [The Upstream Modding Guide](upstream-guide.md#dependency-does-not-come-from-frameworkswulf).
 
-- current inventory data
-- vehicle objects
-- account stats
-- unlock state
-- XP pools
+When the cache is trustworthy, and what an empty read means before the first sync, is upstream in
+[account-lobby](https://modding.wot-tools.dev/account-lobby.html) and
+[readiness-matrix](https://modding.wot-tools.dev/readiness-matrix.html). The measured cost of a
+garage-return sync is in [Events And Callbacks](events-and-callbacks.md).
 
 ## Current Vehicle Access
 
@@ -92,6 +88,32 @@ Useful state helpers include:
 - `g_currentVehicle.isLocked()`
 - `g_currentVehicle.isReadyToFight()`
 - `g_currentVehicle.isPostProgressionActive()`
+
+### The Preview Vehicle Carries A Perfect Crew
+
+`g_currentPreviewVehicle` is not the player's tank. It is a copy, and the client rewrites two
+parts of it before showing it (`CurrentVehicle.py`, verified on 2.3.1.3):
+
+```python
+vehicle = self.itemsCache.items.getVehicleCopyByCD(vehicleCD)
+vehicle.crew = vehicle.getPerfectCrew()
+...
+    vehicle.descriptor.removeOptionalDevice(slotID)
+    vehicle.optDevices.installed[slotID] = None
+vehicle.crew = vehicle.getPerfectCrew()
+```
+
+Every seat therefore reads as fully trained, and the optional devices are gone. Anything that
+measures a crew or reads a fitted device gets a confident wrong answer rather than an error:
+
+- `Tankman.crewMemberRealSkillLevel` returns the maximum, so a grant-perk directive computes a
+  gain of `+0%`. See [Directives And Battle Boosters](directives-and-battle-boosters.md).
+- `item.isAffectsOnVehicle(vehicle)` validates equipment directives against mounted optional
+  devices, and the copy has none.
+
+**Rule.** When the compact descriptor names a vehicle the account owns, resolve it through
+`IItemsCache` and treat that inventory `Vehicle` as the authority. Use the preview object only
+when no owned item exists, or when the question really is about the preview.
 
 ## GUI Item Types
 
@@ -130,6 +152,7 @@ vehicles = self.itemsCache.items.getVehicles(
 
 ## Notes
 
-- Treat early-load and transition states as unstable until the target object is confirmed present.
 - Prefer stable item-cache data over deeper runtime internals when both expose the same fact.
-- Guard every assumption around preview vehicle state, missing descriptors, and UI transitions.
+- Readiness order across account, avatar, cache and view is upstream in
+  [readiness-matrix](https://modding.wot-tools.dev/readiness-matrix.html). Identifier scopes, and
+  which of them survives what, are in [state-scope](https://modding.wot-tools.dev/state-scope.html).

@@ -54,6 +54,15 @@ class FakeNode {
         return child;
     }
 
+    removeChild(child) {
+        const at = this.children.indexOf(child);
+        if (at >= 0) {
+            this.children.splice(at, 1);
+            child.parentNode = null;
+        }
+        return child;
+    }
+
     contains(node) {
         if (node === this) {
             return true;

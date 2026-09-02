@@ -19,6 +19,10 @@ first and read the second.
 from __future__ import absolute_import, print_function, unicode_literals
 
 # The garage's own route ends here; anything after it is a screen drawn over the garage.
+# The garage's own route ends at a segment that ENDS WITH this word. Matching the end rather
+# than the whole segment matters: three modes fold their name into the segment instead of
+# prefixing a path of their own, so `funRandomHangar`, `legacyHangar` and `battleRoyaleHangar`
+# are garage roots too. An equality test misses all three and hides the widgets in those garages.
 _HANGAR_SEGMENT = 'hangar'
 # The leaf the state machine gives the garage when it is showing nothing in particular. Routes
 # are reported both with and without it depending on whether the machine is mid-navigation.
@@ -32,26 +36,42 @@ _route = None
 def is_bare_hangar_route(route_path):
     """Whether this route is the garage with nothing layered over it.
 
-    Examples, from a session that opened all three offenders:
+    Examples, all verbatim from the client. Every registered state whose route names a hangar
+    was enumerated from a running client on 2.3.1.3, with all mode extensions loaded, so this
+    list is the shape of the real route space rather than the screens somebody happened to open:
 
         subScope/subLayer/hangar                          -> True
         subScope/subLayer/hangar/{root}                   -> True
         subScope/subLayer/comp7Light/hangar/{root}        -> True   (Onslaught)
+        subScope/subLayer/frontline/hangar/{root}         -> True
+        subScope/subLayer/lastStand/hangar/{root}         -> True
+        subScope/subLayer/funRandomHangar/{root}          -> True   (name folded in)
+        subScope/subLayer/legacyHangar                    -> True   (name folded in)
+        subScope/subLayer/battleRoyale/battleRoyaleHangar -> True   (name folded in)
         subScope/subLayer/hangar/editVehiclePlaylists     -> False
         subScope/subLayer/hangar/loadout/instructions     -> False
-        subScope/subLayer/hangar/loadout/equipment        -> False
+        subScope/subLayer/funRandomHangar/loadout/shells  -> False
 
-    A route with no `hangar` segment at all is not the garage either, so it answers False.
+    A route with no hangar segment at all is not the garage either, so it answers False.
     """
     if not route_path:
         return False
     segments = route_path.split('/')
-    if _HANGAR_SEGMENT not in segments:
+    index = _last_hangar_segment(segments)
+    if index is None:
         return False
-    # The last one: a mode prefix could in principle repeat the word, and it is the deepest
-    # occurrence that the screen hangs off.
-    tail = segments[len(segments) - segments[::-1].index(_HANGAR_SEGMENT):]
+    # The deepest occurrence: the screen hangs off the last hangar segment, not the first.
+    tail = segments[index + 1:]
     return not tail or tail == [_ROOT_LEAF]
+
+
+def _last_hangar_segment(segments):
+    """Index of the deepest segment that names a garage, or None when there is none."""
+    found = None
+    for index, segment in enumerate(segments):
+        if segment.lower().endswith(_HANGAR_SEGMENT):
+            found = index
+    return found
 
 
 def is_visible():

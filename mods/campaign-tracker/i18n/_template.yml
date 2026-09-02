@@ -12,7 +12,7 @@ LABEL_NO_MISSION: ""
 # en: "Mission on pause"
 LABEL_PAUSED: ""
 
-# Hover card
+# Tooltip
 # "Locked" means the vehicle already completed this mission and cannot repeat it.
 # en: "Locked vehicles:"
 LABEL_LOCKED_VEHICLES: ""
@@ -25,7 +25,7 @@ LABEL_PAWNED: ""
 # en: "{percent}% of the target average per battle"
 LABEL_PACE: ""
 
-# Click hints, at the foot of the hover card
+# Click hints, at the foot of the tooltip
 # en: "Click to open the mission"
 LABEL_HINT_OPEN: ""
 # en: "Shift + Click to pause the mission"

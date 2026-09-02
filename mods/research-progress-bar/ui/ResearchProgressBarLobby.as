@@ -1,13 +1,17 @@
 package {
     import flash.display.Bitmap;
+    import flash.display.BlendMode;
+    import flash.display.DisplayObject;
     import flash.display.Shape;
     import flash.display.Sprite;
     import flash.events.Event;
     import flash.events.KeyboardEvent;
     import flash.events.MouseEvent;
+    import flash.geom.ColorTransform;
     import flash.geom.Matrix;
     import flash.text.TextField;
     import flash.utils.Dictionary;
+    import flash.utils.getQualifiedClassName;
     import net.wg.infrastructure.base.AbstractView;
 
     [SWF(width="1920", height="220", frameRate="30", backgroundColor="#000000")]
@@ -53,6 +57,12 @@ package {
         // GFx injects the same-named Python method into this declared slot (the
         // same pattern WG's own meta classes use, e.g. ServerStatsMeta.relogin).
         public var onMarkerClickAction:Function;
+        // Second reverse slot, for the display-tree report below. Declared for the same reason
+        // as the one above: AVM2 classes are sealed, so GFx can only inject into a declared var.
+        public var onDisplayTreeReport:Function;
+        // Third reverse slot: which markers the cursor is over, for the tooltip window Python
+        // owns. See EXTERNAL_TOOLTIP below.
+        public var onTooltipHover:Function;
         // The marker sprite currently under the cursor (for keyboard picking).
         private var _hoveredMarkerDisplay:Sprite = null;
         // The keyboard-pickable entries of the tooltip stack under the cursor, in the
@@ -60,6 +70,15 @@ package {
         // ambiguous, so it is suppressed and 1..N keys drive the choice instead.
         private var _hoveredStackEntries:Array = [];
         private var _context:Object;
+        // Draw the tooltip here, or hand it to Python to draw in a window of its own?
+        //
+        // The bar sits on one window band and its tooltip, drawn inside this SWF, is stuck on
+        // that same band -- a band applies to a whole view, not to an element in it. Handing
+        // the tooltip to Python lets it live in a second view on a higher band, above the
+        // native windows this bar cannot clear. Set false to go back to drawing it here.
+        private static const EXTERNAL_TOOLTIP:Boolean = true;
+        // The last hover reported, so a mouse move that changes nothing sends nothing.
+        private var _lastHoverKey:String = "";
         private var _selectedModeId:String;
         private var _selectedVehicleIntCD:String;
         private var _barX:Number = 0;
@@ -212,7 +231,15 @@ package {
         }
 
         private function onStageMouseLeave(event:Event):void {
-            ResearchProgressBarTooltipView.hideTooltip(tooltipContainer);
+            if (EXTERNAL_TOOLTIP) {
+                // The tooltip belongs to another view, so the only way to take it down is to
+                // tell Python the cursor is over nothing. Hiding the local container would
+                // hide something that was never drawn.
+                reportTooltipHover([], 0, 0);
+            }
+            else {
+                ResearchProgressBarTooltipView.hideTooltip(tooltipContainer);
+            }
             _hoveredStackEntries = [];
         }
 
@@ -233,6 +260,71 @@ package {
             if (!value) {
                 ResearchProgressBarTooltipView.hideTooltip(tooltipContainer);
             }
+        }
+
+        // Diagnostic: describe this view's place in the display tree, so Python can log why the
+        // bar looks different on one window band than on another.
+        //
+        // `concatenatedColorTransform` is the answer on its own: it composes every ancestor's
+        // transform, so if its multipliers are 1 and its offsets 0, nothing in the display tree
+        // is tinting the view and the difference is in how the engine composites the band. The
+        // per-ancestor walk that follows says which ancestor to blame when they are not.
+        public function as_reportDisplayTree():void {
+            if (onDisplayTreeReport == null) {
+                return;
+            }
+            var lines:Array = [];
+            var ct:ColorTransform;
+            try {
+                ct = this.transform.concatenatedColorTransform;
+                lines.push("concatenated: mult=" + fmt(ct.redMultiplier) + "," + fmt(ct.greenMultiplier)
+                    + "," + fmt(ct.blueMultiplier) + "," + fmt(ct.alphaMultiplier)
+                    + " offset=" + ct.redOffset + "," + ct.greenOffset + "," + ct.blueOffset
+                    + "," + ct.alphaOffset);
+            } catch (ctError:Error) {
+                lines.push("concatenated: unreadable (" + ctError.message + ")");
+            }
+
+            var node:DisplayObject = this as DisplayObject;
+            var depth:int = 0;
+            while (node != null && depth < 24) {
+                lines.push(describeNode(node, depth));
+                try {
+                    node = node.parent;
+                } catch (parentError:Error) {
+                    break;
+                }
+                depth++;
+            }
+            onDisplayTreeReport(lines.join(" | "));
+        }
+
+        private static function fmt(value:Number):String {
+            return String(Math.round(value * 1000) / 1000);
+        }
+
+        private static function describeNode(node:DisplayObject, depth:int):String {
+            var text:String = depth + ":" + getQualifiedClassName(node).split("::").pop();
+            try {
+                text += " alpha=" + fmt(node.alpha) + " visible=" + node.visible;
+                if (node.blendMode != BlendMode.NORMAL) {
+                    text += " blend=" + node.blendMode;
+                }
+                if (node.filters != null && node.filters.length > 0) {
+                    text += " filters=" + node.filters.length;
+                }
+                var own:ColorTransform = node.transform.colorTransform;
+                if (own.redMultiplier != 1 || own.greenMultiplier != 1 || own.blueMultiplier != 1
+                    || own.alphaMultiplier != 1 || own.redOffset != 0 || own.greenOffset != 0
+                    || own.blueOffset != 0 || own.alphaOffset != 0) {
+                    text += " ct=" + fmt(own.redMultiplier) + "," + fmt(own.greenMultiplier) + ","
+                        + fmt(own.blueMultiplier) + "," + fmt(own.alphaMultiplier)
+                        + "/" + own.redOffset + "," + own.greenOffset + "," + own.blueOffset;
+                }
+            } catch (nodeError:Error) {
+                text += " unreadable";
+            }
+            return text;
         }
 
         public function as_refreshLayout():void {
@@ -435,6 +527,10 @@ package {
             // old ones so a key press cannot act on a destroyed marker.
             _hoveredMarkerDisplay = null;
             _hoveredStackEntries = [];
+            // The markers the last hover named are gone, and the ones replacing them can carry
+            // the same indices with different numbers on them. Forget the hover so the next
+            // move sends the tooltip again instead of matching it away as unchanged.
+            _lastHoverKey = "";
         }
 
         private function onMarkerMouseOver(event:MouseEvent):void {
@@ -453,18 +549,71 @@ package {
         // keyboard-pick stack -- so the numbers the tooltip shows and the keys that
         // act always agree (both derive from keyboardStackEntries).
         private function refreshTooltipAndStack(stageX:Number, stageY:Number):void {
-            var entries:Array = ResearchProgressBarTooltipView.refreshAtStagePoint(
-                visible,
-                markersContainer,
-                _markerTooltipDataByDisplay,
-                tooltipContainer,
-                tooltipBackground,
-                tooltipContent,
-                stage,
-                stageX,
-                stageY
-            );
+            var entries:Array;
+            if (EXTERNAL_TOOLTIP) {
+                entries = ResearchProgressBarTooltipView.resolveEntriesAtStagePoint(
+                    visible,
+                    markersContainer,
+                    _markerTooltipDataByDisplay,
+                    stageX,
+                    stageY
+                );
+                reportTooltipHover(entries, stageX, stageY);
+            }
+            else {
+                entries = ResearchProgressBarTooltipView.refreshAtStagePoint(
+                    visible,
+                    markersContainer,
+                    _markerTooltipDataByDisplay,
+                    tooltipContainer,
+                    tooltipBackground,
+                    tooltipContent,
+                    stage,
+                    stageX,
+                    stageY
+                );
+            }
             _hoveredStackEntries = ResearchProgressBarInteractions.keyboardStackEntries(entries);
+        }
+
+        // Tell Python which markers are under the cursor, by the index Python itself put on
+        // each one, plus where the cursor is in stage pixels.
+        private function reportTooltipHover(entries:Array, stageX:Number, stageY:Number):void {
+            var indices:Array = [];
+            var entry:Object;
+            var idx:int;
+            var key:String;
+
+            for (idx = 0; idx < entries.length; idx++) {
+                entry = entries[idx];
+                if (entry != null && entry.marker != null && entry.marker.tooltipIndex !== undefined) {
+                    indices.push(int(entry.marker.tooltipIndex));
+                }
+            }
+            key = indices.join(",");
+            if (key.length == 0) {
+                if (_lastHoverKey.length == 0) {
+                    return;
+                }
+                _lastHoverKey = "";
+                if (onTooltipHover != null) {
+                    onTooltipHover("", 0, 0);
+                }
+                return;
+            }
+            if (key == _lastHoverKey) {
+                return;
+            }
+            // Only a change of stack is sent, not every mouse move: a move across one marker
+            // fires continuously, and each send would cross into Python and redraw every
+            // section of the tooltip to move it a few pixels. The tooltip view follows the
+            // cursor on its own between sends, so what crosses here is content, never
+            // position -- and an overlapping stack still re-renders the moment the cursor
+            // steps onto a different set of markers.
+            _lastHoverKey = key;
+            if (onTooltipHover != null) {
+                onTooltipHover(key, Math.round(stageX), Math.round(stageY));
+            }
         }
 
         // Keyboard picking. Two cases share the number keys:

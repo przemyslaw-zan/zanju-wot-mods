@@ -194,7 +194,9 @@
 /* Opens downward, into the window: the row sits at the top, so a tooltip above it would run
    off over the header. Wraps, unlike the tile tips, because this is a sentence. */
 .zanju-dh-warn-tip {
-    display: none;
+    /* Shown and hidden the same way as `.zanju-dh-tip` above, and for the same reason. */
+    display: flex;
+    visibility: hidden;
     position: absolute;
     right: 0;
     top: 20rem;
@@ -209,7 +211,7 @@
 }
 
 .zanju-dh-warning:hover .zanju-dh-warn-tip {
-    display: block;
+    visibility: visible;
 }
 
 /* The same badge in the title bar, shown only while folded -- then the bar is all there is
@@ -277,6 +279,10 @@
 /* How much of the perk this directive would add, on tiles in the "boost perk to 100%"
    section. Top-right, diagonally opposite the count. */
 .zanju-dh-gain {
+    /* A flex container holding the value in a flex child, which is how the client's own
+       `Counter` component is built and the only shape this renderer lays text out in reliably.
+       See `mark` in window.js. */
+    display: flex;
     position: absolute;
     right: 0;
     top: 0;
@@ -288,9 +294,17 @@
     border-radius: 3rem;
 }
 
+/* The value inside a mark. Text belongs in a flex box, never directly on the positioned box
+   that places it -- see `mark` in window.js. */
+.zanju-dh-mark-value {
+    display: flex;
+}
+
 /* Depot stock, bottom-left. Both numbers carry a backing panel so they stay legible over
    whatever the artwork happens to be behind them. */
 .zanju-dh-badge {
+    /* Built like `.zanju-dh-gain` above. */
+    display: flex;
     position: absolute;
     left: 0;
     bottom: 0;
@@ -302,16 +316,38 @@
     border-radius: 3rem;
 }
 
-/* Name shown only while the cursor is over the tile. Hidden by `display` rather than
-   opacity so it never intercepts anything: a stray visible element would still overlap
-   neighbouring tiles. */
+/* Name shown only while the cursor is over the tile.
+ *
+ * Hidden by `visibility`, which takes it out of hit-testing the way `display: none` did -- a
+ * stray visible element would still overlap neighbouring tiles -- without taking it out of
+ * layout. Toggling `display` on hover made the renderer lay the tile out again, and it puts the
+ * tile back through the same moment of having no geometry that a rebuild does, so pointing at a
+ * tile could break the row for a frame. Being absolutely positioned, the tip costs the grid
+ * nothing by staying laid out.
+ *
+ * `display: flex` is stated for the reason given on `.zanju-dh-gain`: the name is text, and text
+ * lays out reliably here only inside a flex box. */
 .zanju-dh-tip {
-    display: none;
+    display: flex;
+    visibility: hidden;
     position: absolute;
-    left: 50%;
+    /* Centred on the tile without a transform. The box overhangs the tile equally on both sides
+       and the name is centred inside it, which puts the name in the same place `left: 50%` plus
+       `translateX(-50%)` did.
+       The transform is gone on purpose. It is a leftward shift of exactly half the name's width,
+       it applied only while the name was shown, and a leftward shift of the tile's contents
+       while the tile is hovered is the fault this was chased through. Nothing else in this
+       stylesheet asks the renderer for a transform. */
+    left: -110rem;
+    right: -110rem;
+    justify-content: center;
     /* Clears the tile it belongs to (48rem plus its 2rem border). */
     bottom: 52rem;
-    transform: translateX(-50%);
+}
+
+/* The name itself carries the panel, because the box that positions it is now far wider than
+   the name and a background on that would be a slab across three tiles. */
+.zanju-dh-tip .zanju-dh-mark-value {
     padding: 2rem 6rem;
     white-space: nowrap;
     font-size: 15rem;
@@ -322,7 +358,7 @@
 }
 
 .zanju-dh-tile:hover .zanju-dh-tip {
-    display: block;
+    visibility: visible;
 }
 
 .zanju-dh-tile-equipped {

@@ -80,14 +80,41 @@ the class behind that bar. The presenter is alive exactly while the bar is on sc
 groups controller (`_getGroupController._getGroups()`) lists the sections the bar carries. The
 answer is yes when a panel is up and `battleBoosters` is one of its sections.
 
-In client 2.3.1.3 that question no longer separates one mode from another.
-`HangarAmmunitionGroupsController._getGroups()` returns `RANDOM_GROUPS` for every tank once one
-is in the garage, and an empty list before that. This half of the gate therefore reduces to "a
-panel is up and a tank is in it". There is one such controller and one `LoadoutPresenter` in
-the whole client, and no `FUN_RANDOM_GROUPS` or `LAST_STAND_GROUPS` anywhere — but the
-controller still carries a `prbDispatcher` property that nothing reads, which looks like the
-remains of a version that did branch per mode. Reading the panel rather than reproducing its
-decision costs nothing, and keeps the answer right if a later client branches again.
+The modes really do disagree, so this half of the gate carries weight. Each mode ships a
+`LoadoutPresenter` subclass and, in three cases, a groups controller of its own:
+
+| Mode | Presenter | Groups come from |
+| --- | --- | --- |
+| Random, and the default garage | `LoadoutPresenter` | the constant `RANDOM_GROUPS` |
+| Onslaught | `Comp7LoadoutPresenter` | inherited, so `RANDOM_GROUPS` |
+| Onslaught (light) | `Comp7LightLoadoutPresenter` | inherited, so `RANDOM_GROUPS` |
+| Fun Random | `FunRandomLoadoutPresenter` | the active sub-mode's configuration flags |
+| Last Stand | `LastStandLoadoutPresenter` | the player's chosen panel preset |
+| Frontline | `FrontlineLoadoutPresenter` | its own `fl_hangar_ammunition_groups_controller` |
+
+Fun Random is the one that can answer no. It builds the section list per sub-mode, and the
+directives section appears only when that sub-mode allows directives:
+
+```python
+# FunRandomHangarAmmunitionGroupsController._getGroups
+config = self.getDesiredSubMode().getConfigurationModel()
+if config.common.regularBoosters:
+    sections.append(TankSetupConstants.BATTLE_BOOSTERS)
+```
+
+Reading the panel is therefore not tidiness. It is the only thing that keeps the window right in
+Fun Random, and reproducing the decision would mean reproducing five controllers.
+
+Every one of those subclasses lives in a **feature extension package**, not in `scripts.pkg`. An
+earlier version of this page claimed the opposite, that one controller and one presenter existed
+client-wide, because the search stopped at `scripts.pkg`. See
+[Reading The Client's Own Code](reading-the-clients-code.md#scriptspkg-is-not-all-of-the-python).
+
+Battle Royale is the exception the hook does not reach. Its panel is
+`BattleRoyaleLoadoutPresenter(ViewComponent[LoadoutViewModel])`, held by `LoadoutContainerPresenter`,
+and neither one derives from `LoadoutPresenter`. A patch on the base class never fires there, so
+the window stays hidden in the Battle Royale garage. That is the correct outcome, and it arrives
+by accident rather than by decision, which matters if the hook is ever widened.
 
 **Is the garage what the player is actually looking at?** The panel cannot answer this, and
 that is not a flaw in it — opening the playlist editor, the directives screen or the equipment
@@ -102,9 +129,21 @@ which is the client's own record of the current screen:
 | --- | --- |
 | `subScope/subLayer/hangar/{root}` | shown |
 | `subScope/subLayer/comp7Light/hangar/{root}` | shown — Onslaught |
+| `subScope/subLayer/frontline/hangar/{root}` | shown — Frontline |
+| `subScope/subLayer/lastStand/hangar/{root}` | shown — Last Stand |
+| `subScope/subLayer/funRandomHangar/{root}` | shown — Fun Random, name folded into the segment |
+| `subScope/subLayer/legacyHangar` | shown — the legacy garage, name folded in |
 | `subScope/subLayer/hangar/editVehiclePlaylists` | hidden |
 | `subScope/subLayer/hangar/loadout/instructions` | hidden |
 | `subScope/subLayer/hangar/loadout/equipment` | hidden |
+| `subScope/subLayer/funRandomHangar/loadout/shells` | hidden |
+
+The full route space is 58 registered states across six garage roots, enumerated from a running
+client on 2.3.1.3 with every mode loaded. Three of those roots **fold the mode name
+into the segment** rather than prefixing a path: `funRandomHangar`, `legacyHangar` and
+`battleRoyaleHangar`. A suffix test that compares a segment to the word `hangar` misses all
+three, which hid the window in the Fun Random and legacy garages until the probe found it. The
+test now matches a segment that *ends with* `hangar`.
 
 Read as a suffix rather than matched against a list. An allowlist would silently omit every
 mode nobody thought to add, since each one prefixes the route with its own subtree; and the

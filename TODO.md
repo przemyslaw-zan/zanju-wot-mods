@@ -35,6 +35,79 @@ Move `view_claim.py` first. Its copies are already identical, so it needs no gen
 - Accepted consequences: IDE shows unresolved `.localization` imports in callers (cosmetic; flake8 does not resolve imports — verified green); `python.log` tracebacks cite `mods/<pkg>/localization.py`, a path with no matching file under `src/`; one-time modify/delete merge conflicts with any branch still carrying a copy (resolve by taking the delete); future per-mod divergence requires parameterizing the shared file or an explicit opt-out (defer until needed).
 - Verified non-issues: nothing outside the game imports the mod packages (no py3 probes/tests reach into `src/`); deploy ships the built `.wotmod`, untouched.
 
+## Campaign Tracker: Hover Card On Its Own Window Band
+
+Planned, not started. The mod's banners are injected into `mono/hangar/main`, so the card they
+open lives in that document and inherits its window band, `SUB_VIEW` (5). Every native window
+draws over it. The shipped answer is to hide the card while something covers it, which was the
+cheapest of three bad options at the time.
+
+A fourth option is now proven, though its band is not settled. A mod that builds its own Wulf
+window chooses its own band, and a mod-owned Gameface view on `WindowLayer.TOP_WINDOW` (10)
+stayed above the platoon window at all times, with clicking unable to raise the native window
+past it. Band 7 does not do this: it is shared with the platoon window and ordered by activation.
+Band 10 also holds `lobbyMenu`, `settingsWindow` and the client's dialogs. Band 11, above them,
+is reported upstream to stop the second Escape press from closing the menu. Settle the band
+against the native menus, not only against the platoon window. A Python model push reached the
+panel's JavaScript in about 2 ms, three times running, so a card driven across Python is fast
+enough to follow a pointer. See [Choosing A UI Approach](docs/reference/choosing-a-ui-approach.md)
+and [Window Layers](docs/reference/ui-and-scaleform.md#window-layers).
+
+**Shape.** Keep the banners injected, because only an injected widget can measure the anchor
+element they sit beside. Move *only* the card into a standalone view in a mod-owned window. Both
+halves stay the same renderer at the same `rem` scale, so the card's markup and CSS move over
+unchanged. That is the whole reason this beats the Scaleform version, which needed a unit
+conversion at each end.
+
+### Work
+
+- Add `res/mods/configs/res_map/zanju_campaigns.json` with one `Layout` entry for the card
+  document. Shipping it inside the `.wotmod` is enough; OpenWG reads that directory from the
+  game VFS. Changing that file restarts the client once.
+- Split the card out of `widgets.js` and `widgets.css` into its own HTML, CSS and module. The
+  builders move as they are: `renderCard`, `cardTitle`, `cardNotes`, `appendConditions`,
+  `appendGroup`, `buildCondition`, `appendAttempt`, `buildPace`. They are pure DOM, with no tie
+  to the host document.
+- Add the Python side: a view model with hand-written setters, a `ViewImpl`, and a `WindowImpl`
+  on `WindowLayer.TOP_WINDOW`. Call `show(False)` from the window's `_onReady`, not from the
+  view. Resolve the parent through `windowsManager.getMainWindow()` with a bounded retry and a
+  generation token, re-reading the parent on every attempt.
+- Replace the CSS `:hover` channel. The banner reports hover and its anchor rectangle to Python
+  through a view-model command, and Python moves the card window and pushes the card payload.
+- Convert coordinates once, at the Python boundary. The banner reports CSS pixels inside the
+  garage document at the current `viewEnv.getScale()`. `window.move` wants the loaded main
+  window's coordinate space. Do not compare the two directly.
+- Publish the card's real size from the card's own JavaScript with `resizeViewPx`, after two
+  layout frames, then tell Python so it can clamp the position against the screen edge.
+- Push the held modifier keys into the card model as well. `held_keys.py` currently feeds the
+  widgets model, and the card is the consumer of that data.
+- Destroy the card window on lobby teardown, on a route change that hides the widgets, and when
+  the banner subtree goes. One owner, one teardown path.
+- Split the card's tests out of `widgets.test.js` into their own `node --test` file.
+- Delete the hide-while-covered behaviour once the card no longer needs it.
+
+### Risks, worth settling before writing much
+
+- **Variable height against a fixed native surface.** The card's height depends on how many
+  conditions a mission has. A standalone panel is happiest at a fixed size, and measuring an
+  auto-sized panel inside an unsized surface reports the wrapped width rather than the wanted
+  one. Measure after two frames and publish, or pick a fixed size per card shape.
+- **The card window is a hit-test rectangle.** While it is open it blocks clicks and pauses
+  drag-to-rotate over its own area, exactly as a native window does. That is acceptable for a
+  card that shows for a moment, and it is a behaviour change worth seeing before committing.
+- **Hover cannot move onto the card.** The card is a separate native surface, so the banner
+  loses `:hover` as the pointer leaves it. Keep the card informational, or have Python hold it
+  open while the pointer is inside the card's rectangle.
+- **Band 10 is shared with the native menus.** `lobbyMenu`, `ingameMenu`, `settingsWindow` and
+  the client's dialogs all load there, so a card on band 10 ties with them on activation. Band 10
+  also sits above `SYSTEM_MESSAGE` (9), so an open card covers system messages.
+- **Band 11 clears the menus but is reported to break Escape.** The upstream guide says a panel
+  above the lobby menu stops the second Escape press from closing it, and that `show(False)` does
+  not fix that. Untested here. Test the chosen band against the Escape menu, not only against the
+  platoon window.
+- **A second resource-map entry means one more client restart** for existing users on the update
+  that adds it.
+
 ## Testing Backlog
 
 Scaffolding is in place (`zwm test`, `testing/`, see [Testing](docs/testing.md)). `premium-time`
@@ -113,11 +186,31 @@ insufficient for that flow or fixing the wrong thing.
   - Caveat: multiply-tint needs a near-white master; if a specific green/yellow must read deeper than `white × tint` can reach, that one master needs a brightness lift (same as the filter-icon pass).
 - Verifier: `scratchpad/png_probe.py` (pure-Python PNG decoder, no PIL) reports per-variant alpha match / hue / peak and samples dash peak RGB — rerun it if the assets change before wiring.
 
+## Research Progress Bar: Is A Gameface Bar Worth It?
+
+Open question, not started. The bar sits on `WindowLayer.WINDOW` (7) and draws over the x5 counter mod. To get under that counter costs either the dimming of band 3 or a rewrite of the bar as a Gameface view. Two cheap measurements decide it. Take both before you write any Gameface code.
+
+Context: no band below 7 works for a Scaleform mod view. `MARKER` (3) draws under the garage document, but that band composites with the scene, so the whole view goes dim. `VIEW` (4) gives an empty garage. `SUB_VIEW` (5) is the garage document.
+
+`TOP_SUB_VIEW` (6) belongs to the legacy Scaleform lobby. A view there makes the legacy page call `setRequiresOldStyle`. The lobby header then gains a background, and the container pushes the view down the screen. See [Window Layers](docs/reference/ui-and-scaleform.md#window-layers).
+
+**Measurement 1: does a Gameface view escape the legacy chrome on band 6?** The claim is that `OLD_STYLE_VIEW` triggers the chrome, and that a Wulf view lacks that flag. That is an inference from the name of a constant. The legacy lobby SWF makes the decision, and we did not decompile it. The trigger could instead be an occupied sub-view container.
+
+Test this without a rewrite. The campaign tracker card is already a working standalone Gameface window. Change `_layer()` in `mods/campaign-tracker/src/zanju_ct/gameface/card_window.py` to return `WindowLayer.TOP_SUB_VIEW`. Run `zwm cycle campaign-tracker`, then open the garage and look at the top bar. If the header keeps its transparent hangar style, the inference holds.
+
+**Measurement 2: which band holds the x5 counter?** Nobody knows yet, and the answer decides whether band 6 helps at all. If the counter sits on `SUB_VIEW` (5), no band above it helps, and the rewrite buys nothing.
+
+The mod is `oldskool.x5counter_1.0.1.wotmod`. It ships a standalone Gameface view under the item ID `OldSkoolX5CounterView`, with an empty `extension`, so it is not a hangar injection. The mod also obfuscates its Python with pjorion, behind a zlib and marshal payload, and it mangles the inner names. The file therefore does not give up the band. Dump the Wulf window manager instead. Log the layer and the layout ID of every window.
+
+Our earlier band log named `GUIFlash`, `xfw_injector`, `ModsListButton`, `TomatoGGLobbyUI` and `ExpectedVehicleValueGarage` on band 7. It did not name this counter.
+
+**Cost if both measurements pass.** The bar is the largest ActionScript surface in the repo. A rewrite must carry the embedded fonts, the bitmap masks, the marker hit tests, the keyboard pick stack and the mode buttons. Weigh that against the dimming of band 3, which costs one constant and no new code.
+
 ## Research Progress Bar Guardrails
 
-- Garage layering, half settled. The bar sits on `WindowLayer.WINDOW`. That is the lowest band a mod view can take. The bar therefore draws over the Gameface garage document, and over every mod tooltip inside it. `VIEW` and `SUB_VIEW` belong to the client, and a mod view on `VIEW` gives an empty garage. The band table is in [Window Layers](docs/reference/ui-and-scaleform.md#window-layers). Only a rewrite of the bar as a Gameface widget can lower it further.
-  - What remains: our own tooltips draw under native windows such as the platoon window. A band applies to a whole view. So the fix is a second view that holds the tooltip alone, on a high band, fed by the view that owns the bar.
-  - Measure before you build. Does a mod view on `TOP_WINDOW` or `OVERLAY` draw over the platoon window? Does it still get its own clicks, and does it pass clicks to the garage under it? Change the band in the `ViewSettings` call in `scaleform/hooks.py` and rebuild to try one.
+- Garage layering, settled for now. The bar sits on `WindowLayer.WINDOW` (7). Every band below it charges something, and [Window Layers](docs/reference/ui-and-scaleform.md#window-layers) records the price of each. The bar therefore draws over the Gameface garage document, and over every mod widget inside it. To lower it further needs a Gameface rewrite. Read the section above first.
+  - Done: the tooltip is a second Scaleform view, on `TOP_WINDOW` (10). It draws over the platoon window. `ui/ResearchProgressBarTooltipLobby.as` hosts it. It renders with the same `ResearchProgressBarTooltipContent` the bar used. The bar reports the markers under the cursor, Python resolves them to entries, and the second view draws them. A band applies to a whole view, so only a second view could give the tooltip a band of its own.
+  - The tooltip follows the cursor from inside its own SWF, on `ENTER_FRAME`, and Python hears about a hover only when the set of markers under the cursor changes. Keep that split. A send for every mouse move crosses into Python and redraws every section of the tooltip to move it a few pixels.
   - Each mod keeps its own tooltip view rather than one shared view. Two mods that ship on their own schedules would need a version contract to share one. Every combination of installed mods has to work.
 - Evaluate whether tank research totals should include the cost of prerequisite modules before a tank unlock.
 - Check which upgrade is actually reachable right now and list all currently missing upgrades.

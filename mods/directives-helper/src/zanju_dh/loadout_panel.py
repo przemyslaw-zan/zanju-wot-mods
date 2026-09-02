@@ -12,13 +12,13 @@ tank in the mode, and it is the game's own slot count that differs.
   its lifecycle is the visibility signal. Leaving the garage for another lobby screen tears it
   down; coming back builds a new one.
 * **Offers directives** — the panel is built from `GroupData(groupID, sections)` records, and
-  the directives slot exists precisely when `battleBoosters` is one of those sections. The
-  garage reads them from `HangarAmmunitionGroupsController._getGroups()`, which in client
-  2.3.1.3 answers `RANDOM_GROUPS` for every tank once one is in the garage, and an empty list
-  before that. The panel therefore lists directives in every mode, and this half of the gate
-  currently reduces to "a panel is up and a tank is in it". The class still carries an unused
-  `prbDispatcher` property, which reads as the remains of a version that did branch per mode,
-  so asking the panel keeps the answer right if a later client branches again.
+  the directives slot exists precisely when `battleBoosters` is one of those sections. Each
+  mode ships its own presenter and, in three cases, its own groups controller, so the answer
+  really does differ per mode. Fun Random is the one that can say no: its controller builds the
+  section list from the active sub-mode's configuration, and `battleBoosters` appears only when
+  `config.common.regularBoosters` is set. Last Stand builds from the player's panel preset, and
+  Frontline from a controller of its own. Asking the panel is therefore the only thing keeping
+  this answer right; reproducing it would mean reproducing five controllers.
 
 The alternative — matching the lobby's route against a list of known garage routes — cannot
 do this. Routes are mode-prefixed (`subScope/subLayer/comp7Light/hangar/{root}` rather than
@@ -38,8 +38,11 @@ BATTLE_BOOSTERS_SECTION = 'battleBoosters'
 
 _PRESENTER_MODULE = 'gui.impl.lobby.hangar.presenters.loadout_presenter'
 _PRESENTER_CLASS = 'LoadoutPresenter'
-# Patched on `LoadoutPresenter` itself. Client 2.3.1.3 has no subclass of it, and a
-# mode-specific one added later inherits these hooks unless it overrides them.
+# Patched on `LoadoutPresenter` itself. Onslaught, Onslaught light, Frontline, Last Stand and Fun
+# Random each subclass it from their own extension package, and none of them overrides these
+# three, so one patch covers all five. Battle Royale does not subclass it at all -- its panel is a
+# plain ViewComponent -- so these hooks never fire there and the window stays hidden in that
+# garage, which is the outcome we want.
 _HOOKS = ('_onLoading', '_updateAmmunitionGroupsController', '_finalize')
 
 _patched = []

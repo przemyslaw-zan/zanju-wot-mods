@@ -21,6 +21,8 @@ Useful related data:
 - `stats.multipliedVehicles`
 - `stats.prestigeMilestonesAchieved`
 
+## Vehicle Research Surface
+
 Vehicle-facing XP and unlock properties:
 
 ```python
@@ -33,19 +35,6 @@ vehicle.getUnlockDescrByIntCD(intCD)
 vehicle.getAutoUnlockedItems()
 vehicle.getEliteStatusProgress()
 ```
-
-## Vehicle Research Surface
-
-Useful `Vehicle` properties and methods include:
-
-- `vehicle.xp`
-- `vehicle.dailyXPFactor`
-- `vehicle.isElite`
-- `vehicle.isFullyElite`
-- `vehicle.getUnlocksDescrs()`
-- `vehicle.getUnlockDescrByIntCD(intCD)`
-- `vehicle.getAutoUnlockedItems()`
-- `vehicle.getEliteStatusProgress()`
 
 Module and equipment surfaces commonly used during research/mod-state work:
 
@@ -224,6 +213,11 @@ Exploratory surfaces removed from production code but still worth remembering if
 - broad category-hint probing over arbitrary objects
 - method-probe ladders over step objects
 - `PostProgressionStepItem.getPrice()` during scheduled hangar updates
+
+The write-side flows below have no upstream equivalent. For the general contract they sit inside
+— one in-flight guard per request domain, and why a success response is not a cache confirmation —
+read [automation-processors](https://modding.wot-tools.dev/automation-processors.html). See
+[The Upstream Modding Guide](upstream-guide.md).
 
 ## Safety Notes For This Repo
 

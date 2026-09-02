@@ -124,6 +124,7 @@ def build_scaleform_view_payload(vehicle, data, mode_preferences=None, preferred
             for marker in mode.get('markers') or []:
                 marker['singleProgressRow'] = True
 
+    _stamp_tooltip_indices(modes)
     selected_mode_id = _resolve_selected_mode_id(modes, preferred_mode_id) if modes else None
     return {
         'vehicleLabel': _build_vehicle_label(vehicle, data),
@@ -2464,6 +2465,33 @@ def _make_mode(
         'counterLayout': counter_layout,
         'barFillMode': bar_fill_mode,
     }
+
+
+def _stamp_tooltip_indices(modes):
+    """Give every marker a name that is unique across the whole context.
+
+    The tooltip is drawn by a second view now, on a band of its own, so the bar has
+    to say which markers the cursor is over rather than hand their data back. The index is that
+    name: the bar reads it off the marker it hit, and Python looks the marker up in the context
+    it last sent. Anything derived from the marker's own fields would have to be unique across
+    every kind of marker, which none of them is.
+
+    Numbered across modes rather than within one. Every mode starts its own marker list at zero,
+    so a per-mode index names a different marker in each of them.
+
+    Each marker also carries the XP figures of the mode it belongs to. The tooltip measures a
+    marker's progress against them, and once the markers are flattened for lookup there is
+    nothing left to say which mode a marker came from.
+    """
+    index = 0
+    for mode in modes:
+        combat_xp = mode.get('primaryValue') or 0
+        free_xp = mode.get('secondaryValue') or 0
+        for marker in mode.get('markers') or []:
+            marker['tooltipIndex'] = index
+            marker['tooltipCombatXp'] = combat_xp
+            marker['tooltipFreeXp'] = free_xp
+            index += 1
 
 
 def _build_fractional_fill(base_units, max_units, step_cost, vehicle_xp, total_xp):

@@ -213,6 +213,22 @@ function iconUrl(iconName) {
     return iconName ? "url('R.images.gui.maps.icons.artefact." + iconName + "')" : '';
 }
 
+// A number on a tile, built the way the client builds its own.
+//
+// The client's `Counter` component is an absolutely positioned box whose value sits in a
+// `display: flex` child. It never puts text directly on the box that positions it, and that
+// shape is what stopped the overlays on a tile painting in the wrong place. See "An Overlay
+// That Carries Its Own Text Can Shift Its Siblings" in docs/reference/gameface-mod-widgets.md.
+//
+// Placement is the stylesheet's: `.zanju-dh-gain` pins itself top-right, `.zanju-dh-badge`
+// bottom-left, `.zanju-dh-tip` above the tile.
+function mark(className, text) {
+    const box = el('div', className);
+    box.appendChild(el('div', 'zanju-dh-mark-value', text));
+    return box;
+}
+
+
 function buildTile(directive, texts) {
     // Only directives that fit the selected tank reach this point, so every tile is shown at
     // full strength; the fitted one is outlined, and one the player owns none of is dimmed and
@@ -240,16 +256,16 @@ function buildTile(directive, texts) {
     // Both numbers sit over the icon, in opposite corners so they can never meet however many
     // digits either grows to: the gain top-right, the depot count bottom-left.
     if (typeof directive.gain === 'number' && directive.gain > 0) {
-        tile.appendChild(el('span', 'zanju-dh-gain', '+' + directive.gain + '%'));
+        tile.appendChild(mark('zanju-dh-gain', '+' + directive.gain + '%'));
     }
-    tile.appendChild(el('span', 'zanju-dh-badge', String(directive.count)));
+    tile.appendChild(mark('zanju-dh-badge', String(directive.count)));
     // The name only shows on hover, so a full depot stays a compact grid of icons. An unowned
     // one also says what a click will do, since it is the one tile that does not fit anything.
     let tip = directive.name;
     if (unowned && texts) {
         tip += ' — ' + (buyable ? texts.buyHint : texts.buyUnavailable);
     }
-    tile.appendChild(el('span', 'zanju-dh-tip', tip));
+    tile.appendChild(mark('zanju-dh-tip', tip));
     // Read back by the click handler; the event may land on any child of the tile. Left unset
     // on a tile with nothing to do, which is what makes the click walk up, find no marker and
     // fall through — rather than reaching the fit path with a directive that cannot be fitted.
@@ -315,13 +331,82 @@ function buildShowUnownedRow(snapshot, texts) {
 }
 
 
+function fmtRect(rect) {
+    return Math.round(rect.left) + ',' + Math.round(rect.top)
+        + ' ' + Math.round(rect.width) + 'x' + Math.round(rect.height);
+}
+
+// One line per number that is not on its own tile, so a garbled grid can be read back out of
+// python.log instead of a screenshot. Kept as a standing guard: it is silent when the layout is
+// right, and it is what proved the elements were never the problem. `console.error` is the level that reaches that log;
+// `console.log` does not. Silent when everything is where it should be.
+function reportMisplaced(grids) {
+    if (typeof console === 'undefined' || typeof console.error !== 'function') {
+        return;
+    }
+    for (const grid of grids) {
+        const tiles = grid.children || [];
+        if (typeof grid._zanjuDhExpected === 'number' && tiles.length !== grid._zanjuDhExpected) {
+            console.error('zanju-dh: grid holds ' + tiles.length + ' tiles, built '
+                + grid._zanjuDhExpected + ' -- the previous render was not torn down');
+        }
+        for (let index = 0; index < tiles.length; index += 1) {
+            const tile = tiles[index];
+            if (typeof tile.getBoundingClientRect !== 'function' || !tile.querySelectorAll) {
+                return;
+            }
+            const box = tile.getBoundingClientRect();
+            const marks = tile.querySelectorAll('.zanju-dh-gain, .zanju-dh-badge');
+            for (let mark = 0; mark < marks.length; mark += 1) {
+                const spot = marks[mark].getBoundingClientRect();
+                const inside = spot.left >= box.left - 1 && spot.right <= box.right + 1
+                    && spot.top >= box.top - 1 && spot.bottom <= box.bottom + 1;
+                if (!inside) {
+                    console.error('zanju-dh: ' + marks[mark].className + ' is off tile ' + index
+                        + ' -- tile ' + fmtRect(box) + ', mark ' + fmtRect(spot));
+                }
+            }
+        }
+    }
+}
+
+// The check runs after layout, never in the frame that built the DOM: rectangles read in the
+// same frame describe the layout as it stood before. Two frames is what the campaign tracker
+// card needed for the same reason.
+function scheduleCheck(grids) {
+    if (!grids.length || typeof requestAnimationFrame !== 'function') {
+        return;
+    }
+    requestAnimationFrame(function () {
+        requestAnimationFrame(function () { reportMisplaced(grids); });
+    });
+}
+
+
+// `textContent = ''` is the obvious way to empty a node, and it is what this used to do. It is
+// also one operation the renderer has to interpret, and old text sitting on screen beside the new
+// text -- each cleared only by hovering its own tile -- is what a subtree that was not fully torn
+// down looks like. Removing the children one at a time says the same thing in the most ordinary
+// way there is, and leaves the renderer nothing to interpret.
+function clearChildren(node) {
+    if (typeof node.removeChild !== 'function') {
+        node.textContent = '';
+        return;
+    }
+    while (node.children.length) {
+        node.removeChild(node.children[node.children.length - 1]);
+    }
+}
+
+
 function renderBody(body, snapshot, texts) {
-    body.textContent = '';
+    clearChildren(body);
 
     body.appendChild(buildAutoResupplyRow(snapshot, texts));
     body.appendChild(buildShowUnownedRow(snapshot, texts));
 
     const groups = snapshot.categories || [];
+    const grids = [];
     for (const group of groups) {
         const directives = group.directives || [];
         const heading = el('div', 'zanju-dh-category');
@@ -336,6 +421,10 @@ function renderBody(body, snapshot, texts) {
         }
 
         const grid = el('div', 'zanju-dh-grid');
+        // Recorded so the check can say whether the grid holds the tiles it was given, or is
+        // still carrying tiles from the render before.
+        grid._zanjuDhExpected = directives.length;
+        grids.push(grid);
         for (const directive of directives) {
             grid.appendChild(buildTile(directive, texts));
         }
@@ -349,6 +438,8 @@ function renderBody(body, snapshot, texts) {
         // translated string here could never be the one displayed.
         body.appendChild(el('div', 'zanju-dh-muted', 'Directives unavailable'));
     }
+
+    scheduleCheck(grids);
 }
 
 function applyPosition(root, state) {

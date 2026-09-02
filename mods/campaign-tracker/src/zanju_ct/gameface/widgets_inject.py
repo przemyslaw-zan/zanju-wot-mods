@@ -29,6 +29,7 @@ import logging
 from frameworks.wulf import ViewModel
 
 from .. import collector, held_keys, mission_actions, navigation, route_gate, view_claim
+from . import card_window
 from ..constants import LOGGER_NAME
 from ..localization import get_text as _loc
 
@@ -91,7 +92,10 @@ class _WidgetsDataModel(ViewModel):
 
     def __init__(self, payload):
         self._payload = payload
-        super(_WidgetsDataModel, self).__init__(properties=2, commands=1)
+        # The counts reach the native view model, so they have to match what _initialize
+        # actually adds: three properties, and two commands since the card window took its
+        # hover reports through one of its own.
+        super(_WidgetsDataModel, self).__init__(properties=3, commands=2)
 
     def _initialize(self):
         super(_WidgetsDataModel, self)._initialize()
@@ -111,6 +115,10 @@ class _WidgetsDataModel(ViewModel):
         # view models declare theirs. A wulf command carries exactly one map argument.
         self.missionAction = self._addCommand('missionAction')
         self.missionAction += self.__onMissionAction
+        # The hover card draws in a window of the mod's own, so the banners cannot open it with
+        # CSS any more. They report which one the pointer is on, and where it sits.
+        self.cardHover = self._addCommand('cardHover')
+        self.cardHover += self.__onCardHover
 
     # Indices matching the declaration order in _initialize.
     _SNAPSHOT_INDEX = 0
@@ -126,6 +134,17 @@ class _WidgetsDataModel(ViewModel):
 
     def setHeldKeys(self, text):
         self._setString(self._HELD_KEYS_INDEX, text)
+
+    def __onCardHover(self, *args):
+        """The pointer entered or left a banner. An empty branch means it left."""
+        arg = args[0] if args else None
+        branch = _map_get(arg, 'branch')
+        if not branch:
+            _module_logger.debug('Hover left')
+            card_window.hide(_module_logger)
+            return
+        _module_logger.debug('Hover on %s', branch)
+        _show_card(branch, arg, _module_logger)
 
     def __onMissionAction(self, *args):
         """A banner was clicked. Which action it asks for depends on the keys held with it."""
@@ -258,9 +277,45 @@ def refresh(logger):
     _push(lambda model: model.setSnapshot(payload), logger)
 
 
+def _show_card(branch, arg, logger):
+    """Hand the card window the entry behind one banner, plus where that banner sits.
+
+    The snapshot is rebuilt rather than cached: a hover is a rare event at human speed, and a
+    cached copy would be the one thing on screen that could disagree with the banner above it.
+    """
+    try:
+        snapshot = json.loads(_build_payload(logger))
+    except Exception:
+        logger.exception('Failed to read the snapshot for the hover card')
+        return
+    entry = None
+    for row in snapshot.get('campaigns') or ():
+        if row.get('branch') == branch:
+            entry = row
+            break
+    if entry is None:
+        card_window.hide(logger)
+        return
+    rect = (
+        _int(_map_get(arg, 'x')), _int(_map_get(arg, 'y')),
+        _int(_map_get(arg, 'w')), _int(_map_get(arg, 'h')),
+    )
+    card_window.show(branch, rect, entry, snapshot.get('labels') or {},
+                     held_keys.text(), logger)
+
+
+def _int(value):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 0
+
+
 def _apply_held_keys(logger):
     text = held_keys.text()
     _push(lambda model: model.setHeldKeys(text), logger)
+    # The card draws its own hint lines now, so it needs the keys too.
+    card_window.set_held_keys(text, logger)
 
 
 def _on_held_keys_changed():
@@ -270,6 +325,10 @@ def _on_held_keys_changed():
 def _apply_visibility(logger):
     visible = route_gate.is_visible()
     _push(lambda model: model.setVisible(visible), logger)
+    if not visible:
+        # Leaving the garage does not move the pointer, so no banner reports a leave. Without
+        # this the card would stay on screen over whatever replaced the garage.
+        card_window.hide(logger)
 
 
 def _push(action, logger):
@@ -324,6 +383,10 @@ def _bind_events(logger):
         logger.exception('Failed to subscribe to vehicle changes')
 
     _bind_missions(logger)
+    # Built here rather than at load: the card needs the lobby's main window as its parent, and
+    # that window does not exist until a hangar view is being built. `install` is a no-op once
+    # the window stands, and the window is destroyed on teardown with everything else.
+    card_window.install(logger)
     # The lobby state machine belongs to the lobby app, so it is a different object after every
     # teardown; `install` compares identity and only re-subscribes when it actually changed.
     route_gate.install(logger, _on_route_visibility)
@@ -459,6 +522,7 @@ def uninstall(logger):
     global _claimed_class
     _claimed_class = None
     _unbind_events(logger)
+    card_window.uninstall(logger)
     route_gate.uninstall(logger)
     held_keys.uninstall(logger)
     del _models[:]

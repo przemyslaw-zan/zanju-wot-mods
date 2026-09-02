@@ -1,6 +1,13 @@
 Changelog
 =========
 
+## 1.0.4 (2 September 2026)
+
+- Fixed the window not appearing in non-default garages.
+- Fixed the window emptying its directives while the account is still loading. It keeps what it has, and fills in once the data arrives.
+- Fixed the numbers on a directive icon being drawn outside of the icon.
+- Updated for World of Tanks 2.4.
+
 ## 1.0.3 (25 August 2026)
 
 - The mod now finds and repairs tanks that its earlier versions left unable to enter battle. Only a tank with no directives slot could reach that state, which in practice means tier IV and below. [[#18](https://github.com/przemyslaw-zan/zanju-wot-mods/issues/18)]

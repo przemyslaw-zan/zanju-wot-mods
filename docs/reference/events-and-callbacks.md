@@ -63,22 +63,19 @@ g_clientUpdateManager.addCallbacks({
 g_clientUpdateManager.removeObjectCallbacks(self)
 ```
 
-## Lifecycle Pattern
+## A Listener That Raises Stops The Ones Behind It
 
-Typical mod lifecycle shape:
+`Event.Event` iterates a snapshot, logs a listener failure, and then **re-raises** it. Our handlers
+share these events with the client's own, and subscription order decides who runs first, so an
+exception escaping a mod handler can stop a Wargaming handler that was going to run next. Wrap
+every handler body. `Event.SafeEvent` isolates failures instead, and the two are not
+distinguishable by name — check the type before relying on either.
 
-```python
-class MyMod(object):
-    def init(self):
-        g_playerEvents.onInventoryResync += self.__onInventoryResync
-        g_playerEvents.onStatsResync += self.__onStatsResync
-        self.itemsCache.onSyncCompleted += self.__onSyncCompleted
-
-    def fini(self):
-        self.itemsCache.onSyncCompleted -= self.__onSyncCompleted
-        g_playerEvents.onStatsResync -= self.__onStatsResync
-        g_playerEvents.onInventoryResync -= self.__onInventoryResync
-```
+The full comparison of `Event`, `SafeEvent`, `SynchronousEvent`, `ContextEvent` and the GUI event
+bus is upstream in [event-buses](https://modding.wot-tools.dev/event-buses.html). Subscribe and
+unsubscribe order, handler identity and teardown are in
+[hooks-events](https://modding.wot-tools.dev/hooks-events.html). See
+[The Upstream Modding Guide](upstream-guide.md).
 
 ## Notes
 

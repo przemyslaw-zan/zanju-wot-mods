@@ -1,6 +1,11 @@
 Changelog
 =========
 
+## 1.4.0 (2 September 2026)
+
+- Moved marker tooltips into a Scaleform view of their own, on a higher window layer. They now draw over the game's native windows, such as the platoon window.
+- Updated for World of Tanks 2.4.
+
 ## 1.3.1 (7 August 2026)
 
 - The settings menu's Reset button now always restores the mod's current defaults.

@@ -87,6 +87,50 @@ class BareHangarRouteTest(unittest.TestCase):
         self.assertTrue(
             route_gate.is_bare_hangar_route('subScope/subLayer/comp7Light/hangar/{root}'))
 
+    def test_a_mode_that_folds_its_name_into_the_segment_shows_the_window(self):
+        # Three modes do not prefix a path. They rename the segment, so an equality test on
+        # 'hangar' misses them and the window stays hidden in those garages. Fun Random was
+        # found this way: its state class is even NAMED GeneratedDefaultHangarState.
+        for route in ('subScope/subLayer/funRandomHangar',
+                      'subScope/subLayer/funRandomHangar/{root}',
+                      'subScope/subLayer/legacyHangar',
+                      'subScope/subLayer/battleRoyale/battleRoyaleHangar'):
+            self.assertTrue(route_gate.is_bare_hangar_route(route), route)
+
+    def test_a_screen_over_a_renamed_garage_still_hides_the_window(self):
+        # The renamed segment must not swallow the suffix test along with it.
+        for route in ('subScope/subLayer/funRandomHangar/loadout/shells',
+                      'subScope/subLayer/funRandomHangar/allVehicles',
+                      'subScope/subLayer/funRandomHangar/easyTankEquip'):
+            self.assertFalse(route_gate.is_bare_hangar_route(route), route)
+
+    def test_every_registered_hangar_route_in_the_client(self):
+        """The full route space, not a sample.
+
+        Every registered state whose route names a hangar was enumerated from a running client
+        on 2.3.1.3, with all mode extensions loaded. A garage root is the route itself or
+        the route plus `{root}`; anything deeper is a screen drawn over it.
+        """
+        roots = (
+            'subScope/subLayer/hangar',
+            'subScope/subLayer/comp7/hangar',
+            'subScope/subLayer/comp7Light/hangar',
+            'subScope/subLayer/frontline/hangar',
+            'subScope/subLayer/lastStand/hangar',
+            'subScope/subLayer/funRandomHangar',
+            'subScope/subLayer/legacyHangar',
+            'subScope/subLayer/battleRoyale/battleRoyaleHangar',
+        )
+        screens = ('allVehicles', 'easyTankEquip', 'editVehiclePlaylists', 'loadout',
+                   'loadout/shells', 'loadout/equipment', 'loadout/instructions',
+                   'loadout/consumables', 'loadout/battleAbilities', 'loadout/ls_consumables')
+        for root in roots:
+            self.assertTrue(route_gate.is_bare_hangar_route(root), root)
+            self.assertTrue(route_gate.is_bare_hangar_route(root + '/{root}'), root)
+            for screen in screens:
+                route = root + '/' + screen
+                self.assertFalse(route_gate.is_bare_hangar_route(route), route)
+
     def test_the_playlist_editor_hides_the_window(self):
         self.assertFalse(
             route_gate.is_bare_hangar_route('subScope/subLayer/hangar/editVehiclePlaylists'))

@@ -30,6 +30,23 @@ def parse_args(argv=None):
         help="Path to the compiled SWF output.",
     )
     parser.add_argument(
+        "--tooltip-source-file",
+        default=os.path.join(SCRIPT_DIR, "ResearchProgressBarTooltipLobby.as"),
+        help="Path to the tooltip view's ActionScript entrypoint.",
+    )
+    parser.add_argument(
+        "--tooltip-output-file",
+        default=os.path.join(
+            SCRIPT_DIR,
+            "build",
+            "res",
+            "gui",
+            "flash",
+            "research-progress-bar-tooltip.swf",
+        ),
+        help="Path to the compiled tooltip SWF output.",
+    )
+    parser.add_argument(
         "--api-source-dir",
         default=os.path.join(SCRIPT_DIR, "wot-api"),
         help="Directory containing local ActionScript WoT API mirror sources.",
@@ -122,27 +139,45 @@ def main(argv=None):
         run_cmd_verbose(api_arguments, label="Compiling API SWC")
         print()
 
-    arguments = [
-        mxmlc,
-        "-output",
-        os.path.abspath(args.output_file),
-        "-source-path",
-        source_dir,
-        "-external-library-path+={}".format(os.path.abspath(args.api_swc)),
-        "-static-link-runtime-shared-libraries=true",
-        "-target-player={}".format(args.target_player),
-        "-swf-version={}".format(args.swf_version),
-        "-default-size",
-        "1920",
-        "220",
-        "-default-frame-rate",
-        "30",
-        os.path.abspath(args.source_file),
-    ]
-    if args.quiet:
-        run_cmd(arguments, quiet=True)
-    else:
-        run_cmd_verbose(arguments, label="Compiling lobby SWF")
+    def compile_swf(source_file, output_file, width, height, label):
+        arguments = [
+            mxmlc,
+            "-output",
+            os.path.abspath(output_file),
+            "-source-path",
+            source_dir,
+            "-external-library-path+={}".format(os.path.abspath(args.api_swc)),
+            "-static-link-runtime-shared-libraries=true",
+            "-target-player={}".format(args.target_player),
+            "-swf-version={}".format(args.swf_version),
+            "-default-size",
+            str(width),
+            str(height),
+            "-default-frame-rate",
+            "30",
+            os.path.abspath(source_file),
+        ]
+        if args.quiet:
+            run_cmd(arguments, quiet=True)
+        else:
+            run_cmd_verbose(arguments, label=label)
+
+    compile_swf(args.source_file, args.output_file, 1920, 220, "Compiling lobby SWF")
+
+    # The tooltip is a view of its own so it can sit on its own window band: a band applies to a
+    # whole view, and the bar and its tooltip want different ones. Full-screen, because the
+    # tooltip is placed anywhere the cursor goes and is clamped against the stage.
+    tooltip_output_dir = os.path.dirname(os.path.abspath(args.tooltip_output_file))
+    os.makedirs(tooltip_output_dir, exist_ok=True)
+    if not args.quiet:
+        print()
+    compile_swf(
+        args.tooltip_source_file,
+        args.tooltip_output_file,
+        1920,
+        1080,
+        "Compiling tooltip SWF",
+    )
 
     return 0
 

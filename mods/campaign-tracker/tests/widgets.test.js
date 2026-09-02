@@ -36,6 +36,13 @@ class FakeNode {
         return child;
     }
 
+    // The banners bind hover handlers to report which one the pointer is on. Recorded rather
+    // than dispatched: no test drives a pointer, and a missing method would fail the render.
+    addEventListener(type, handler) {
+        this.listeners = this.listeners || {};
+        this.listeners[type] = handler;
+    }
+
     removeChild(child) {
         this.children = this.children.filter((node) => node !== child);
         child.parentNode = null;
@@ -111,7 +118,14 @@ function clearBody() {
     body.children.slice().forEach((child) => body.removeChild(child));
 }
 
-const widgets = await import('../res/gui/gameface/mods/zanju_campaigns/widgets.js');
+// The three modules under test, merged into one namespace so every assertion below names the
+// function rather than the file it happens to live in. The card moved to its own document when
+// it moved to its own window band; the split is an implementation detail of where it draws.
+const widgets = {
+    ...await import('../res/gui/gameface/mods/zanju_campaigns/common.js'),
+    ...await import('../res/gui/gameface/mods/zanju_campaigns/card.js'),
+    ...await import('../res/gui/gameface/mods/zanju_campaigns/widgets.js'),
+};
 
 // The labels the Python side ships in every snapshot. A fixture, not a copy of `en.yml`: no
 // test compares the two, and nothing here depends on the wording. Assert against `LABELS.x`
@@ -475,26 +489,11 @@ test('the push subscription follows the sub-view when the garage replaces it', (
     }
 });
 
-test('the key poll reads the held keys without waiting on the snapshot', () => {
-    // The regression: the highlight rode the main tick, which stands down to a one-second
-    // backstop once the banners have settled, so a key took up to a second to reach the card.
-    const data = entry({ canPause: true, canReset: true });
-    const widget = widgets.buildWidget(data);
-    widgets.renderWidget(widget, data, LABELS);
-    const lit = () => widget.querySelectorAll('.zanju-ct-hint')
-        .filter((row) => row.className.includes('zanju-ct-hint-active'))
-        .map((row) => row.textContent);
-    assert.deepEqual(lit(), [LABELS.hintOpen]);
-
-    // The key poll runs at its own rate, faster than the snapshot is ever rebuilt.
+test('the key poll runs faster than the snapshot is ever rebuilt', () => {
+    // The regression this guards: the highlight used to ride the main tick, which stands down
+    // to a one-second backstop once the banners have settled, so a key took up to a second to
+    // reach the card.
     assert.ok(widgets.KEY_POLL_INTERVAL_MS < widgets.POLL_INTERVAL_MS);
-    try {
-        widgets.updateKeys('ctrl');
-        widgets.applyHints(widget, { shift: false, ctrl: true });
-        assert.deepEqual(lit(), [LABELS.hintReset]);
-    } finally {
-        widgets.updateKeys('');
-    }
 });
 
 test('the key poll does nothing before the data model has been found', () => {
@@ -513,13 +512,26 @@ test('the banner hangs to a point, drawn as an outline with a fill inside it', (
     assert.ok(tail.querySelector('.zanju-ct-tail-fill'));
 });
 
-test('the point sits outside the face, so it is never clipped with the card', () => {
+test('a banner reports the hover once, however many snapshots reconcile it', () => {
+    // The banners are reconciled rather than rebuilt, so a banner outlives every snapshot after
+    // the first. Binding on each render would stack a second pair of handlers on the same node
+    // and report every hover twice.
+    const data = entry({});
+    const widget = widgets.buildWidget(data);
+    widgets.renderWidget(widget, data, LABELS);
+    const first = widget.listeners.mouseenter;
+    widgets.renderWidget(widget, data, LABELS);
+    assert.equal(widget.listeners.mouseenter, first);
+    assert.ok(typeof widget.listeners.mouseleave === 'function');
+});
+
+test('the banner is a face and a point, and carries no card', () => {
     const widget = widgets.buildWidget(entry({}));
     const order = widget.children.map((node) => node.className);
-    assert.deepEqual(order, ['zanju-ct-face', 'zanju-ct-tail', 'zanju-ct-card']);
-    // The card must stay a direct child of the widget: the widget is never clipped, and a card
-    // inside a clipped element would be cut away at its edge.
-    assert.equal(widget.querySelector('.zanju-ct-card').parentNode, widget);
+    assert.deepEqual(order, ['zanju-ct-face', 'zanju-ct-tail']);
+    // The card draws in a window of the mod's own, so that it can sit above native windows.
+    // A card inside this document could never do that, whatever z-index it carried.
+    assert.equal(widget.querySelector('.zanju-ct-card'), null);
 });
 
 test('only the notes that cost the player battles are drawn as warnings', () => {
@@ -852,44 +864,42 @@ test('the card reads the keys off what Python pushed', () => {
 });
 
 test('the hint line for the keys held is the lit one', () => {
+    // Lighting the hints belongs to the card document now: it is the document that draws them,
+    // and Python pushes the held keys to it. The entry is passed in rather than read off a
+    // wrapper element, because the card is the whole document and has no banner above it.
     const data = entry({ canPause: true, canReset: true });
-    const widget = widgets.buildWidget(data);
-    widgets.renderWidget(widget, data, LABELS);
+    const card = new FakeNode('div');
+    widgets.renderCard(card, data, LABELS);
 
-    const lit = () => widget.querySelectorAll('.zanju-ct-hint')
+    const lit = () => card.querySelectorAll('.zanju-ct-hint')
         .filter((row) => row.className.includes('zanju-ct-hint-active'))
         .map((row) => row.textContent);
 
-    // Rendering with nothing held lights the plain click.
+    widgets.applyHints(card, { shift: false, ctrl: false }, data);
     assert.deepEqual(lit(), [LABELS.hintOpen]);
 
-    widgets.applyHints(widget, { shift: true, ctrl: false });
+    widgets.applyHints(card, { shift: true, ctrl: false }, data);
     assert.deepEqual(lit(), [LABELS.hintPause]);
 
-    widgets.applyHints(widget, { shift: false, ctrl: true });
+    widgets.applyHints(card, { shift: false, ctrl: true }, data);
     assert.deepEqual(lit(), [LABELS.hintReset]);
 
     // Both keys light nothing, which is what says the click will do nothing.
-    widgets.applyHints(widget, { shift: true, ctrl: true });
+    widgets.applyHints(card, { shift: true, ctrl: true }, data);
     assert.deepEqual(lit(), []);
 });
 
 test('a card rebuilt under a held key keeps its highlight', () => {
-    // renderWidget clears the card, so the lit line has to be restored after every render --
-    // a snapshot arrives about once a second, and losing the highlight to one would look like
-    // the key had been let go.
+    // renderCard clears the card, so the lit line has to be restored after every render. The
+    // card is rebuilt whenever the pointer moves to another banner or the snapshot changes,
+    // and losing the highlight to one would look like the key had been let go.
     const data = entry({ canPause: true });
-    const widget = widgets.buildWidget(data);
-    try {
-        widgets.updateKeys('shift');
-        widgets.renderWidget(widget, data, LABELS);
-        const rows = widget.querySelectorAll('.zanju-ct-hint');
-        assert.ok(!rows[0].className.includes('hint-active'));
-        assert.ok(rows[1].className.includes('hint-active'));
-    } finally {
-        // Module-level state, so it has to be put back or it leaks into the tests after this.
-        widgets.updateKeys('');
-    }
+    const card = new FakeNode('div');
+    widgets.renderCard(card, data, LABELS);
+    widgets.applyHints(card, { shift: true, ctrl: false }, data);
+    const rows = card.querySelectorAll('.zanju-ct-hint');
+    assert.ok(!rows[0].className.includes('hint-active'));
+    assert.ok(rows[1].className.includes('hint-active'));
 });
 
 test('the banner takes the pace of the objective it is reporting', () => {

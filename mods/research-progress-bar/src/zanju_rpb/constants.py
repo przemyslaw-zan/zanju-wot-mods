@@ -10,6 +10,11 @@ from ._mod_meta import MOD_ID, MOD_NAME  # noqa: F401
 MOD_CONFIG_DIR_NAME = 'research-progress-bar'
 SCALEFORM_VIEW_ALIAS = 'ResearchProgressBarLobby'
 SCALEFORM_FILE_NAME = 'research-progress-bar-lobby.swf'
+# The tooltip is a view of its own so it can hold its own window band. A band applies to a whole
+# view, not to an element inside it, and the bar and its tooltip want different ones: the bar low
+# enough for other mods' widgets to cover it, the tooltip above the native windows.
+TOOLTIP_VIEW_ALIAS = 'ResearchProgressBarTooltip'
+TOOLTIP_FILE_NAME = 'research-progress-bar-tooltip.swf'
 
 # Marker click action kinds, shared between the Scaleform marker payload
 # (scaleform/modes.py) and the write-side dispatcher (actions.py).

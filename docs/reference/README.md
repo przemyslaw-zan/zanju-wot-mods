@@ -3,8 +3,13 @@
 This section collects practical WoT modding knowledge in a reference-oriented format.
 Use it when you need import paths, runtime locations, API entry points, or version-scoped implementation notes.
 
+These pages hold what we measured or worked out here. For everything general — lifecycle, hooks,
+readiness, identifier scopes, standalone Gameface windows — read the upstream guide instead of a
+paraphrase of it.
+
 ## Reference Pages
 
+- [The Upstream Modding Guide](upstream-guide.md) — what to read there, and the three places it is wrong
 - [Reading The Client's Own Code](reading-the-clients-code.md)
 - [Runtime Layout And Packaging](runtime-layout-and-packaging.md)
 - [Python Runtime And Data Access](python-runtime-and-data-access.md)

@@ -40,23 +40,11 @@ In this client stack, the stable pattern is:
 Do not rely on a package-only entry point.
 Do not use the same name for the bootstrap file and the internal package.
 
-## Runtime Locations
+## Runtime Locations And Build Rules
 
-Common WoT runtime locations are:
-
-- `mods/<game-version>/` for `.wotmod` packages
-- `mods/configs/` for user-editable config
-- `res_mods/<game-version>/` for override-style assets
-- `res_mods/configs/` for some ecosystem tooling
-
-## Build And Staging Rules
-
-- Build and lint run inside the toolchain image (`ghcr.io/przemyslaw-zan/zanju-wot-mods/toolchain`, built from `tools/Dockerfile`); Docker is the only local prerequisite. See [Building From Source](building-from-source.md).
-- `zwm build` compiles Python sources into WoT-ready output.
-- `zwm build` bundles authored localisation files inside the `.wotmod` at `res/mods/<id>/text/*.yml`; no localisation files ship loose alongside the package.
-- Mods do not ship a config file; each self-creates its config in AppData on first run, so settings survive modpack reinstalls.
-- Mods with UI sources can provide `ui/compile_ui.py`; `zwm build` runs it automatically before packaging.
-- Generated SWF output belongs in ignored build folders, not in source control.
+Both live in [Runtime Layout And Packaging](reference/runtime-layout-and-packaging.md), so they
+are not repeated here. `zwm build` is the entry point, and [Building From Source](building-from-source.md)
+covers running it.
 
 ## UI Pattern Used In This Repo
 
@@ -71,8 +59,10 @@ For more detailed UI/runtime notes, see [UI And Scaleform](reference/ui-and-scal
 
 ## Dependency Philosophy
 
-Shared mod APIs should be optional unless the mod truly cannot run without them.
-If a dependency is absent, the mod should degrade gracefully instead of crashing.
+Shared mod APIs should be optional unless the mod truly cannot run without them. If a dependency
+is absent, the mod degrades instead of crashing. How to gate one so a missing package disables
+only the feature that needs it is upstream, in
+[optional-systems](https://modding.wot-tools.dev/optional-systems.html).
 
 ## Related Reading
 

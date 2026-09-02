@@ -2,13 +2,13 @@
 LABEL_NO_MISSION: "Brak misji dla tego pojazdu"
 LABEL_PAUSED: "Misja wstrzymana"
 
-# Hover card
+# Tooltip
 LABEL_LOCKED_VEHICLES: "Zablokowane pojazdy:"
 LABEL_VEHICLE_LOCKED: "Pojazd zablokowany"
 LABEL_PAWNED: "Odzyskiwanie rozkazu"
 LABEL_PACE: "{percent}% docelowej średniej na bitwę"
 
-# Click hints, at the foot of the hover card
+# Click hints, at the foot of the tooltip
 LABEL_HINT_OPEN: "Kliknij, aby otworzyć misję"
 LABEL_HINT_PAUSE: "Shift + kliknij, aby wstrzymać misję"
 LABEL_HINT_RESUME: "Shift + kliknij, aby wznowić misję"

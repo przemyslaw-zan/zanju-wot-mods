@@ -9,6 +9,18 @@ from gui.Scaleform.framework.entities.View import View
 from helpers import dependency
 from skeletons.gui.shared import IItemsCache
 
+from ..constants import TOOLTIP_FILE_NAME, TOOLTIP_VIEW_ALIAS
+
+_logger = logging.getLogger('zanju.researchprogressbar')
+
+# The live tooltip view, or None while it is not loaded. Held here rather than passed around:
+# the bar's hover reports arrive on the bar's view, and the tooltip is a different view entirely.
+_tooltip_view = None
+
+# Set once the display-tree report has been logged for the current view, so a diagnostic that
+# answers the same question every frame does not fill python.log.
+_display_tree_reported = False
+
 _on_scaleform_view_populated = None
 _on_scaleform_view_disposed = None
 _on_lobby_route_log = None
@@ -24,11 +36,91 @@ def _configure_scaleform_runtime_callbacks(on_view_populated, on_view_disposed, 
     _on_scaleform_marker_click = on_marker_click
 
 
+# The marker list of the context the bar was last given, flattened across modes and keyed by the
+# index stamped on each marker. The bar names markers by that index; this is what turns a name
+# back into the data the tooltip renders.
+_tooltip_markers_by_index = {}
+
+
+def _remember_tooltip_context(data):
+    global _tooltip_markers_by_index
+    markers = {}
+    try:
+        for mode in (data or {}).get('modes') or []:
+            for marker in mode.get('markers') or []:
+                key = marker.get('tooltipIndex')
+                if key is not None:
+                    markers[int(key)] = marker
+    except Exception:
+        _logger.exception('Failed to read the context for the tooltip')
+        return
+    _tooltip_markers_by_index = markers
+
+
+def _show_tooltip(indices, cursor_x, cursor_y):
+    """Draw the tooltip for the markers the bar says the cursor is over, or hide it."""
+    view = _tooltip_view
+    if view is None:
+        return
+    entries = []
+    for part in str(indices or '').split(','):
+        part = part.strip()
+        if not part:
+            continue
+        try:
+            marker = _tooltip_markers_by_index.get(int(part))
+        except ValueError:
+            continue
+        if marker is None:
+            continue
+        # The shape the tooltip renderer reads. Built here rather than sent from the bar,
+        # because the bar would be handing back data Python gave it in the first place.
+        entries.append({
+            'marker': marker,
+            'costXp': marker.get('costXp'),
+            'combatXp': marker.get('tooltipCombatXp') or 0,
+            'freeXp': marker.get('tooltipFreeXp') or 0,
+        })
+    if not entries:
+        view.as_hideTooltipS()
+        return
+    view.as_showTooltipS(entries, cursor_x, cursor_y)
+
+
+class _ScaleformTooltipView(View):
+    """The tooltip's own view, on a band of its own. It renders; it decides nothing."""
+
+    def as_showTooltipS(self, entries, cursor_x, cursor_y):
+        if self._isDAAPIInited():
+            return self.flashObject.as_showTooltip(entries, cursor_x, cursor_y)
+        return None
+
+    def as_hideTooltipS(self):
+        if self._isDAAPIInited():
+            return self.flashObject.as_hideTooltip()
+        return None
+
+    def _populate(self):
+        global _tooltip_view
+        super(_ScaleformTooltipView, self)._populate()
+        _tooltip_view = self
+        _logger.info('Tooltip view populated on layer %s', TOOLTIP_LAYER)
+
+    def _dispose(self):
+        global _tooltip_view
+        if _tooltip_view is self:
+            _tooltip_view = None
+        super(_ScaleformTooltipView, self)._dispose()
+
+
 class _ScaleformGarageView(View):
     def as_setContextS(self, data):
-        if self._isDAAPIInited():
-            return self.flashObject.as_setContext(data)
-        return None
+        if not self._isDAAPIInited():
+            return None
+        # The tooltip resolves a hover against the same context the bar renders, so it is kept
+        # here rather than rebuilt: the two must never describe a marker differently.
+        _remember_tooltip_context(data)
+        return self.flashObject.as_setContext(data)
 
     def as_getSelectedModeIdS(self):
         if self._isDAAPIInited():
@@ -36,9 +128,27 @@ class _ScaleformGarageView(View):
         return None
 
     def as_setVisibleS(self, is_visible):
-        if self._isDAAPIInited():
-            return self.flashObject.as_setVisible(is_visible)
-        return None
+        if not self._isDAAPIInited():
+            return None
+        result = self.flashObject.as_setVisible(is_visible)
+        if is_visible:
+            self._report_display_tree_once()
+        return result
+
+    def _report_display_tree_once(self):
+        """Log the view's display tree the first time it is shown.
+
+        Waits for the view to be visible rather than merely populated: the parents that decide
+        how the bar is composited are the ones it is attached to on screen.
+        """
+        global _display_tree_reported
+        if _display_tree_reported:
+            return
+        _display_tree_reported = True
+        try:
+            self.as_reportDisplayTreeS()
+        except Exception:
+            _logger.exception('Failed to request the display-tree report')
 
     def as_pingS(self):
         if self._isDAAPIInited():
@@ -49,6 +159,26 @@ class _ScaleformGarageView(View):
         if self._isDAAPIInited():
             return self.flashObject.as_refreshLayout()
         return None
+
+    def as_reportDisplayTreeS(self):
+        if self._isDAAPIInited():
+            return self.flashObject.as_reportDisplayTree()
+        return None
+
+    def onDisplayTreeReport(self, report):
+        # Reverse DAAPI channel, as onMarkerClickAction below. Answers one question: is the bar
+        # dimmed by something in its own display tree, or by how the engine composites the band
+        # it sits on? A concatenated transform of 1,1,1,1 with zero offsets rules out the tree.
+        _logger.info('Display tree on layer %s: %s', VIEW_LAYER, report)
+
+    def onTooltipHover(self, indices, cursor_x, cursor_y):
+        # Reverse DAAPI channel. The bar says which markers the cursor is over, by the index
+        # Python stamped on each one, and where the cursor is in stage pixels. An empty string
+        # means it left them all.
+        try:
+            _show_tooltip(indices, cursor_x, cursor_y)
+        except Exception:
+            _logger.exception('Failed to update the tooltip view')
 
     def onMarkerClickAction(self, action_kind, action_id, action_extra=None):
         # Reverse DAAPI channel: when _populate binds flashObject.script = self,
@@ -66,6 +196,9 @@ class _ScaleformGarageView(View):
             _on_scaleform_view_populated(self)
 
     def _dispose(self):
+        # A new view gets a fresh report: it may be attached somewhere else.
+        global _display_tree_reported
+        _display_tree_reported = False
         if callable(_on_scaleform_view_disposed):
             _on_scaleform_view_disposed(self)
         super(_ScaleformGarageView, self)._dispose()
@@ -298,6 +431,70 @@ def _stop_scaleform_view_runtime(
     )
 
 
+# The band the bar draws in. This is the only place it is named; change it and rebuild to try
+# another one.
+#
+# `WINDOW` (7) is the ordinary choice for a mod view: above the garage document on band 5, and
+# therefore above every Gameface mod injected into it.
+#
+# `MARKER` (3) is under the garage document instead, which is what puts the bar beneath another
+# mod's tooltip when that tooltip is drawn inside a garage document -- the x5 counter draws in
+# `mono/hangar/header`, for one. The band is not reserved: the client runs `lobbyVehicleMarkerView`
+# there as a Scaleform view and `PetHouseMarkerView` there as a Gameface one.
+#
+# Two things it costs, and the second is the one that decides whether this is usable:
+#
+# * the bar goes under ALL garage UI, not only the tooltip it was meant to duck beneath;
+# * the bar's markers are clickable, and whether a band below a full-screen document still
+#   receives the clicks that document declined is UNVERIFIED. Input passthrough is known to work
+#   within the garage document, at the DOM level, which is a different question.
+#
+# Measured on 2.3.1.3, and no band below `WINDOW` (7) turned out to be usable.
+#
+# `MARKER` (3) draws under the garage document, and the ordering works, but the whole view comes
+# out DIMMED there -- and the dimming is the band, not anything the view does. Sampled pixels put
+# it beyond doubt: the bar's own green (#789E4E) read back as #5A773D, and a marker's green
+# (#9CCB68) read back as #5A773D as well. One overlay drawn over the band cannot do that. Two
+# different source colours landing on the same result means each was blended with something
+# different behind it, so the band composites with the scene rather than over the finished image
+# -- which is what the band is for, since the client puts hangar-space markers on it. It cannot
+# be tuned away either: undoing a blend against an unknown, position-dependent background needs a
+# per-pixel correction, and a view has one colour transform for the whole of it.
+#
+# `TOP_SUB_VIEW` (6) is not dimmed, but it belongs to the legacy Scaleform lobby. A view there
+# goes into the old `LobbyPage` sub-view container, the page sees an old-style view in it and
+# calls `setRequiresOldStyle`, and the legacy header and footer come back -- so the garage grows
+# a top bar with a background, and the container insets its contents below it, which drags the
+# bar down the screen. That is the client's own chrome reacting correctly to what looks to it
+# like a legacy screen, so there is nothing to fix on this end. Suppressing it would mean
+# overriding a flag the crew and customization screens rely on.
+#
+# So `WINDOW` (7) it is. The cost is that the bar draws over other mods' widgets on the same
+# band; the tooltip is what actually needed to move, and it has its own band below.
+VIEW_LAYER = WindowLayer.WINDOW
+
+# The tooltip's band. `TOP_WINDOW` (10) clears the platoon window and everything else on band 7,
+# which is the whole reason the tooltip is a separate view. It is also where `lobbyMenu` and the
+# client's dialogs live, so the tooltip ties with those on activation -- acceptable for something
+# only up while the cursor rests on a marker. `OVERLAY` (11) would sit above the lobby menu and
+# is reported upstream to stop the second Escape press from closing it.
+TOOLTIP_LAYER = WindowLayer.TOP_WINDOW
+
+
+def _register_tooltip_view_settings():
+    """Register the tooltip's view once, on its own band."""
+    g_entitiesFactories.addSettings(
+        ViewSettings(
+            TOOLTIP_VIEW_ALIAS,
+            _ScaleformTooltipView,
+            TOOLTIP_FILE_NAME,
+            TOOLTIP_LAYER,
+            None,
+            ScopeTemplates.GLOBAL_SCOPE,
+        )
+    )
+
+
 def _register_scaleform_view_settings(current_registered, view_alias, view_class, swf_name):
     if current_registered:
         return current_registered
@@ -307,11 +504,12 @@ def _register_scaleform_view_settings(current_registered, view_alias, view_class
             view_alias,
             view_class,
             swf_name,
-            WindowLayer.WINDOW,
+            VIEW_LAYER,
             None,
             ScopeTemplates.GLOBAL_SCOPE,
         )
     )
+    _register_tooltip_view_settings()
     return True
 
 

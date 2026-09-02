@@ -15,6 +15,12 @@ package {
         private static const TOOLTIP_PADDING_BOTTOM:Number = 8;
         private static const TOOLTIP_OFFSET_Y:Number = 15;
 
+        // The tooltip's size as last drawn, kept so the cursor can be followed without
+        // rebuilding the content. One tooltip is on screen at a time in either SWF, so a
+        // single pair of numbers covers it.
+        private static var lastDrawnWidth:Number = NaN;
+        private static var lastDrawnHeight:Number = NaN;
+
         public static function showEntries(
             tooltipContainer:Sprite,
             tooltipBackground:Shape,
@@ -76,6 +82,8 @@ package {
             // Divide stacked sections with a line in the tooltip's own border style.
             drawSectionSeparators(tooltipBackground, separatorYs, tooltipContent.y, tooltipWidth);
 
+            lastDrawnWidth = tooltipWidth;
+            lastDrawnHeight = tooltipHeight;
             tooltipContainer.visible = true;
             positionContainer(tooltipContainer, stageX, stageY, tooltipWidth, tooltipHeight, stageWidth, stageHeight);
         }
@@ -86,9 +94,68 @@ package {
             }
         }
 
-        // Returns the ordered tooltip-stack entries under the point (empty when the
-        // tooltip is hidden), so the host can derive the same keyboard-pick stack the
-        // rendered sections are numbered from.
+        // Move the drawn tooltip to a new cursor point without rebuilding it.
+        //
+        // The content only changes when the set of markers under the cursor changes, but the
+        // tooltip has to follow the cursor every frame in between, and rebuilding it for a
+        // move would redraw every section for nothing. The size is the one measured when the
+        // content was drawn, so the tooltip clamps against the screen edges exactly as it did
+        // on the way in.
+        public static function repositionAtPoint(
+            tooltipContainer:Sprite,
+            localX:Number,
+            localY:Number,
+            localWidthExtent:Number,
+            localHeightExtent:Number
+        ):void {
+            if (tooltipContainer == null || !tooltipContainer.visible) {
+                return;
+            }
+            if (isNaN(lastDrawnWidth) || isNaN(lastDrawnHeight)) {
+                return;
+            }
+
+            positionContainer(
+                tooltipContainer,
+                localX,
+                localY,
+                lastDrawnWidth,
+                lastDrawnHeight,
+                localWidthExtent,
+                localHeightExtent
+            );
+        }
+
+        // The hit test on its own, without drawing anything: the ordered tooltip-stack entries
+        // under the point, empty when there is nothing there.
+        //
+        // Used when the tooltip is drawn by a second view on a band of its own. The bar still
+        // has to resolve what is under the cursor, because the keyboard-pick stack is built
+        // from the same entries the tooltip shows and the two must not disagree.
+        public static function resolveEntriesAtStagePoint(
+            hostVisible:Boolean,
+            markersContainer:Sprite,
+            tooltipDataByDisplay:Dictionary,
+            stageX:Number,
+            stageY:Number
+        ):Array {
+            var localPoint:Point;
+
+            if (!hostVisible || markersContainer == null) {
+                return [];
+            }
+            // The mouse point arrives in global stage pixels; markers live in this view's local
+            // space, which the GFx stage scales by the interface scale. globalToLocal inverts
+            // that whole chain.
+            localPoint = markersContainer.globalToLocal(new Point(stageX, stageY));
+            return resolveEntriesAtLocalPoint(
+                markersContainer,
+                tooltipDataByDisplay,
+                localPoint.x,
+                localPoint.y
+            );
+        }
+
         public static function refreshAtStagePoint(
             hostVisible:Boolean,
             markersContainer:Sprite,
