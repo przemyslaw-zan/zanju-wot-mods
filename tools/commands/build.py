@@ -70,7 +70,7 @@ def compile_py2_to_pyc(py2_exe, src_path, out_pyc_path, dfile):
     its own filename -- which is what a traceback prints. Left out, Python records the path it
     compiled from, so every traceback a mod logs in the game names a directory that exists only
     on the machine that built it. Pass the path inside the .wotmod instead: the game's own
-    bytecode carries a path relative to its package root, and a reader of python.log can find
+    bytecode carries a path relative to its package root, and a reader of game.log can find
     the file that way.
     """
     cmd = [

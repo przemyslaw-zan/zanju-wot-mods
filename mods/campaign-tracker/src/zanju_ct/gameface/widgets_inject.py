@@ -243,7 +243,7 @@ def _log_payload_change(snapshot, logger):
     The banners cannot appear before the client has the mission data, and how long that takes
     is not something this mod controls. Timing it is the only way to tell a slow client from a
     slow mod, so the first build is logged and every later change of the count -- which is what
-    a reader of `python.log` needs to place the banners' arrival against the garage's.
+    a reader of `game.log` needs to place the banners' arrival against the garage's.
     """
     global _last_logged_count
     try:

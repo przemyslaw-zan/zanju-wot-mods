@@ -98,7 +98,7 @@ The Python 2.7 autopep8 path is intentionally conservative. It only applies low-
 5. Close WoT, then run `zwm cycle <mod-name>`.
 6. Restart or relaunch WoT.
 7. Reproduce the scenario.
-8. Inspect `python.log`.
+8. Inspect `game.log`.
 
 ## Useful Commands
 

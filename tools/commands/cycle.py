@@ -16,7 +16,7 @@ Behavior:
 - With --all: cycles all mods under mods/
 - With mod args: cycles only selected mods
 - With --dry-run: runs cleanup in dry-run mode and skips build + deploy
-- With --fresh-log: truncates python.log before cycle (no archive, opt-in)
+- With --fresh-log: truncates game.log before cycle (no archive, opt-in)
 - Close WoT before cycling (no automatic running-process check; in-use files are skipped)
 - The cycle updates files on disk only; WoT must be restarted to load changed
     Python/UI/package assets.
@@ -39,7 +39,10 @@ def fresh_log(dry_run):
     if not game_dir:
         raise RuntimeError("WOT_GAME_DIR is not set (required for --fresh-log).")
 
-    log_path = os.path.join(game_dir, "python.log")
+    # game.log, not python.log: client 2.4.0.0 writes Python logging into game.log and leaves
+    # python.log empty. game.log also appends across launches, so a truncation here is the only
+    # thing separating this cycle's lines from every earlier session's.
+    log_path = os.path.join(game_dir, "game.log")
 
     if dry_run:
         success("Dry-run: fresh log would be created")

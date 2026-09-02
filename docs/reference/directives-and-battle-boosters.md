@@ -122,7 +122,7 @@ screen does not tear the garage down, so the panel underneath stays alive and qu
 goes on reporting that this mode offers directives. What changes is the lobby's visible route,
 which is the client's own record of the current screen:
 `LobbyStateMachine.onVisibleRouteChanged` carries the state that just became visible, and its
-`getStateID()` is the route path — the same string the client writes to `python.log` as
+`getStateID()` is the route path — the same string the client writes to `game.log` as
 "Visible route changed to: …". The window shows when nothing is layered over the garage:
 
 | Route | |
@@ -200,7 +200,7 @@ refills after a battle. On the tanks this hit, both keys hold the tank's *consum
 
 Nothing in the client shows it. `_Equipment.__init__` truncates the parsed list to the tank's
 capacity, which is zero, so the gui item reports nothing fitted and no screen can reach the
-entries. The only marks are in `python.log`, once per rebuild of that tank:
+entries. The only marks are in `game.log`, once per rebuild of that tank:
 
 ```
 WARNING: [gui.shared.gui_items.vehicle_equipment] Length of arguments is not valid,

@@ -25,8 +25,8 @@ A wrong hook target after a client update raises exactly this. Every mod here th
 1. Confirm the active WoT version folder.
 2. Confirm the mod logged its own start line. No line means either a packaging fault or the silent `AttributeError` above.
 3. Reproduce with as few mods enabled as possible.
-4. Capture `python.log`.
-5. Find the first relevant traceback or state transition.
+4. Capture `game.log`, beside `WorldOfTanks.exe`. It **appends across launches**, so read forward from the last `starting on` banner, or start the run with `zwm cycle --fresh-log`.
+5. Find the first relevant traceback or state transition. `[SCRIPT]` lines are Python and carry the logger name, `[UI] [Gameface]` lines are a document's JS console.
 6. Re-enable dependencies one by one if the issue only appears in a modpack.
 
 ## Common Failure Classes
@@ -43,7 +43,7 @@ A wrong hook target after a client update raises exactly this. Every mod here th
 1. deploy the target mod
 2. restart the game
 3. reproduce the scenario once
-4. inspect `python.log`
+4. inspect `game.log`
 5. narrow the failing surface before editing again
 
 ## Where Findings Belong

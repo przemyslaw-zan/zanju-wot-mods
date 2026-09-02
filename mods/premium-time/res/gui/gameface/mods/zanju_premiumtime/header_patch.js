@@ -67,8 +67,8 @@ function newState() {
 }
 
 function log(message) {
-    // console.error, not console.log: the Gameface host does not forward log-level output
-    // to python.log, so anything written with console.log is invisible for debugging.
+    // console.error, not console.log: error-level output reaches game.log, tagged
+    // [UI] [Gameface], and log-level output is untested there.
     // OpenWG's own debug helper (mods/libs/debug.js) writes plain debug output the same way.
     console.error('[zanju.premiumtime] ' + message);
 }

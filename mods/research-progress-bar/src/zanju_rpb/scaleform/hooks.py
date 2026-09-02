@@ -18,7 +18,7 @@ _logger = logging.getLogger('zanju.researchprogressbar')
 _tooltip_view = None
 
 # Set once the display-tree report has been logged for the current view, so a diagnostic that
-# answers the same question every frame does not fill python.log.
+# answers the same question every frame does not fill game.log.
 _display_tree_reported = False
 
 _on_scaleform_view_populated = None

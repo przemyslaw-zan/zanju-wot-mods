@@ -2,7 +2,7 @@
 """Tests for the lobby-route half of the window's visibility.
 
 The routes below are verbatim from a session that opened each offending screen in turn, as
-recorded in `python.log` — the strings are the contract, so they are worth pinning literally
+recorded in `game.log` — the strings are the contract, so they are worth pinning literally
 rather than paraphrasing.
 """
 from __future__ import unicode_literals

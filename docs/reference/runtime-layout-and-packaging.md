@@ -128,7 +128,7 @@ def _callModMethod(mod, methodName, *args, **kwargs):
 The call sits inside the `try`, not only the lookup. An `AttributeError` raised anywhere inside a
 mod's `init()` or `fini()` therefore disappears with **no log line at all**, and the mod reads as
 one that never loaded. A wrong hook target after a client update raises exactly that. Catch it
-inside the mod so it reaches `python.log`. See [Debugging](../debugging.md).
+inside the mod so it reaches `game.log`. See [Debugging](../debugging.md).
 
 ## Release Output
 

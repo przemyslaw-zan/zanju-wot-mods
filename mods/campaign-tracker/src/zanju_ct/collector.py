@@ -24,7 +24,7 @@ STATE_PAUSED = 'paused'
 # vehicle no mission accepts, a campaign switched off, a disabled operation -- all leave the
 # player with the same nothing, and the banner says so once. They are told apart in the log
 # rather than on the card, because a player cannot act on the difference and a reader of
-# python.log chasing a missing banner can.
+# game.log chasing a missing banner can.
 STATE_NO_MATCH = 'nomatch'
 
 
