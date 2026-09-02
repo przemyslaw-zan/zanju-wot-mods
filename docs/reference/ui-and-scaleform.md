@@ -13,6 +13,43 @@ For custom lobby UI, the stable pattern is:
 
 A plain `Sprite` root is not enough for this load path.
 
+### GUIFlash, Considered And Not Adopted
+
+Checked at v0.6.6 on 2 September 2026. [GUIFlash](https://github.com/CH4MPi/GUIFlash) is the
+`gambiter.guiflash` package in the band-7 row of [Window Layers](#window-layers) below, and it
+draws Flash components from Python.
+It is MIT, 62 KB, actively maintained, and most players already have it through a modpack. It is
+still not a dependency this repo wants, for three reasons that are all structural rather than
+matters of taste.
+
+**It has no input.** The whole Flash-to-Python surface is `py_log` and `py_update`. Nothing in the
+API names a click, a hover or a mouse position. Research Progress Bar is interactive throughout:
+marker clicks, held modifiers, hover-driven tooltips, a keyboard pick stack and mode buttons.
+
+**It hardcodes one band.** Its view registers on `WindowLayer.WINDOW`, and every component it
+draws belongs to that one view. A band applies to a whole view, so the bar and its tooltip could
+not sit on different bands, which is the arrangement that puts the tooltip over the platoon
+window.
+
+**It draws primitives.** Panel, Label, Image and Shape. The bar needs embedded fonts, three fills
+masked to disjoint slices, runtime colour transforms on bitmaps, and marker hit regions.
+
+The other mods here are not candidates either. Three are Gameface, and the fourth has no UI.
+
+What it is worth is reading. GUIFlash registers its view with the same call this repo makes:
+
+```python
+g_entitiesFactories.addSettings(ViewSettings(
+    VIEW_ALIAS, Flash_UI, FILE_NAME, WindowLayer.WINDOW, None, ScopeTemplates.GLOBAL_SCOPE))
+```
+
+Same call, same scope, and the same `as_*` and `py_*` convention. So it is independent evidence
+that the pattern at the top of this page is the conventional one, and it is a compact example to
+read when somebody needs to relearn it.
+
+Reopen this only for a readout that needs no input and no band of its own, such as a static text
+or image overlay. Nothing in this repo is that today.
+
 ## Build Hook
 
 If a mod has `ui/compile_ui.py`, `zwm build` runs it automatically before packaging.
