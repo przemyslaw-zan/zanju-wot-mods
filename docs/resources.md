@@ -24,9 +24,10 @@ This page links to public resources that are useful for coding, debugging, migra
 This repository prefers linking to third-party APIs instead of restating their documentation.
 Use the upstream docs or source when an integration depends on them.
 
-- ModsList API: https://gitlab.com/wot-public-mods/mods-list/
-- ModsSettings API (Aslain's fork — bundled by this repo): https://github.com/Aslain/modssettingsapi
+- Mod Menu (bundled by this repo): https://github.com/Aslain/modmenu
+- ModsSettings API (Aslain's fork, replaced by Mod Menu): https://github.com/Aslain/modssettingsapi
 - ModsSettings API (izeberg original): https://bitbucket.org/IzeBerg/modssettingsapi/
+- ModsList API: https://gitlab.com/wot-public-mods/mods-list/
 
 ## Policy And Release Gate
 

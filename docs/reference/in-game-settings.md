@@ -1,12 +1,11 @@
-# In-Game Settings (ModsSettings API)
+# In-Game Settings (Mod Menu)
 
 The repo's convention for exposing a mod's settings in the in-game settings menu.
 
 ## API and import
 
-Settings render through Aslain's fork of the ModsSettings API, under the
-`gui.aslainMenu` namespace. It is bundled as a companion artifact (pinned in
-`tools/companion_artifacts_manifest.json`) and imported directly:
+Settings render in Aslain's Mod Menu, under the `gui.aslainMenu` namespace. It is bundled as a
+companion artifact (pinned in `tools/companion_artifacts_manifest.json`) and imported directly:
 
 ```python
 try:
@@ -15,9 +14,15 @@ except Exception:
     g_modsSettingsApi = None
 ```
 
-The fork stays backward-compatible with izeberg's `g_modsSettingsApi`
+Mod Menu stays backward-compatible with izeberg's `g_modsSettingsApi`
 (`setModTemplate` / `updateModSettings`), so the template is a plain dict — no rewrite
 onto Aslain's `templates.*` helpers is required to integrate.
+
+Mod Menu replaced `aslain.modssettingsapi` and keeps its API, so a mod that reads
+`g_modsSettingsApi` needs no change. The package changed and that part matters. Both ids ship the
+same `gui/aslainMenu` scripts, so a client holding one of each refuses one and raises a dialog
+about it. This repo bundled the old id until 2 September 2026, which broke the install for anyone
+whose modpack had already moved. Two copies of Mod Menu carry one id and load without complaint.
 
 ## Integration shape
 
@@ -38,14 +43,14 @@ api.updateModSettings(mod_id, current_values)
 A mod's settings live in its AppData `config.json` (see
 [Runtime Layout And Packaging](runtime-layout-and-packaging.md)). At startup the template
 is **built from** that config and the values are re-pushed via `updateModSettings`. The
-ModsSettings API keeps its own cached copy, but it is downstream — anything the API resets
+Mod Menu keeps its own cached copy, but it is downstream — anything the API resets
 is re-filled from config on the next launch.
 
 This single fact drives the `settingsVersion` convention below.
 
 ## Do not set `settingsVersion`
 
-`settingsVersion` is an optional integer the ModsSettings API uses to decide whether a
+`settingsVersion` is an optional integer Mod Menu uses to decide whether a
 re-registered template should replace its cached one. **Leave it out.** Verified against
 the fork's `gui.aslainMenu/api.py` (`compareTemplates` / `_settingsStructure`,
 fork ≥ 1.3.2):
@@ -77,7 +82,7 @@ Two unrelated version fields:
 
 - **`configVersion`** — a mod's own AppData `config.json` schema version, for migrating
   the config file's shape over time.
-- **`settingsVersion`** — the ModsSettings API template field described above.
+- **`settingsVersion`** — the Mod Menu template field described above.
 
 Changing one has nothing to do with the other.
 

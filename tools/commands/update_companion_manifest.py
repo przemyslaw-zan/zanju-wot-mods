@@ -23,10 +23,7 @@ from ..core.companion_artifacts import (
 )
 from ..core.console import detail, section, success
 
-_GITHUB_MODSSETTINGSAPI_RELEASE_URL = "https://api.github.com/repos/Aslain/modssettingsapi/releases/latest"
-_GITLAB_MODS_LIST_RELEASE_URL = (
-    "https://gitlab.com/api/v4/projects/wot-public-mods%2Fmods-list/releases/permalink/latest"
-)
+_GITHUB_MODMENU_RELEASE_URL = "https://api.github.com/repos/Aslain/modmenu/releases/latest"
 _GITLAB_OPENWG_GAMEFACE_RELEASE_URL = (
     "https://gitlab.com/api/v4/projects/openwg%2Fwot.gameface/releases/permalink/latest"
 )
@@ -84,21 +81,7 @@ def _main():
 
 
 def _build_candidate_manifest(current_manifest=None):
-    modssettingsapi = _resolve_modssettingsapi_artifact()
-    mods_list_project_id = _fetch_gitlab_project_id("wot-public-mods/mods-list")
-    mods_list_release = fetch_json(_GITLAB_MODS_LIST_RELEASE_URL)
-    mods_list_assets = _parse_gitlab_description_assets(mods_list_release, mods_list_project_id)
-
-    modslistapi = _resolve_gitlab_description_artifact(
-        artifact_id="modslistapi",
-        display_name="ModsList API",
-        release_data=mods_list_release,
-        assets=mods_list_assets,
-        filename_prefix="me.poliroid.modslistapi_",
-        provider="gitlab-release-description",
-        project="wot-public-mods/mods-list",
-        notes="Standalone configurator list/popup dependency.",
-    )
+    modmenu = _resolve_modmenu_artifact()
 
     # Gameface is tracked from its own OpenWG upstream, not the copy the mods-list
     # release happens to bundle, so a new OpenWG release is picked up as soon as it
@@ -130,8 +113,7 @@ def _build_candidate_manifest(current_manifest=None):
         # and because the command reports "manifest updated", the loss looks like a success.
         "bundles": _carry_over_bundles(current_manifest),
         "artifacts": {
-            "modssettingsapi": modssettingsapi,
-            "modslistapi": modslistapi,
+            "modmenu": modmenu,
             "openwg_gameface": openwg_gameface,
         },
     }
@@ -149,37 +131,45 @@ def _carry_over_bundles(current_manifest):
     return {
         RESEARCH_PROGRESS_BAR_BUNDLE: {
             "description": "Standalone configurator companion chain for Research Progress Bar.",
-            "artifactIds": ["modssettingsapi", "modslistapi", "openwg_gameface"],
+            "artifactIds": ["modmenu", "openwg_gameface"],
         }
     }
 
 
-def _resolve_modssettingsapi_artifact():
-    release_data = fetch_json(_GITHUB_MODSSETTINGSAPI_RELEASE_URL)
+def _resolve_modmenu_artifact():
+    """The configurator Research Progress Bar draws its settings page in.
+
+    Mod Menu replaced `aslain.modssettingsapi`, and it keeps the same Python API: the mod still
+    reads `g_modsSettingsApi` out of `gui.aslainMenu`. Only the package changed, and the change
+    matters because the two ids ship the same script package. A client holding both refuses one
+    of them and says so in a dialog, which is what the old pin did to anyone whose modpack had
+    already moved on. Two copies of Mod Menu itself carry one id and raise nothing.
+    """
+    release_data = fetch_json(_GITHUB_MODMENU_RELEASE_URL)
     assets = release_data.get("assets") or []
     asset = None
     for item in assets:
         name = item.get("name")
-        if isinstance(name, str) and name.endswith(".wotmod") and name.startswith("aslain.modssettingsapi_"):
+        if isinstance(name, str) and name.endswith(".wotmod") and name.startswith("aslain.modmenu_"):
             asset = item
             break
     if asset is None:
         raise CompanionArtifactError(
-            "Could not resolve aslain.modssettingsapi .wotmod asset from the latest GitHub release"
+            "Could not resolve aslain.modmenu .wotmod asset from the latest GitHub release"
         )
 
     filename = asset["name"]
-    version = _extract_version_from_filename(filename, "aslain.modssettingsapi_")
+    version = _extract_version_from_filename(filename, "aslain.modmenu_")
     return {
-        "displayName": "Aslain's ModsSettings API",
+        "displayName": "Aslain's Mod Menu",
         "provider": "github-release-api",
-        "project": "Aslain/modssettingsapi",
+        "project": "Aslain/modmenu",
         "releaseTag": release_data.get("tag_name") or version,
         "version": version,
         "filename": filename,
         "downloadUrl": asset["browser_download_url"],
         "sha256": "0" * 64,
-        "notes": "Aslain's fork of izeberg's in-game settings API, used by research-progress-bar.",
+        "notes": "In-game settings window for research-progress-bar. Needs OpenWG Gameface 1.1.6 or newer.",
     }
 
 

@@ -17,6 +17,7 @@ _handle_view_added_to_container_callback = _scaleform_callbacks_api._handle_view
 _build_scaleform_context = _scaleform_context_api._build_scaleform_context
 _log_scaleform_context = _scaleform_context_api._log_scaleform_context
 _ScaleformGarageView = _scaleform_hooks_api._ScaleformGarageView
+_dispose_tooltip_view = _scaleform_hooks_api._dispose_tooltip_view
 _attach_scaleform_container_hooks = _scaleform_hooks_api._attach_scaleform_container_hooks
 _detach_scaleform_container_hooks = _scaleform_hooks_api._detach_scaleform_container_hooks
 _get_lobby_app = _scaleform_hooks_api._get_lobby_app
@@ -177,6 +178,10 @@ def _sync_scaleform_view(mod, reason, logger, incoming_view=None):
             mod._scaleform_view_visible = None
             mod._scaleform_view_requested = False
             _dispose_scaleform_view(view, 'blocked:{0}'.format(reason), logger)
+            # The tooltip goes with it. Leaving it standing does not keep it working: the pair
+            # is only ever reloaded together, and the reload skips a view the client still
+            # holds, so the tooltip would survive the teardown and then never be rebuilt.
+            _dispose_tooltip_view('blocked:{0}'.format(reason), logger)
         else:
             mod._scaleform_view_visible = _hide_scaleform_view(
                 mod._scaleform_view,

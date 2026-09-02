@@ -15,7 +15,7 @@ paraphrase of it.
 - [Python Runtime And Data Access](python-runtime-and-data-access.md)
 - [Research, XP, And Post-Progression](research-xp-and-post-progression.md)
 - [Events And Callbacks](events-and-callbacks.md)
-- [In-Game Settings (ModsSettings API)](in-game-settings.md)
+- [In-Game Settings (Mod Menu)](in-game-settings.md)
 - [Gun Marker Sizing And Salvo Fire](gun-marker-sizing.md)
 - [Choosing A UI Approach](choosing-a-ui-approach.md)
 - [UI And Scaleform](ui-and-scaleform.md)

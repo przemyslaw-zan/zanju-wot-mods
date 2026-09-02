@@ -29,7 +29,7 @@ Keep writing these here, because nothing upstream answers them:
 
 - The Gameface CSS subset and the holes in it. See [Gameface Mod Widgets](gameface-mod-widgets.md).
 - OpenWG injection mechanics: sub-view scanning, the one-mod-per-sub-view collision, push against poll.
-- The ModsSettings API. See [In-Game Settings](in-game-settings.md).
+- Mod Menu, and the ModsSettings API it replaced. See [In-Game Settings](in-game-settings.md).
 - Scaleform stage scaling and the DAAPI reverse channel. See [UI And Scaleform](ui-and-scaleform.md).
 - Gun marker geometry, `twinGun` against `dualGun`. See [Gun Marker Sizing](gun-marker-sizing.md).
 - Personal missions. See [Personal Missions](personal-missions.md).

@@ -29,7 +29,7 @@ Scaleform is the older engine and Gameface is the current one. For a mod, that i
 | Breaks when | the patched client code changes | the host document or its sub-views change | the Wulf view or window contract changes | the API mirror or the view settings go stale |
 | Costs a restart | no | no | yes, once, when the `res_map` entry changes | no |
 
-The settings menu is a separate question from all of this. Any route can register with the ModsSettings API, which is a companion artifact rather than a UI decision. See [In-Game Settings](in-game-settings.md).
+The settings menu is a separate question from all of this. Any route can register with Mod Menu, which is a companion artifact rather than a UI decision. See [In-Game Settings](in-game-settings.md).
 
 ## Decide by what you need
 
