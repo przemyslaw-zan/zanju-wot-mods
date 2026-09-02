@@ -1,12 +1,11 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-08-28T00:01:10Z",
+  "updatedAt": "2026-09-02T18:44:32Z",
   "bundles": {
     "research-progress-bar": {
-      "description": "Standalone configurator companion chain for Research Progress Bar.",
+      "description": "In-game settings window and Gameface runtime for Research Progress Bar.",
       "artifactIds": [
-        "modssettingsapi",
-        "modslistapi",
+        "modmenu",
         "openwg_gameface"
       ]
     },
@@ -30,27 +29,16 @@
     }
   },
   "artifacts": {
-    "modssettingsapi": {
-      "displayName": "Aslain's ModsSettings API",
+    "modmenu": {
+      "displayName": "Aslain's Mod Menu",
       "provider": "github-release-api",
-      "project": "Aslain/modssettingsapi",
-      "releaseTag": "v1.7.1",
-      "version": "1.7.1",
-      "filename": "aslain.modssettingsapi_1.7.1.wotmod",
-      "downloadUrl": "https://github.com/Aslain/modssettingsapi/releases/download/v1.7.1/aslain.modssettingsapi_1.7.1.wotmod",
-      "sha256": "30efa672b93f00abbfb59df972f8a957e40227081666d8c27f890a02b6560672",
-      "notes": "Aslain's fork of izeberg's in-game settings API, used by research-progress-bar."
-    },
-    "modslistapi": {
-      "displayName": "ModsList API",
-      "provider": "gitlab-release-description",
-      "project": "wot-public-mods/mods-list",
-      "releaseTag": "v1.7.9",
-      "version": "1.7.9",
-      "filename": "me.poliroid.modslistapi_1.7.9.wotmod",
-      "downloadUrl": "https://gitlab.com/-/project/26509092/uploads/6149d25ddb182b6c9e95fbe470c33fda/me.poliroid.modslistapi_1.7.9.wotmod",
-      "sha256": "d62237cd755412189f1d62855219c9035d0d0fea315a0d4505971639c86d8283",
-      "notes": "Standalone configurator list/popup dependency."
+      "project": "Aslain/modmenu",
+      "releaseTag": "v2.0.03",
+      "version": "2.0.03",
+      "filename": "aslain.modmenu_2.0.03.wotmod",
+      "downloadUrl": "https://github.com/Aslain/modmenu/releases/download/v2.0.03/aslain.modmenu_2.0.03.wotmod",
+      "sha256": "944bde1ec3a1a8d010067e58ccbcc45d149f43a0fd95650698956c760b28895c",
+      "notes": "In-game settings window for research-progress-bar. Needs OpenWG Gameface 1.1.6 or newer."
     },
     "openwg_gameface": {
       "displayName": "OpenWG Gameface",

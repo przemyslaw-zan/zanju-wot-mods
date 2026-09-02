@@ -275,14 +275,16 @@ The general lesson is the one the `Counter` pattern already states: a positioned
 
 ## Logging
 
-`console.log` is **not** forwarded to `python.log`. `console.error` is, and arrives prefixed `ERROR: Main: [Gameface] ...`. OpenWG's own `debug.js` uses `console.error` for the same reason.
+A mod document's `console.error` reaches `game.log`, one line per call:
 
-**Neither one is forwarded until the console mod is turned on.** The forwarding belongs to `net.openwg.console`, and that mod ships disabled. `mods/configs/net.openwg.wot.common/console.json` holds one flag:
-
-```json
-{ "enabled": false, "shortcut": "CTRL+ALT+`" }
+```
+[2026-09-02 11:49:04.975] [ERROR] [Main] [UI] [Gameface] [zanju.campaigntracker] widgets.js loaded
 ```
 
-While it reads `false`, the loader still reports the mod as loaded in `python.log`, and every `console.error` in every mod document goes nowhere. Nothing warns you. A whole session of diagnostics was written and read back as an empty log before anyone checked the flag, so check it first: if a `console.error` you are certain runs produces no line, the flag is the reason, not the code.
+Checked at client **2.4.0.0**, with 448 such lines from one session.
 
-Set it to `true` and restart the client. The same flag also binds the in-game console overlay to its shortcut.
+**The `net.openwg.console` flag is no longer the gate.** Earlier clients forwarded `console.error` to `python.log` only while that mod was on, and it ships off. The lines above arrived with `mods/configs/net.openwg.wot.common/console.json` untouched, still reading `{"enabled": false}`. Every Gameface engine warning carries the same `[UI]` tag, so the host writes these rather than a Python forwarder. The flag still binds the in-game console overlay to its shortcut. Set it if you want the overlay.
+
+`console.log` is a separate question, and it is **untested here**. Every document in this repository writes with `console.error`, which is what OpenWG's own `debug.js` does. Nothing in these logs shows whether `console.log` now arrives. Keep to `console.error` until somebody checks.
+
+Before 2.4 this cost a whole session. Diagnostics were written, the client was run, and the log came back empty. The flag was off, and nothing warned about it. That trap is gone. The narrower lesson survives it: when a `console.error` you are certain runs produces no line, suspect the plumbing before the code.

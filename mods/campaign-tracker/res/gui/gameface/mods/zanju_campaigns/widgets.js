@@ -838,7 +838,7 @@ function tick() {
             lastOriginKey = '';
             if (!hasDrawn && liveBranches.length) {
                 // Once per document. Pairs with the Python side's own line so a reader of
-                // python.log can see whether a late banner was late data or a late draw.
+                // game.log can see whether a late banner was late data or a late draw.
                 hasDrawn = true;
                 log('drew ' + liveBranches.length + ' banner(s)');
             }

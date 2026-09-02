@@ -1,6 +1,11 @@
 Changelog
 =========
 
+## 1.4.1 (2 September 2026)
+
+- Fixed the marker tooltips no longer appearing after a visit to the Field Mods screen.
+- The download now ships Aslain's Mod Menu in place of the ModsSettings API it replaced.
+
 ## 1.4.0 (2 September 2026)
 
 - Moved marker tooltips into a Scaleform view of their own, on a higher window layer. They now draw over the game's native windows, such as the platoon window.

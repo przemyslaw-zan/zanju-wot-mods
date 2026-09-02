@@ -38,7 +38,7 @@ let dataResId = null;
 let pollTimer = null;
 
 function log(message) {
-    // console.log is not forwarded to python.log by the Gameface host; console.error is.
+    // console.error reaches game.log, tagged [UI] [Gameface]. console.log is untested here.
     console.error('[zanju.directiveshelper] ' + message);
 }
 
@@ -337,7 +337,7 @@ function fmtRect(rect) {
 }
 
 // One line per number that is not on its own tile, so a garbled grid can be read back out of
-// python.log instead of a screenshot. Kept as a standing guard: it is silent when the layout is
+// game.log instead of a screenshot. Kept as a standing guard: it is silent when the layout is
 // right, and it is what proved the elements were never the problem. `console.error` is the level that reaches that log;
 // `console.log` does not. Silent when everything is where it should be.
 function reportMisplaced(grids) {

@@ -9,7 +9,7 @@ down -- the loadout panel underneath stays alive and keeps reporting that it off
 What does change is the lobby's visible route, which is the client's own record of what the
 player is actually looking at. `LobbyStateMachine.onVisibleRouteChanged` carries the state that
 just became visible, and its `getStateID()` is the route path -- the same string the client
-writes to `python.log` as "Visible route changed to: ...".
+writes to `game.log` as "Visible route changed to: ...".
 
 Read by route rather than by state class on purpose. The client's own consumers compare against
 `getStateByCls(DefaultHangarState)`, but every mode's garage is a separately generated state

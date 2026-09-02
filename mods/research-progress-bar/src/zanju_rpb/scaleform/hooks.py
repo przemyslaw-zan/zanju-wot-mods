@@ -17,8 +17,13 @@ _logger = logging.getLogger('zanju.researchprogressbar')
 # the bar's hover reports arrive on the bar's view, and the tooltip is a different view entirely.
 _tooltip_view = None
 
+# Whether a hover arriving with no tooltip view has been reported since the last one loaded. The
+# bar reports a hover many times over and the answer does not change between them, so one line
+# per outage says everything a second one would.
+_tooltip_miss_reported = False
+
 # Set once the display-tree report has been logged for the current view, so a diagnostic that
-# answers the same question every frame does not fill python.log.
+# answers the same question every frame does not fill game.log.
 _display_tree_reported = False
 
 _on_scaleform_view_populated = None
@@ -59,8 +64,14 @@ def _remember_tooltip_context(data):
 
 def _show_tooltip(indices, cursor_x, cursor_y):
     """Draw the tooltip for the markers the bar says the cursor is over, or hide it."""
+    global _tooltip_miss_reported
     view = _tooltip_view
     if view is None:
+        # The bar is reporting hovers and there is nothing to draw them. That is the shape of a
+        # tooltip outage, and it is silent without this line: every other path here succeeds.
+        if not _tooltip_miss_reported:
+            _tooltip_miss_reported = True
+            _logger.info('Hover reported with no tooltip view loaded; nothing can draw it')
         return
     entries = []
     for part in str(indices or '').split(','):
@@ -101,16 +112,43 @@ class _ScaleformTooltipView(View):
         return None
 
     def _populate(self):
+        global _tooltip_miss_reported
         global _tooltip_view
         super(_ScaleformTooltipView, self)._populate()
         _tooltip_view = self
+        _tooltip_miss_reported = False
         _logger.info('Tooltip view populated on layer %s', TOOLTIP_LAYER)
 
     def _dispose(self):
         global _tooltip_view
         if _tooltip_view is self:
             _tooltip_view = None
+        # Logged because a teardown this mod did not ask for is otherwise invisible, and the
+        # tooltip going quiet looks the same either way.
+        _logger.info('Tooltip view disposed')
         super(_ScaleformTooltipView, self)._dispose()
+
+
+def _dispose_tooltip_view(reason, logger):
+    """Destroy the tooltip view, if one is loaded. Returns True when one was destroyed.
+
+    The tooltip goes when the bar goes. The two are loaded together by
+    `_request_scaleform_view_load`, and that call asks the client for both aliases at once --
+    but the client ignores a load for a view it already holds. So a tooltip left standing
+    through a teardown of the bar is never reloaded, and the next hover has nothing to draw it.
+    The vehicle hub is the one screen that takes this path.
+    """
+    view = _tooltip_view
+    if view is None:
+        return False
+
+    try:
+        view.destroy()
+        logger.info('Disposed tooltip view (%s)', reason)
+        return True
+    except Exception:
+        logger.exception('Failed to dispose tooltip view (%s)', reason)
+        return False
 
 
 class _ScaleformGarageView(View):

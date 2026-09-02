@@ -16,7 +16,7 @@ const ACTION_PAUSE = 'pause';
 const ACTION_RESET = 'reset';
 
 function log(message) {
-    // console.log is not forwarded to python.log by the Gameface host; console.error is.
+    // console.error reaches game.log, tagged [UI] [Gameface]. console.log is untested here.
     console.error('[zanju.campaigntracker] ' + message);
 }
 

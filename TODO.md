@@ -32,7 +32,7 @@ Move `view_claim.py` first. Its copies are already identical, so it needs no gen
 - Build change: mirror `bundle_generated_mod_meta` — compile each shared file into every internal package as `<pkg>/<name>.pyc`; hard error if a mod's own `src/` contains a colliding filename (silent shadowing would reintroduce drift). Stage per mod, not every file everywhere. `salvo-reticle-fix` needs none of them, and `view_claim.py` belongs only in the two Gameface mods.
 - Lint: add the canonical path to the py2.7 flake8 coverage (current glob is `mods/*/src`).
 - Delete the per-mod copies (ten files, across the four rows in the table above).
-- Accepted consequences: IDE shows unresolved `.localization` imports in callers (cosmetic; flake8 does not resolve imports — verified green); `python.log` tracebacks cite `mods/<pkg>/localization.py`, a path with no matching file under `src/`; one-time modify/delete merge conflicts with any branch still carrying a copy (resolve by taking the delete); future per-mod divergence requires parameterizing the shared file or an explicit opt-out (defer until needed).
+- Accepted consequences: IDE shows unresolved `.localization` imports in callers (cosmetic; flake8 does not resolve imports — verified green); `game.log` tracebacks cite `mods/<pkg>/localization.py`, a path with no matching file under `src/`; one-time modify/delete merge conflicts with any branch still carrying a copy (resolve by taking the delete); future per-mod divergence requires parameterizing the shared file or an explicit opt-out (defer until needed).
 - Verified non-issues: nothing outside the game imports the mod packages (no py3 probes/tests reach into `src/`); deploy ships the built `.wotmod`, untouched.
 
 ## Campaign Tracker: Hover Card On Its Own Window Band
@@ -166,7 +166,7 @@ insufficient for that flow or fixing the wrong thing.
       %APPDATA%\zanju_wot_mods_cache\research-progress-bar\probe.on
 
   Create that file (empty — only its existence is read), restart the client, and `Loadout bar
-  probe armed by probe.on` appears in `python.log`. Delete it to disarm. The build stays
+  probe armed by probe.on` appears in `game.log`. Delete it to disarm. The build stays
   byte-identical to the one users get, and nothing is left sitting in the working tree waiting
   to be committed by accident. `ShippedStateTest` pins the source default off.
 - Candidate lead if the probe exonerates the stale copy: the repair fires
