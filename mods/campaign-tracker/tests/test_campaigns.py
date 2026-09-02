@@ -48,8 +48,12 @@ class OrderBranchesTest(unittest.TestCase):
     def test_keeps_the_exclusive_third_campaign_alone(self):
         self.assertEqual(campaigns.order_branches(['pm3']), ['pm3'])
 
+    def test_keeps_both_branches_of_the_third_campaign(self):
+        # `pm4` holds the Fossa operation, which the game puts inside the third campaign.
+        self.assertEqual(campaigns.order_branches(['pm4', 'pm3']), ['pm3', 'pm4'])
+
     def test_drops_a_campaign_this_version_does_not_know(self):
-        self.assertEqual(campaigns.order_branches(['pm4', 'pm2']), ['pm2'])
+        self.assertEqual(campaigns.order_branches(['pm5', 'pm2']), ['pm2'])
 
     def test_reports_nothing_for_an_empty_or_missing_list(self):
         self.assertEqual(campaigns.order_branches([]), [])
@@ -222,8 +226,12 @@ class NumeralTest(unittest.TestCase):
         self.assertEqual(campaigns.numeral('pm2'), 'II')
         self.assertEqual(campaigns.numeral('pm3'), 'III')
 
+    def test_numbers_both_branches_of_the_third_campaign_alike(self):
+        # The game gives the two one name, Sector 3, so the banner gives them one numeral.
+        self.assertEqual(campaigns.numeral('pm4'), 'III')
+
     def test_gives_no_numeral_to_an_unknown_campaign(self):
-        self.assertEqual(campaigns.numeral('pm4'), '')
+        self.assertEqual(campaigns.numeral('pm5'), '')
 
 
 if __name__ == '__main__':

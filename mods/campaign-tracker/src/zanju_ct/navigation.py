@@ -2,9 +2,10 @@
 """Opens the client's own screen for a campaign's active mission.
 
 Campaigns 1 and 2 give every mission its own screen, and campaign 3 has none -- its missions
-are a filtered list, so the list is what opens. Both entry points are the client's own
-dispatchers and both refuse the navigation themselves when the page cannot be opened, so that
-check is left to them. See docs/reference/personal-missions.md.
+are a filtered list, so the list is what opens. That holds for both of the branches campaign 3
+is built from. Both entry points are the client's own dispatchers and both refuse the
+navigation themselves when the page cannot be opened, so that check is left to them. See
+docs/reference/personal-missions.md.
 
 Every client import stays inside a function, so this module is importable outside the game.
 """
@@ -23,7 +24,7 @@ def open_mission(branch_name, logger):
         return False
 
     try:
-        if branch_name == campaigns.BRANCH_PM3:
+        if branch_name in campaigns.BRANCHES_WITHOUT_MISSION_PAGE:
             return _open_mission_list(quest, logger)
         return _open_mission_page(quest, logger)
     except Exception:
@@ -46,6 +47,9 @@ def _open_mission_list(quest, logger):
     `showPersonalMissionsChain` takes a chain id as well, and ignores it for this campaign --
     the client's own caller passes 0 there. The real selector is the category, which the
     client maps from the same common role this mod already reads off the line's classifier.
+
+    Both branches of campaign 3 classify their lines by common role, so one category map
+    serves the Fossa operation as well.
     """
     from gui.impl.lobby.personal_missions_30.personal_mission_constants import (
         MISSIONS_ROLES_TO_CATEGORIES)

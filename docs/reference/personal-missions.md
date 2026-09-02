@@ -1,34 +1,46 @@
 # Personal Missions
 
-Reference notes for `campaign-tracker`. How the client models the three campaigns, how it answers "which mission is this tank on", and where it keeps a mission's progress. Most of the traps here are places the client says one thing two ways. Picking the wrong one returns an empty answer rather than an error.
+Reference notes for `campaign-tracker`. How the client models the campaigns, how it answers "which mission is this tank on", and where it keeps a mission's progress. Most of the traps here are places the client says one thing two ways. Picking the wrong one returns an empty answer rather than an error.
 
-Verified by decompiling the shipped scripts of WoT client **2.3.1.3**.
+Verified by decompiling the shipped scripts of WoT client **2.3.1.3**. The vocabulary and branch sections were rechecked against **2.4.0.0**, which added a fourth branch.
 
 ## Vocabulary
 
 The client's names and the player's names differ, and the code uses the client's.
 
-- A campaign is a **branch**. There are three, named `regular`, `pm2` and `pm3` in `PM_BRANCH`. Players call them campaigns 1, 2 and 3.
+- A campaign is a **branch**. There are four, named `regular`, `pm2`, `pm3` and `pm4` in `PM_BRANCH`. Players count three campaigns, because the last two branches carry one name — see below.
 - A campaign is divided into **chains**, which the UI calls lines, and into **operations**. Each operation awards a vehicle at its end.
 - A mission is a **quest**, of class `PersonalMission` in `gui.server_events.event_items`.
 
-Campaigns 1 and 2 run together. Campaign 3 is exclusive, so the server reports either the first two or the third as active, never all three.
+Campaigns 1 and 2 run together, and campaign 3 is exclusive. The campaign selector offers the first two or the third. A pick runs `PMActivateSeason` on one branch. `PM_BRANCH.MUTUAL_EXCLUSION_BRANCHES` groups the branches as `regular` + `pm2`, then `pm3`, then `pm4`. The server decides which of those groups is active at one time, and the client scripts do not state that rule. So read `getActiveCampaigns()` rather than assume a count.
 
 Each campaign classifies vehicles a different way, and the classifiers never overlap inside one campaign. So a vehicle matches at most one line, and at most one active mission per campaign.
 
-| Campaign | Branch | Lines | Classified by |
-| --- | --- | --- | --- |
-| 1 | `regular` | 5 | vehicle class — light, medium, heavy, destroyer, artillery |
-| 2 | `pm2` | 4 | alliance — a group of nations |
-| 3 | `pm3` | 3 | common role — Assault, Sniper, Support |
+| Campaign | Branch | Lines | Operations | Classified by |
+| --- | --- | --- | --- | --- |
+| 1 | `regular` | 5 | 1–4 | vehicle class — light, medium, heavy, destroyer, artillery |
+| 2 | `pm2` | 4 | 5–7 | alliance — a group of nations |
+| 3 | `pm3` | 3 | 8–10 | common role — Assault, Sniper, Support |
+| 3 | `pm4` | 3 | 11 | common role — Assault, Sniper, Support |
 
 Campaign 3 reads as a matrix of class and role, but the client collapses it into one classifier. Each common role maps to a set of `ROLE_TYPE` values that already carry both (`HT_ASSAULT`, `MT_SNIPER`, `LT_WHEELED`, …). The map is `COMMON_ROLE_TO_ROLE_TYPE` in `constants`.
+
+## Campaign 3 is two branches
+
+`pm4` arrived with client 2.4.0.0 and holds one operation, Fossa. **Nothing the player reads calls it a fourth campaign.** The garage entry point is titled "Sector 3". The achievements say "the Fossa operation in the Sector 3 campaign". `advanced_achievements` names it `third_campaign_fourth_operation`. So a mod that numbers its own UI must number `pm4` with `pm3`. A banner reading IV names a campaign the player cannot find.
+
+A mod that reads branches from a hardcoded list drops `pm4` in silence and shows nothing for Fossa. `PM_BRANCH.ALL_NAMES` and `PM_BRANCH.BRANCH_TO_OPERATION_IDS` are the client's own lists.
+
+Two client sets group the branches by behavior rather than by number. Read those:
+
+- `PM_BRANCH.WITH_AWARD_LIST_BRANCHES` — `regular` and `pm2`, the campaigns that have orders. It is also the **default** argument of `getAllOperations`, `getAllQuests` and `getAllCampaigns`. Those three answer for campaigns 1 and 2 alone until a caller names other branches.
+- `PM_BRANCH.WITHOUT_AWARD_LIST_BRANCHES` — `pm3` and `pm4`. `showPersonalMissionsChain` tests this set to pick the campaign 3 screen. `PersonalMissionsCache.isBranchWithoutAwardListActive()` answers whether one of the two runs.
 
 ## The names-and-numbers trap
 
 `IEventsCache.getPersonalMissions()` gives the cache everything below starts from. It names a campaign two ways:
 
-- `getActiveCampaigns()` answers with branch **names** — `'regular'`, `'pm2'`, `'pm3'`.
+- `getActiveCampaigns()` answers with branch **names** — `'regular'`, `'pm2'`, `'pm3'`, `'pm4'`.
 - Every other call takes a branch **number** — `PM_BRANCH.REGULAR` and friends.
 
 Passing one where the other belongs returns an empty result instead of raising. A mod that mixes them looks like a mod with nothing to show. Convert once, at the edge, with `PM_BRANCH.NAME_TO_TYPE` and `PM_BRANCH.TYPE_TO_NAME`.
@@ -45,6 +57,8 @@ Passing one where the other belongs returns an empty result instead of raising. 
 Two naming calls are worth knowing. `quest.getUserName()` is the full name ("Union-10. Raise the Flag!") and `getShortUserName()` is the short one ("Union-10"); both are translated. `operation.getChainName(chainID)` is **not** — it answers with a resource id such as `#personal_missions:sidebar/vehicles/heavyTank`, because Scaleform resolves ids on their way to the UI. Anything drawing its own text has to call `i18n.makeString` on the result, which returns a non-id unchanged.
 
 Vehicles tagged `BATTLE_MODE_VEHICLE_TAGS` — event tanks, Comp7, Frontline and the rest — are barred from personal missions entirely. `gui.shared.gui_items.checkForTags` is the client's own test.
+
+Battle mode is a second bar, and a separate one. Only a random battle earns mission progress, whatever the vehicle. The shipped scripts do not state that rule. A mission carries its eligible arena types in the packed mission XML, so this one comes from the game rather than from a decompilation. [Events And Callbacks](events-and-callbacks.md#which-battle-mode-is-selected) covers how to read the selected mode.
 
 ## Progress
 
@@ -128,11 +142,11 @@ A vehicle that completes such a mission is locked out of it until the mission is
 
 Both must be run inside `decorators.adisp_process('updating')`. Neither needs a permission check of its own: the processor refuses and explains itself in the game's own system message.
 
-**Only one operation allows either action.** `gui.server_events.pm_constants` holds `PAUSABLE_OPERATIONS_IDS` and `DISCARDABLE_OPERATIONS_IDS`. At 2.3.1.3 both contain operation 7 alone — Object 279 (e), the last operation of campaign 2. Read the lists rather than copying the number, so a client that opens this up opens the mod up with it. `missions_helper.__getBtnStates` is the full rule the client's own buttons follow, including that campaign 3 must not be the active campaign.
+**Only one operation allows either action.** `gui.server_events.pm_constants` holds `PAUSABLE_OPERATIONS_IDS` and `DISCARDABLE_OPERATIONS_IDS`. At 2.3.1.3 and at 2.4.0.0 both contain operation 7 alone — Object 279 (e), the last operation of campaign 2. Read the lists rather than copying the number, so a client that opens this up opens the mod up with it. `missions_helper.__getBtnStates` is the full rule the client's own buttons follow, including that campaign 3 must not be the active campaign. It asks that last part as `isBranchWithoutAwardListActive()`, which covers `pm3` and `pm4` together.
 
 Opening a mission's screen differs by campaign, because campaign 3 has no per-mission screen:
 
 - **Campaigns 1 and 2** — `events_dispatcher.showPersonalMission(missionID=...)`.
-- **Campaign 3** — `events_dispatcher.showPersonalMissionsChain(operationID, chainID, category)`, which opens the filtered list. The chain id is accepted and ignored for this campaign.
+- **Campaign 3, both branches** — `events_dispatcher.showPersonalMissionsChain(operationID, chainID, category)`, which opens the filtered list. The chain id is accepted and ignored for this campaign. The dispatcher reads the operation's own branch to pick the screen. A `pm4` operation therefore needs nothing extra.
 
 Both refuse the navigation themselves when the page cannot be opened (`canOpenPMPage`), so that check does not need reproducing.

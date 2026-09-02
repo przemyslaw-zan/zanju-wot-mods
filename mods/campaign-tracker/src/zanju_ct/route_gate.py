@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 """Whether the garage itself is on screen, or something is layered over it.
 
+This is one half of the widgets' visibility. The other half is the battle mode, which the
+route cannot answer -- see mode_gate.
+
 The widgets belong to the garage and to nothing else. Opening the playlist editor, the tank
 setup screen or the personal missions screen does not tear the garage down, so a widget that
 only waits for the garage to be built stays on screen over all three.
@@ -53,6 +56,9 @@ def is_bare_hangar_route(route_path):
         subScope/subLayer/funRandomHangar/loadout/shells  -> False
 
     A route with no hangar segment at all is not the garage either, so it answers False.
+
+    Every garage above answers True, whatever mode it belongs to. Which modes the widgets
+    belong to is a separate question, and mode_gate is where it is asked.
     """
     if not route_path:
         return False

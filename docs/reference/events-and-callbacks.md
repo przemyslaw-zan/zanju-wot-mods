@@ -210,3 +210,45 @@ subclasses `list` and a finalized presenter tree leaves it empty) and pre-warm
 the cache at click time so the scan merges into the game's own click freeze
 instead of stacking a second one. The rebuild cost itself is WG's — their own
 UI freezes the same way on this update.
+
+## Which Battle Mode Is Selected
+
+Verified against WoT client **2.4.0.0**.
+
+The lobby route does not answer this, and it is the obvious wrong answer. Onslaught, Onslaught Light, Frontline, Steel Hunter, Last Stand and Fun Random each bring a garage of their own. The route carries those names. But Ranked, Mapbox, Maps Training, Strongholds, tournaments and the training rooms all share the default `hangar` route. A seasonal garage goes the other way and changes the space while the mode stays Random Battles. Route and mode are two facts, and neither stands in for the other.
+
+The mode lives on the prebattle dispatcher:
+
+```python
+from constants import QUEUE_TYPE
+from gui.prb_control.dispatcher import g_prbLoader
+
+dispatcher = g_prbLoader.getDispatcher()          # None until the lobby starts
+state = dispatcher.getFunctionalState()           # gui.prb_control.items.FunctionalState
+state.isQueueSelected(QUEUE_TYPE.RANDOMS)
+```
+
+`isQueueSelected` is the call the mode selector makes for its own entries. `_RandomQueueItem._update` in `battle_selector_items` lights the Random Battles button with this exact line. A mod that reads it therefore tracks the button the player sees.
+
+It also covers platoons. `isQueueSelected` tests the pre-queue **and** `QUEUE_TYPE_TO_PREBATTLE_TYPE`, which pairs `RANDOMS` with `PREBATTLE_TYPE.SQUAD`. Do not add a squad test of your own.
+
+Watch the neighboring queue types. Several of them produce a random-looking battle. `WINBACK` and `RANDOM_NP2` are queues of their own. Grand Battles ride the `RANDOMS` queue and reach the arena as `ARENA_BONUS_TYPE.EPIC_RANDOM`. `ARENA_BONUS_TYPE_TO_QUEUE_TYPE` in `constants` is the full map.
+
+### Following a mode change
+
+`onPrbEntitySwitched` fires once a switch is complete. It takes the client's own interface to reach it. `ListenersCollection.addListener` tests the listener class with `isinstance` and refuses anything else:
+
+```python
+from gui.prb_control.entities.listener import IGlobalListener
+
+class _ModeListener(IGlobalListener):
+    def onPrbEntitySwitched(self):
+        ...
+
+listener = _ModeListener()
+listener.startGlobalListening()      # reads self.prbDispatcher, a descriptor off the interface
+```
+
+`IGlobalListener` declares every callback the dispatcher may invoke, each one a no-op. A subclass overrides the one it wants and inherits the rest. A listener missing a method gets an error line per event.
+
+The dispatcher belongs to the lobby, so a teardown replaces it and takes the subscription with it. Re-subscribe on each hangar build. Guard with `dispatcher.hasListener(listener)` rather than a flag of your own. `addListener` logs an error over a listener it already holds, and the answer differs between the old dispatcher and the new one.

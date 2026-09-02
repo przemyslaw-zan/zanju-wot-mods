@@ -38,7 +38,7 @@ def read_actions(quest, has_progress, logger):
         from gui.server_events.pm_constants import (
             DISCARDABLE_OPERATIONS_IDS, PAUSABLE_OPERATIONS_IDS)
 
-        if not _is_running(quest) or _is_campaign_3_active(logger):
+        if not _is_running(quest) or _is_without_order_campaign_active(logger):
             return blank
 
         operation_id = quest.getOperationID()
@@ -63,20 +63,22 @@ def _is_running(quest):
     return bool(available[0] if isinstance(available, tuple) else available)
 
 
-def _is_campaign_3_active(logger):
+def _is_without_order_campaign_active(logger):
     """Campaign 3 being the active one blocks both actions, the way the client blocks them.
 
     Campaigns 1 and 2 have no banner while campaign 3 runs, so this is close to unreachable. It
     is kept because it is the client's own condition, and because the two campaign styles have
     swapped over before.
+
+    `isBranchWithoutAwardListActive` is the exact test `__getBtnStates` makes, and it is why
+    the branch is not named here: campaign 3 is two branches, and orders are what both of them
+    lack. A client that adds a third answers this on its own.
     """
     try:
         from helpers import dependency
-        from personal_missions import PM_BRANCH
         from skeletons.gui.server_events import IEventsCache
         missions = dependency.instance(IEventsCache).getPersonalMissions()
-        name = PM_BRANCH.TYPE_TO_NAME[PM_BRANCH.PERSONAL_MISSION_3]
-        return name in (missions.getActiveCampaigns() or ())
+        return bool(missions.isBranchWithoutAwardListActive())
     except Exception:
         logger.exception('Failed to read which campaign is active; actions stay hidden')
         return True

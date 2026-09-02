@@ -220,3 +220,31 @@ Our earlier band log named `GUIFlash`, `xfw_injector`, `ModsListButton`, `Tomato
 - Out of scope unless explicitly requested: removing the production garage visibility-probe behavior.
 - Future AS3 naming/package cleanup: build a second fake test mod and use it to collision-test default-package class names, helper names, and source/output path overlap before renaming `ResearchProgressBar*.as` files or introducing an AS3 package tree; the earlier unique-path finding justifies this test method, but file-path collisions and class-name collisions need to be validated separately.
 - Future refactor guardrail: treat reflective prestige/elite adapter helpers in `zanju_rpb.main` as load-bearing runtime-contract code, not obvious dead code; before deleting or simplifying them, validate in-game across elite non-tier XI vehicles, tier XI vehicles, `eliteMode=customization_only`, and repeated vehicle switches.
+## Research Progress Bar: Where The Bar Is Allowed To Show
+
+Checked at client 2.4.0.0. Nothing changed yet. The bar has **no battle-mode condition**. Every rule it has asks where the player stands in the lobby. The Onslaught hide then falls out of one of those rules by accident, not by intent.
+
+`_get_scaleform_block_reason` in `mods/research-progress-bar/src/zanju_rpb/scaleform/gate.py` asks six questions in order. The first failure names the block reason in the log:
+
+1. `is_active` — the mod is running.
+2. `scaleformPrototypeEnabled` — the config kill switch.
+3. `preview_present` — a vehicle preview is up.
+4. `vehicle_present` — a tank is in the garage.
+5. The lobby route is exactly `subScope/subLayer/hangar` or `subScope/subLayer/hangar/{root}`.
+6. The SUB_VIEW and TOP_SUB_VIEW aliases are a hangar view or the bar itself.
+
+A `None` payload then hides the bar as `populated_no_modes`, outside the gate.
+
+Rule 5 is the one that hides the bar in Onslaught. It also hides it in Frontline, Steel Hunter, Last Stand and Fun Random. Ranked, Mapbox and Maps Training share the plain `hangar` route, so the bar remains there. That is the wanted answer, reached by accident.
+
+### Two faults, separable
+
+**Rule 5 is an exact match of two strings.** Any garage with a lobby state of its own loses the bar, whatever the mode. This is the stricter form of the fault the campaign tracker fixed in 1.1.0. A seasonal garage is the case to worry about, and one is live already. `VIEW_ALIAS.LEGACY_LOBBY_HANGAR` is `legacyHangar`. Rule 6 accepts it through `_HANGAR_VIEW_ALIASES`, and rule 5 rejects the route `subScope/subLayer/legacyHangar`. Rule 5 runs first, so the legacy garage loses the bar that rule 6 means to allow.
+
+**The route comes out of log text, and the gate fails open.** `main.py` attaches a `logging.Handler` to the logger `gui.lobby_state_machine.lobby_state_machine`. It matches the prefixes `Visible route changed to: ` and `Navigating to `. Reword either line, or quiet that logger, and `_current_lobby_route_path` stays `None`. Rule 5 reads `if current_lobby_route_path is not None`, so a missing route skips the rule rather than fails it. The bar then shows in Onslaught, with nothing in the log to say why. The campaign tracker instead subscribes to `LobbyStateMachine.onVisibleRouteChanged` and reads `getStateID()`. That needs no text, and it fails closed.
+
+### What to do
+
+- Replace the log scraping with the `onVisibleRouteChanged` subscription in `mods/campaign-tracker/src/zanju_ct/route_gate.py`. Same signal, no parsing.
+- Then settle the rule itself. **Decide this first, it is not obvious.** One option matches a trailing `hangar` segment the way the tracker does, then subtracts Onslaught by name, because the reason to hide there is the shape of that mode's UI. The other gates on the battle mode.
+- Do not copy the tracker's mode gate. It answers "random battles alone". Ranked earns vehicle XP and must keep the bar.

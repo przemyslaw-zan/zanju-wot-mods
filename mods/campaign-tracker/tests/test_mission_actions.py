@@ -6,7 +6,8 @@ getting it wrong is worse than showing nothing: the card would offer an action t
 refuses, and the player would have no way of telling that from the mod being broken.
 
 The client modules it reads are stood in for here -- the operation lists it checks against, and
-the events cache it asks which campaign is running.
+the events cache it asks which campaign is running. Both branches of campaign 3 block the two
+actions, which is why the cache stub answers the same question the client's own does.
 """
 from __future__ import absolute_import, print_function, unicode_literals
 
@@ -77,7 +78,10 @@ class _ActionsTest(unittest.TestCase):
 
         class _PM_BRANCH(object):
             PERSONAL_MISSION_3 = 4
-            TYPE_TO_NAME = {0: 'regular', 2: 'pm2', 4: 'pm3'}
+            TYPE_TO_NAME = {0: 'regular', 2: 'pm2', 4: 'pm3', 8: 'pm4'}
+            # The client's own set: the two branches campaign 3 is built from, neither of
+            # which has orders. Both block the pause and reset buttons while one is running.
+            WITHOUT_AWARD_LIST_BRANCHES = ('pm3', 'pm4')
 
         personal_missions.PM_BRANCH = _PM_BRANCH
 
@@ -86,6 +90,11 @@ class _ActionsTest(unittest.TestCase):
         class _Missions(object):
             def getActiveCampaigns(self):
                 return test._active
+
+            def isBranchWithoutAwardListActive(self):
+                # Copied from `PersonalMissionsCache`, so the stub answers as the client does.
+                return any(name in test._active
+                           for name in _PM_BRANCH.WITHOUT_AWARD_LIST_BRANCHES)
 
         class _Cache(object):
             def getPersonalMissions(self):
@@ -160,10 +169,11 @@ class ReadActionsTest(_ActionsTest):
             self.assertFalse(actions['canReset'])
 
     def test_offers_nothing_while_campaign_3_is_the_active_campaign(self):
-        self._active = ['pm3']
-        actions = mission_actions.read_actions(_Quest(), True, _Logger())
-        self.assertFalse(actions['canPause'])
-        self.assertFalse(actions['canReset'])
+        for active in (['pm3'], ['pm4']):
+            self._active = active
+            actions = mission_actions.read_actions(_Quest(), True, _Logger())
+            self.assertFalse(actions['canPause'], active)
+            self.assertFalse(actions['canReset'], active)
 
     def test_reports_whether_the_mission_is_paused(self):
         self.assertTrue(mission_actions.read_actions(

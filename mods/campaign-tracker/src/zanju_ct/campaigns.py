@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Which campaigns exist, and which mission in one accepts a given vehicle.
 
-The client's vocabulary, the three campaigns and how each one classifies vehicles are in
+The client's vocabulary, the campaigns and how each one classifies vehicles are in
 docs/reference/personal-missions.md. What matters here is that the classifiers never overlap
 inside a campaign, so one vehicle matches at most one line and therefore at most one active
 mission per campaign.
@@ -12,20 +12,33 @@ reproducing what they know.
 """
 from __future__ import absolute_import, print_function, unicode_literals
 
-# Client branch names, in the order the campaigns are numbered in game.
+# Client branch names, in the order the campaigns are numbered in game. Four branches, three
+# campaigns: the game splits campaign 3 across `pm3` and `pm4`, and calls both of them Sector 3.
 BRANCH_REGULAR = 'regular'
 BRANCH_PM2 = 'pm2'
 BRANCH_PM3 = 'pm3'
+BRANCH_PM4 = 'pm4'
 
-BRANCH_ORDER = (BRANCH_REGULAR, BRANCH_PM2, BRANCH_PM3)
+BRANCH_ORDER = (BRANCH_REGULAR, BRANCH_PM2, BRANCH_PM3, BRANCH_PM4)
 
 # Shown on the widget face, because "campaign 2" is how players name these, and a numeral
 # stays readable at the size a minimal widget gives it.
+#
+# `pm4` is numbered III with `pm3`, because the game gives the two branches one name. `pm4`
+# holds the Fossa operation, and every word the game writes about it -- the garage entry point,
+# the achievements, the campaign heading -- puts it inside Sector 3. A banner reading IV would
+# name a campaign the player cannot find.
 BRANCH_NUMERALS = {
     BRANCH_REGULAR: 'I',
     BRANCH_PM2: 'II',
     BRANCH_PM3: 'III',
+    BRANCH_PM4: 'III',
 }
+
+# The campaigns whose missions have no screen of their own, so a click opens the operation's
+# mission list instead. Mirrors `PM_BRANCH.WITHOUT_AWARD_LIST_BRANCHES`, which is the set the
+# client's own `showPersonalMissionsChain` tests to pick that screen.
+BRANCHES_WITHOUT_MISSION_PAGE = (BRANCH_PM3, BRANCH_PM4)
 
 # Separators the game puts between a mission's line name and its number. A plain hyphen is
 # what every language shipped with client 2.3.1.3 uses; the rest are the dashes a later

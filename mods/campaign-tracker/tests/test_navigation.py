@@ -2,8 +2,9 @@
 """Tests for which screen a banner click opens.
 
 The two campaign styles differ: campaigns 1 and 2 give every mission its own screen, while
-campaign 3 shows a list. These check the branch is picked on the campaign, and that a campaign
-with nothing running opens nothing at all.
+campaign 3 shows a list, from either of the two branches it is built from. These check the
+branch is picked on the campaign, and that a campaign with nothing running opens nothing at
+all.
 
 The client dispatchers themselves are imported inside `navigation`'s own functions, so the
 tests below only reach as far as the decision. What each dispatcher then does is the client's
@@ -86,6 +87,12 @@ class OpenMissionTest(unittest.TestCase):
         # It has no per-mission screen, so the list of its operation is the mission screen.
         self._with_mission(_Quest())
         self.assertTrue(navigation.open_mission('pm3', _Logger()))
+        self.assertEqual(self.opened, [('list', 9)])
+
+    def test_the_second_branch_of_campaign_3_opens_the_list_too(self):
+        # `pm4` is the same campaign to the player, and the same screen to the client.
+        self._with_mission(_Quest())
+        self.assertTrue(navigation.open_mission('pm4', _Logger()))
         self.assertEqual(self.opened, [('list', 9)])
 
     def test_opens_nothing_when_the_campaign_has_no_active_mission(self):

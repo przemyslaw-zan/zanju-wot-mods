@@ -1,6 +1,11 @@
 Changelog
 =========
 
+## 1.1.1 (2 September 2026)
+
+- Fixed the banner not working for the Fossa operation.
+- The banners now show for the random battles only.
+
 ## 1.1.0 (2 September 2026)
 
 - Moved banner tooltips into a Gameface window of their own, on a higher window layer. They now draw over the game's native windows, such as the platoon window.

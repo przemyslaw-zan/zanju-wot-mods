@@ -28,7 +28,8 @@ import logging
 
 from frameworks.wulf import ViewModel
 
-from .. import collector, held_keys, mission_actions, navigation, route_gate, view_claim
+from .. import (collector, held_keys, mission_actions, mode_gate, navigation, route_gate,
+                view_claim)
 from . import card_window
 from ..constants import LOGGER_NAME
 from ..localization import get_text as _loc
@@ -104,8 +105,8 @@ class _WidgetsDataModel(ViewModel):
         self._addStringProperty('snapshot', self._payload)
         # Property indices are assigned in declaration order across every type, which is how
         # the setters below address them. This view is usually built before the lobby has
-        # settled, so `visible` starts from whatever the route gate can answer at that point.
-        self._addBoolProperty('visible', route_gate.is_visible())
+        # settled, so `visible` starts from whatever the two gates can answer at that point.
+        self._addBoolProperty('visible', _widgets_visible())
         # Which modifier keys are held, as one string. Pushed on its own rather than folded
         # into the snapshot: a key change must not cost a rebuild of every card, and the
         # snapshot is far too big to resend for two booleans.
@@ -322,8 +323,13 @@ def _on_held_keys_changed():
     _apply_held_keys(_module_logger)
 
 
+def _widgets_visible():
+    """Both halves of the answer: the garage on screen, and a mode the banners belong to."""
+    return route_gate.is_visible() and mode_gate.is_visible()
+
+
 def _apply_visibility(logger):
-    visible = route_gate.is_visible()
+    visible = _widgets_visible()
     _push(lambda model: model.setVisible(visible), logger)
     if not visible:
         # Leaving the garage does not move the pointer, so no banner reports a leave. Without
@@ -349,6 +355,12 @@ def _forget(model):
         _models.remove(model)
     except ValueError:
         pass
+
+
+def _on_mode_visibility(visible):
+    """The player picked a different battle mode, and it changed the answer."""
+    _module_logger.info('Random battles is the selected mode: %s', visible)
+    _apply_visibility(_module_logger)
 
 
 def _on_route_visibility(visible):
@@ -390,6 +402,9 @@ def _bind_events(logger):
     # The lobby state machine belongs to the lobby app, so it is a different object after every
     # teardown; `install` compares identity and only re-subscribes when it actually changed.
     route_gate.install(logger, _on_route_visibility)
+    # The prebattle dispatcher is replaced on the same schedule, and for the same reason its
+    # `install` is called here rather than once at load.
+    mode_gate.install(logger, _on_mode_visibility)
     # Unlike the route gate, this subscribes to a module-level singleton that survives every
     # lobby teardown, so it is made once here and never retried.
     held_keys.install(logger, _on_held_keys_changed)
@@ -454,9 +469,11 @@ def install(logger):
         )
         return False
 
-    # Almost certainly a no-op here -- the lobby app that owns the state machine does not exist
-    # this early -- but it costs nothing and `_bind_events` retries on every hangar build.
+    # Almost certainly a no-op here -- neither the lobby app that owns the state machine nor
+    # the prebattle dispatcher exists this early -- but both cost nothing, and `_bind_events`
+    # retries them on every hangar build.
     route_gate.install(logger, _on_route_visibility)
+    mode_gate.install(logger, _on_mode_visibility)
     # Unlike the route gate, this subscribes to a module-level singleton that survives every
     # lobby teardown, so it is made once here and never retried.
     held_keys.install(logger, _on_held_keys_changed)
@@ -524,6 +541,7 @@ def uninstall(logger):
     _unbind_events(logger)
     card_window.uninstall(logger)
     route_gate.uninstall(logger)
+    mode_gate.uninstall(logger)
     held_keys.uninstall(logger)
     del _models[:]
     while _patched:
