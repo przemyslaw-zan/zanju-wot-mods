@@ -1,6 +1,10 @@
 Changelog
 =========
 
+## 1.4.2 (4 September 2026)
+
+- Fixed the marker tooltips in Elite mode. A level not yet reached always reported 0%.
+
 ## 1.4.1 (2 September 2026)
 
 - Fixed the marker tooltips no longer appearing after a visit to the Field Mods screen.

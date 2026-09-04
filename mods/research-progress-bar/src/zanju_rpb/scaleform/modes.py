@@ -45,6 +45,8 @@ FIELD_MOD_ROLE_SLOT_OPTION_CATEGORIES = (
     'scouting',
 )
 
+BAR_FILL_MODE_COMPLETED_ONLY = 'completed_only'
+
 ELITE_MODE_ON = 'on'
 ELITE_MODE_CUSTOMIZATION_ONLY = 'customization_only'
 ELITE_MODE_OFF = 'off'
@@ -629,7 +631,7 @@ def _build_elite_mode(data, elite_mode=ELITE_MODE_ON):
         ),
         completed_value=total_progress,
         counter_layout='elite_status',
-        bar_fill_mode='completed_only',
+        bar_fill_mode=BAR_FILL_MODE_COMPLETED_ONLY,
     )
 
 
@@ -2467,6 +2469,25 @@ def _make_mode(
     }
 
 
+def _mode_marker_xp(mode):
+    """The XP figures a mode measures its own markers against.
+
+    Most modes keep the XP still to spend apart from the progress already made. A marker
+    there costs the unspent part alone. A completed-only mode has no such split. An elite
+    level costs base XP as it arrives, so the bar draws one fill of everything earned and
+    puts its markers on that same scale. The tooltip must read that same total. Against
+    the unspent part it reports 0% for every marker still ahead, however high the level.
+
+    Mirrors ResearchProgressBarFill.resolve, which does this for the bar itself.
+    """
+    completed_value = mode.get('completedValue') or 0
+    combat_xp = mode.get('primaryValue') or 0
+    free_xp = mode.get('secondaryValue') or 0
+    if mode.get('barFillMode') == BAR_FILL_MODE_COMPLETED_ONLY:
+        return completed_value + combat_xp + free_xp, 0
+    return combat_xp, free_xp
+
+
 def _stamp_tooltip_indices(modes):
     """Give every marker a name that is unique across the whole context.
 
@@ -2485,8 +2506,7 @@ def _stamp_tooltip_indices(modes):
     """
     index = 0
     for mode in modes:
-        combat_xp = mode.get('primaryValue') or 0
-        free_xp = mode.get('secondaryValue') or 0
+        combat_xp, free_xp = _mode_marker_xp(mode)
         for marker in mode.get('markers') or []:
             marker['tooltipIndex'] = index
             marker['tooltipCombatXp'] = combat_xp

@@ -28,7 +28,17 @@ import types
 # an empty dict yields a bare module object. Modules guarded by try/except at the
 # import site (e.g. `ResMgr` in localization.py) deliberately stay absent so tests
 # exercise the same no-client fallback path the mod uses when a dependency is missing.
-GAME_STUB_MODULES = {}
+GAME_STUB_MODULES = {
+    # constants.py reads two hangar aliases off VIEW_ALIAS at import time. The import
+    # needs the names. The strings behind them are placeholders, not the client's own
+    # values. Never match a real route against them.
+    "gui.Scaleform.daapi.settings.views": {
+        "VIEW_ALIAS": type(str("VIEW_ALIAS"), (object,), {
+            "LOBBY_HANGAR": "<stub:lobbyHangar>",
+            "LEGACY_LOBBY_HANGAR": "<stub:legacyLobbyHangar>",
+        }),
+    },
+}
 
 
 def install(src_dir=None, mod_id=None, mod_name=None):
@@ -72,6 +82,7 @@ def _install_game_stubs():
     for name, attributes in sorted(GAME_STUB_MODULES.items()):
         if name in sys.modules:
             continue
+        _install_parent_packages(name)
         module = types.ModuleType(str(name))
         for attribute, value in attributes.items():
             setattr(module, attribute, value)
@@ -82,3 +93,24 @@ def _install_game_stubs():
             parent = sys.modules.get(parent_name)
             if parent is not None:
                 setattr(parent, child, module)
+
+
+def _install_parent_packages(name):
+    """Register the empty packages above a dotted stub name.
+
+    `from gui.Scaleform.daapi.settings.views import VIEW_ALIAS` imports every package in
+    the chain, so a stub of the leaf alone still raises ImportError. None of these parents
+    exist outside the client, so an empty module is all they need to be.
+    """
+    parts = name.split(".")[:-1]
+    walked = []
+    for part in parts:
+        walked.append(part)
+        parent_name = ".".join(walked)
+        if parent_name in sys.modules:
+            continue
+        package = types.ModuleType(str(parent_name))
+        package.__path__ = []
+        sys.modules[parent_name] = package
+        if len(walked) > 1:
+            setattr(sys.modules[".".join(walked[:-1])], part, package)
