@@ -1,0 +1,27 @@
+# Row labels in the stat lists. Keep them short: the crew screen gives the label about
+# 240 units of width and truncates what does not fit.
+LABEL_DISP_MOVEMENT: "Dispersion During Movement"
+LABEL_DISP_HULL_TRAVERSE: "Dispersion During Hull Traverse"
+LABEL_DISP_GUN_TRAVERSE: "Dispersion During Gun Traverse"
+LABEL_DISP_AFTER_SHOT: "Dispersion After Firing"
+LABEL_TERRAIN_HARD: "Hard Terrain Resistance"
+LABEL_TERRAIN_MEDIUM: "Medium Terrain Resistance"
+LABEL_TERRAIN_SOFT: "Soft Terrain Resistance"
+
+# Tooltip titles. The client prints the title above the list of modifiers.
+TITLE_DISP_MOVEMENT: "Dispersion During Movement"
+TITLE_DISP_HULL_TRAVERSE: "Dispersion During Hull Traverse"
+TITLE_DISP_GUN_TRAVERSE: "Dispersion During Gun Traverse"
+TITLE_DISP_AFTER_SHOT: "Dispersion After Firing"
+TITLE_TERRAIN_HARD: "Hard Terrain Resistance"
+TITLE_TERRAIN_MEDIUM: "Medium Terrain Resistance"
+TITLE_TERRAIN_SOFT: "Soft Terrain Resistance"
+
+# Tooltip descriptions. Say what the number means, because the game never showed it before.
+DESC_DISP_MOVEMENT: "How much the aiming circle grows for each km/h of speed. A smaller number keeps the circle tighter while you drive."
+DESC_DISP_HULL_TRAVERSE: "How much the aiming circle grows for each degree per second of hull rotation. A smaller number keeps the circle tighter while you turn."
+DESC_DISP_GUN_TRAVERSE: "How much the aiming circle grows for each degree per second of turret rotation. A smaller number keeps the circle tighter while you traverse the gun."
+DESC_DISP_AFTER_SHOT: "How many times wider the aiming circle becomes at the moment you fire. A smaller number returns you to full accuracy sooner."
+DESC_TERRAIN_HARD: "How much hard ground slows the vehicle. A smaller number means the vehicle keeps more of its engine power on roads and firm surfaces."
+DESC_TERRAIN_MEDIUM: "How much moderately soft ground slows the vehicle. A smaller number means the vehicle keeps more of its engine power on grass and gravel."
+DESC_TERRAIN_SOFT: "How much soft ground slows the vehicle. A smaller number means the vehicle keeps more of its engine power in sand, mud and swamp."

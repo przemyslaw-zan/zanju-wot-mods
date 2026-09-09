@@ -1,0 +1,55 @@
+# Auto-generated translation template -- regenerate with `zwm lint i18n`; do not edit by hand.
+#
+# To start a new language, copy this file to `<language-code>.yml` (the code the WoT client
+# uses: `pl`, `de`, `fr`, `ru`, ...) and fill in the values. Each key's English source text is
+# in the `# en:` comment above it. Keys left empty ("") simply fall back to English in-game,
+# so partial translations are fine.
+
+# Row labels in the stat lists. Keep them short: the crew screen gives the label about
+# 240 units of width and truncates what does not fit.
+# en: "Dispersion During Movement"
+LABEL_DISP_MOVEMENT: ""
+# en: "Dispersion During Hull Traverse"
+LABEL_DISP_HULL_TRAVERSE: ""
+# en: "Dispersion During Gun Traverse"
+LABEL_DISP_GUN_TRAVERSE: ""
+# en: "Dispersion After Firing"
+LABEL_DISP_AFTER_SHOT: ""
+# en: "Hard Terrain Resistance"
+LABEL_TERRAIN_HARD: ""
+# en: "Medium Terrain Resistance"
+LABEL_TERRAIN_MEDIUM: ""
+# en: "Soft Terrain Resistance"
+LABEL_TERRAIN_SOFT: ""
+
+# Tooltip titles. The client prints the title above the list of modifiers.
+# en: "Dispersion During Movement"
+TITLE_DISP_MOVEMENT: ""
+# en: "Dispersion During Hull Traverse"
+TITLE_DISP_HULL_TRAVERSE: ""
+# en: "Dispersion During Gun Traverse"
+TITLE_DISP_GUN_TRAVERSE: ""
+# en: "Dispersion After Firing"
+TITLE_DISP_AFTER_SHOT: ""
+# en: "Hard Terrain Resistance"
+TITLE_TERRAIN_HARD: ""
+# en: "Medium Terrain Resistance"
+TITLE_TERRAIN_MEDIUM: ""
+# en: "Soft Terrain Resistance"
+TITLE_TERRAIN_SOFT: ""
+
+# Tooltip descriptions. Say what the number means, because the game never showed it before.
+# en: "How much the aiming circle grows for each km/h of speed. A smaller number keeps the circle tighter while you drive."
+DESC_DISP_MOVEMENT: ""
+# en: "How much the aiming circle grows for each degree per second of hull rotation. A smaller number keeps the circle tighter while you turn."
+DESC_DISP_HULL_TRAVERSE: ""
+# en: "How much the aiming circle grows for each degree per second of turret rotation. A smaller number keeps the circle tighter while you traverse the gun."
+DESC_DISP_GUN_TRAVERSE: ""
+# en: "How many times wider the aiming circle becomes at the moment you fire. A smaller number returns you to full accuracy sooner."
+DESC_DISP_AFTER_SHOT: ""
+# en: "How much hard ground slows the vehicle. A smaller number means the vehicle keeps more of its engine power on roads and firm surfaces."
+DESC_TERRAIN_HARD: ""
+# en: "How much moderately soft ground slows the vehicle. A smaller number means the vehicle keeps more of its engine power on grass and gravel."
+DESC_TERRAIN_MEDIUM: ""
+# en: "How much soft ground slows the vehicle. A smaller number means the vehicle keeps more of its engine power in sand, mud and swamp."
+DESC_TERRAIN_SOFT: ""
