@@ -22,5 +22,6 @@ paraphrase of it.
 - [Research Progress Bar UI](research-progress-bar-ui.md)
 - [Gameface Mod Widgets](gameface-mod-widgets.md)
 - [Personal Missions](personal-missions.md)
+- [Battle Mission Progress](battle-mission-progress.md) — the client's quest-progress renderers, their data shape, and what the Scaleform value bridge refuses
 - [WoT Plus Subscriptions](wot-plus-subscriptions.md)
 - [Directives And Battle Boosters](directives-and-battle-boosters.md)
