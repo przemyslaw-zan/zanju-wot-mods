@@ -44,6 +44,7 @@ Reference language `en` defines 83 strings. Translations are community-maintaine
 | --- | --- | --- |
 | `pl` | 100% (83/83) | 0 |
 | `ru` | 100% (83/83) | 0 |
+| `zh_cn` | 100% (83/83) | 0 |
 
 ## Install And Use
 
