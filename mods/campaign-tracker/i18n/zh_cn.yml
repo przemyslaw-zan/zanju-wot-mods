@@ -1,0 +1,36 @@
+# Auto-generated translation template -- regenerate with `zwm lint i18n`; do not edit by hand.
+#
+# To start a new language, copy this file to `<language-code>.yml` (the code the WoT client
+# uses: `pl`, `de`, `fr`, `ru`, ...) and fill in the values. Each key's English source text is
+# in the `# en:` comment above it. Keys left empty ("") simply fall back to English in-game,
+# so partial translations are fine.
+
+# Widget states
+# Also shown when there is no vehicle in the garage at all, so keep the wording general.
+# en: "No mission for this vehicle"
+LABEL_NO_MISSION: "此车辆没有任务"
+# en: "Mission on pause"
+LABEL_PAUSED: "任务已暂停"
+
+# Tooltip
+# "Locked" means the vehicle already completed this mission and cannot repeat it.
+# en: "Locked vehicles:"
+LABEL_LOCKED_VEHICLES: "已锁定车辆："
+# en: "Vehicle locked"
+LABEL_VEHICLE_LOCKED: "车辆已锁定"
+# An order is the game item that completes a primary condition. Stays singular for any number.
+# en: "Retrieving an order"
+LABEL_PAWNED: "正在取回指令"
+# {percent} of the average the mission needs per battle, not of the total. 100 is on target.
+# en: "{percent}% of the target average per battle"
+LABEL_PACE: "每场战斗目标平均值的 {percent}%"
+
+# Click hints, at the foot of the tooltip
+# en: "Click to open the mission"
+LABEL_HINT_OPEN: "点击打开任务"
+# en: "Shift + Click to pause the mission"
+LABEL_HINT_PAUSE: "Shift + 点击暂停任务"
+# en: "Shift + Click to resume the mission"
+LABEL_HINT_RESUME: "Shift + 点击继续任务"
+# en: "Ctrl + Click to reset the mission"
+LABEL_HINT_RESET: "Ctrl + 点击重置任务"

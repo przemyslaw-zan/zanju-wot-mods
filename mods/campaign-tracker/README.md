@@ -19,6 +19,7 @@ Reference language `en` defines 10 strings. Translations are community-maintaine
 | `pl` | 100% (10/10) | 0 |
 | `ru` | 100% (10/10) | 0 |
 | `uk` | 100% (10/10) | 0 |
+| `zh_cn` | 100% (10/10) | 0 |
 
 ## Install And Use
 
