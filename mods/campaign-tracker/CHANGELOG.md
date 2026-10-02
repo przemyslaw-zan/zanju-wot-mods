@@ -1,6 +1,10 @@
 Changelog
 =========
 
+## 1.2.2 (2 October 2026)
+
+- New Simplified Chinese translation. Thank you [@becausemadoka](https://github.com/becausemadoka)!
+
 ## 1.2.1 (1 October 2026)
 
 - Fixed missing letters in the banner tooltips, in languages that the game draws with a different font (e.g. Chinese).
