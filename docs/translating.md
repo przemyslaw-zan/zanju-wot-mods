@@ -8,7 +8,7 @@ You do **not** need the build toolchain (Docker, the VS Code Dev Container, Java
 
 - Each mod keeps its text under `mods/<mod-name>/i18n/`, one file per language: `en.yml`, `pl.yml`, and so on.
 - `en.yml` is the source of truth — it defines every string key. Other languages translate those same keys; anything a language is missing falls back to English in-game.
-- Some strings are the same in several mods, such as the units of a time left. They are in `mods-common/i18n/`, in the same layout. Translate them there once, and every mod that uses them gets the translation. The README of a mod says how many of its strings are shared, and its coverage table counts them.
+- Some strings are the same in several mods, such as the units of a time left. They are in `mods-common/i18n/`, in the same layout. Translate them there once, and every mod that uses them gets the translation. The README of a mod says how many of its strings are shared, and its coverage table counts them. The table in the main README shows the shared strings in a row of their own.
 - Files are flat `KEY: "value"` YAML. Translate the **value**, never the key. Keep:
   - escapes such as `\n` (line break) and `\"` (a literal quote) intact,
   - `{placeholders}` like `{xp}`, `{level}`, `{count}` untouched — the mod fills those in at runtime.
@@ -32,7 +32,7 @@ You do not have to translate every key at once — untranslated keys simply show
 
 ## Refresh the coverage table
 
-Every mod README has a `## Translations` table with each language's coverage. The main README also has one table for all mods, in its `## Translations` section, which shows the mods that still lack your language. After editing a `.yml`, regenerate both:
+Every mod README has a `## Translations` table with each language's coverage. The main README also has one table for all mods, in its `## Translations` section, which shows the mods that still lack your language. In that table, a mod counts only the strings in its own folder. The shared strings have their own row. After editing a `.yml`, regenerate both:
 
 ```bash
 python3 -m tools.commands.lint i18n

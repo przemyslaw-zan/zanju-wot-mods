@@ -111,6 +111,15 @@ class PanelTest(unittest.TestCase):
         self._start(config.DETAILS_NEVER)
         self.assertFalse(self._full())
 
+    def test_the_payload_carries_the_style_and_the_figures(self):
+        self._start(config.DETAILS_ALWAYS)
+        sent = json.loads(self.panel.payload)
+        self.assertEqual((sent['style'], sent['figures']), ('flat', 'both'))
+        config.apply({'panelStyle': 'round', 'panelFigures': 'value'})
+        self.panel.update({'rows': []})
+        sent = json.loads(self.panel.payload)
+        self.assertEqual((sent['style'], sent['figures']), ('round', 'value'))
+
     def test_with_alt_the_key_shows_the_full_information_while_it_is_down(self):
         self._start(config.DETAILS_ALT)
         self.assertFalse(self._full())

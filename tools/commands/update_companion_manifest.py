@@ -169,7 +169,7 @@ def _resolve_modmenu_artifact():
         "filename": filename,
         "downloadUrl": asset["browser_download_url"],
         "sha256": "0" * 64,
-        "notes": "In-game settings window for research-progress-bar. Needs OpenWG Gameface 1.1.6 or newer.",
+        "notes": "In-game settings window for research-progress-bar, campaign-tracker and crucible-tracker. Needs OpenWG Gameface 1.1.6 or newer.",
     }
 
 

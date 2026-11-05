@@ -15,6 +15,11 @@ import xml.etree.ElementTree as ET
 
 from .paths import MODS_DIR
 
+# The author that Mod Menu shows under the name of each mod, and the page that it links to. meta.xml
+# has no field for them.
+MOD_AUTHOR = "Zanju"
+MOD_URL = "https://github.com/przemyslaw-zan/zanju-wot-mods/issues"
+
 
 def meta_path_for(mod_name):
     return os.path.join(MODS_DIR, mod_name, "meta.xml")

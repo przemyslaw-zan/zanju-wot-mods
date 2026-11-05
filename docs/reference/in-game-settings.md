@@ -40,6 +40,14 @@ api.updateModSettings(mod_id, current_values)
 
 `campaign-tracker` and `crucible-tracker` take this glue from the shared module `mods-common/mod_menu.py`: register, declare the defaults, push the values, and drop the echo of the push. Each mod keeps its own template and its own `config.json`. `research-progress-bar` still has its own copy of the glue in `config.py`.
 
+## Author, version and link
+
+Each template carries `modAuthor`, `modVersion` and `modUrl` beside `modDisplayName`. Mod Menu shows the author and the version under the name of the mod. It adds a `v` before a version that starts with a digit. `modUrl` is a small mark beside them. Its tooltip shows the address, and a click opens the address in the browser of the player. The player can move these items or hide them in the settings of the menu. The Mod Menu API says that these keys are not controls. Thus a new value never resets the settings of the player.
+
+`MOD_VERSION` comes from `meta.xml` through the generated `_mod_meta` module, so a release needs no other edit. `MOD_AUTHOR` and `MOD_URL` are in `tools/core/mod_meta.py`, because `meta.xml` has no field for them. `MOD_URL` is the issues page of this repository.
+
+Mod Menu 2.1.12 added `modUrl`. It takes only an `https://` or `http://` address of up to 512 characters, and it ignores any other value. The window scripts of 2.1.04 and 2.1.11 do not read this key, so a modpack with an older build shows no link.
+
 ## Config is the source of truth; the menu cache is a mirror
 
 A mod's settings live in its AppData `config.json` (see

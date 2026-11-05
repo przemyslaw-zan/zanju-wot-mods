@@ -1,6 +1,12 @@
 Changelog
 =========
 
+## 1.4.9 (5 November 2026)
+
+- The settings window now shows the author and the version of the mod, with a link to the page for bug reports.
+- The download now ships Aslain's Mod Menu 2.1.12, in place of 2.1.04.
+- Updated for World of Tanks 2.4.1.1.
+
 ## 1.4.8 (27 October 2026)
 
 - Updated Russian translation. Thank you [@AVPromo](https://github.com/AVPromo)!

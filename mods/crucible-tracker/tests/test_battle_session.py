@@ -296,6 +296,17 @@ class BattleSessionTest(unittest.TestCase):
         self.assertEqual(_Panel.instances, [])
         self.assertTrue(any('battle type 32' in line for line in self.logger.lines))
 
+    def test_a_new_style_or_figures_setting_reaches_the_open_panel_at_once(self):
+        self._open(_Client())
+        sent = len(_Panel.instances[0].payloads)
+        battle_session.on_settings_changed(['panelStyle'])
+        self.assertEqual(len(_Panel.instances[0].payloads), sent + 1)
+        battle_session.on_settings_changed(['panelFigures'])
+        self.assertEqual(len(_Panel.instances[0].payloads), sent + 2)
+        battle_session.on_settings_changed(['traySide'])
+        self.assertEqual(len(_Panel.instances[0].payloads), sent + 2)
+        self.assertEqual(self.logger.exceptions, [])
+
     def test_the_settings_can_turn_the_panel_off(self):
         config.apply({'battleEnabled': False})
         self.assertIsNone(self._open(_Client()))

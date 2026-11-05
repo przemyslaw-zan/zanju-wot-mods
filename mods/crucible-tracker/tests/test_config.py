@@ -38,27 +38,48 @@ class ConfigTest(unittest.TestCase):
         self.assertEqual(config.sanitize({'panelDetails': 'sometimes'}), {})
         self.assertEqual(config.sanitize({'panelDetails': 'alt'}), {'panelDetails': 'alt'})
 
+    def test_the_panel_has_a_flat_bar_and_both_figures_by_default(self):
+        self.assertEqual(config.panel_style(), 'flat')
+        self.assertEqual(config.panel_figures(), 'both')
+
+    def test_an_unknown_panel_style_or_figures_value_is_dropped(self):
+        self.assertEqual(config.sanitize({'panelStyle': 'square', 'panelFigures': 'none'}), {})
+        self.assertEqual(config.sanitize({'panelStyle': 'round', 'panelFigures': 'value'}),
+                         {'panelStyle': 'round', 'panelFigures': 'value'})
+
     def test_the_menu_form_maps_both_ways(self):
-        config.apply({'traySide': 'right', 'battleEnabled': False, 'panelDetails': 'never'})
+        config.apply({'traySide': 'right', 'battleEnabled': False, 'panelDetails': 'never',
+                      'panelStyle': 'round', 'panelFigures': 'value'})
         values = config.menu_values()
         self.assertEqual(values['traySide'], 0)
         self.assertEqual(values['panelDetails'], 2)
+        self.assertEqual(values['panelStyle'], 1)
+        self.assertEqual(values['panelFigures'], 1)
         self.assertFalse(values['battleEnabled'])
         menu_keys = dict((key, value) for key, value in config.sanitize(config.current()).items()
                          if key != 'panelPosition')
         self.assertEqual(config.from_menu(values), menu_keys)
 
     def test_the_template_carries_the_defaults(self):
-        config.apply({'traySide': 'right', 'garageEnabled': False, 'panelDetails': 'alt'})
+        config.apply({'traySide': 'right', 'garageEnabled': False, 'panelDetails': 'alt', 'panelStyle': 'round',
+                      'panelFigures': 'value'})
         template = config.menu_template()
         controls = dict((control['varName'], control['value'])
                         for column in ('column1', 'column2') for control in template[column])
-        self.assertEqual(controls, {'garageEnabled': True, 'battleEnabled': True, 'panelDetails': 0, 'traySide': 1})
+        self.assertEqual(controls, {'garageEnabled': True, 'battleEnabled': True, 'panelDetails': 0, 'traySide': 1,
+                                    'panelStyle': 0, 'panelFigures': 0})
+
+    def test_the_template_carries_the_author_the_version_and_the_link(self):
+        template = config.menu_template()
+        self.assertEqual(template['modAuthor'], config.MOD_AUTHOR)
+        self.assertEqual(template['modVersion'], config.MOD_VERSION)
+        self.assertEqual(template['modUrl'], config.MOD_URL)
 
     def test_the_garage_and_the_battle_each_have_a_column_under_their_switch(self):
         template = config.menu_template()
         self.assertEqual([control['varName'] for control in template['column1']], ['garageEnabled', 'traySide'])
-        self.assertEqual([control['varName'] for control in template['column2']], ['battleEnabled', 'panelDetails'])
+        self.assertEqual([control['varName'] for control in template['column2']],
+                         ['battleEnabled', 'panelDetails', 'panelStyle', 'panelFigures'])
 
     def test_the_details_choices_carry_the_labels_of_the_client(self):
         control = [c for c in config.menu_template()['column2'] if c['varName'] == 'panelDetails'][0]

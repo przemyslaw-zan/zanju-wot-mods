@@ -5,7 +5,7 @@
 // cursor position, because mouse events stop when the pointer leaves this small window. See
 // gameface/battle_panel.py.
 
-import { refreshClocks, renderPanel } from './battle.js';
+import { refreshClocks, renderPanel, widestFigures } from './battle.js';
 import { applyLanguage, callCommand, nextFrame, readModel, waitForDomBuilt } from './card_host.js';
 import { log, parseJson, unwrap } from './common.js';
 
@@ -19,6 +19,10 @@ let dragging = false;
 
 function panelNode() {
     return document.getElementById('zanju-crt-panel');
+}
+
+function probeNode() {
+    return document.getElementById('zanju-crt-panel-probe');
 }
 
 function command(name, arg) {
@@ -41,6 +45,19 @@ function render() {
     // battle.css reads `lang` to select the font, as the card does. See card_host.js.
     applyLanguage(payload && payload.lang);
     renderPanel(node, payload);
+    probeNode().textContent = widestFigures(payload);
+}
+
+// The width of the column of the dials. The renderer cannot size a box from its content, so this
+// reads the hidden probe, and battle.css gives the column that width. The observer also calls back
+// for a new font or a new interface scale. The value stays on the panel through a new render and
+// through a change of form, so the column has its width before the first layout of that form.
+function followFigures() {
+    const probe = probeNode();
+    new ResizeObserver(function () {
+        const width = Math.ceil(probe.getBoundingClientRect().width);
+        panelNode().style.setProperty('--zanju-crt-figures-width', width + 'px');
+    }).observe(probe);
 }
 
 // The client's own views that follow their content do it this way: a ResizeObserver on the root,
@@ -100,6 +117,7 @@ engine.whenReady
     .then(function () {
         bindDrag();
         followSize();
+        followFigures();
         render();
         engine.on('viewEnv.onDataChanged', render);
         viewEnv.addDataChangedCallback('model', ROOT_RES_ID, true);

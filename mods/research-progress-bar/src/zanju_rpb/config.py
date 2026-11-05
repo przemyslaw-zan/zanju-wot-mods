@@ -8,7 +8,7 @@ import os
 from collections import OrderedDict
 from numbers import Integral
 
-from .constants import MOD_CONFIG_DIR_NAME, MOD_NAME
+from .constants import MOD_AUTHOR, MOD_CONFIG_DIR_NAME, MOD_NAME, MOD_URL, MOD_VERSION
 from .localization import get_text as _loc
 from .localization import make_tooltip as _loc_tooltip
 from .storage import atomic_write_text, resolve_mod_data_dir
@@ -458,6 +458,9 @@ def _build_mod_settings_template():
     settings = _build_mod_settings_state(_DEFAULT_CONFIG)
     return _mods_settings_native({
         'modDisplayName': MOD_NAME,
+        'modAuthor': MOD_AUTHOR,
+        'modVersion': MOD_VERSION,
+        'modUrl': MOD_URL,
         'enabled': settings['enabled'],
         'column1': [
             {

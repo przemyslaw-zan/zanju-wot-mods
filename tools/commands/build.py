@@ -23,7 +23,7 @@ Internal .wotmod layout:
     meta.xml                                (authored manifest: id/version/name)
     LICENSE.md                              (repo-root license, when present)
     res/scripts/client/gui/mods/<file>.pyc  (compiled from mods/<name>/src/)
-    res/scripts/client/gui/mods/<pkg>/_mod_meta.pyc  (generated from meta.xml: MOD_ID/MOD_NAME)
+    res/scripts/client/gui/mods/<pkg>/_mod_meta.pyc  (generated from meta.xml: MOD_ID/MOD_NAME/MOD_VERSION, with MOD_AUTHOR/MOD_URL)
     res/scripts/client/gui/mods/<pkg>/<name>.pyc     (compiled from mods-common/<name>.py, when the mod imports it)
     res/gui/gameface/mods/<namespace>/<name>.js      (copied from mods-common/gameface/<name>.js, when the mod imports it)
     res/...                                 (from mods/<name>/res/ plus generated ui/build/res/)
@@ -61,7 +61,7 @@ from ..core.mod_assets import (
 )
 from ..core.mod_cli import ensure_mod_dirs_exist, parse_companion_targeting_args, resolve_mod_targets, run_entrypoint
 from ..core.env import subprocess_env
-from ..core.mod_meta import read_meta
+from ..core.mod_meta import MOD_AUTHOR, MOD_URL, read_meta
 from ..core.paths import DIST_DIR, LICENSE_PATH, MODS_DIR
 from ..core.wot_version import resolve_target_wot_version
 
@@ -257,14 +257,23 @@ def render_mod_meta_module(meta):
         "\n"
         "MOD_ID = {id}\n"
         "MOD_NAME = {name}\n"
-    ).format(id=json.dumps(meta["id"]), name=json.dumps(meta["name"]))
+        "MOD_VERSION = {version}\n"
+        "MOD_AUTHOR = {author}\n"
+        "MOD_URL = {url}\n"
+    ).format(
+        id=json.dumps(meta["id"]),
+        name=json.dumps(meta["name"]),
+        version=json.dumps(meta["version"]),
+        author=json.dumps(MOD_AUTHOR),
+        url=json.dumps(MOD_URL),
+    )
 
 
 def bundle_generated_mod_meta(src_dir, meta, temp_dir, py2_exe, zf):
     """Compile a meta-derived _mod_meta module into each internal package.
 
-    Keeps meta.xml the single authored source of MOD_ID/MOD_NAME: the runtime
-    imports these from the generated module instead of hardcoding them.
+    Keeps meta.xml the single authored source of MOD_ID/MOD_NAME/MOD_VERSION: the
+    runtime imports these from the generated module instead of hardcoding them.
     """
     source = render_mod_meta_module(meta)
     for package in iter_internal_packages(src_dir):

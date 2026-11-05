@@ -13,7 +13,11 @@ class FakeNode {
         this.className = '';
         this.children = [];
         this.parentNode = null;
-        this.style = {};
+        this.style = {
+            setProperty(name, value) {
+                this[name] = value;
+            },
+        };
         this.attributes = {};
         this.id = '';
         this._text = '';
@@ -754,6 +758,42 @@ test('a time limit counts down to its deadline as M:SS', () => {
     assert.match(node.querySelector('.zanju-crt-prow-clock').textContent, /^2:0[45]$/);
 });
 
+test('a time limit that runs has the warning color only from 1:00 on the clock', () => {
+    const classAt = (secondsLeft) => {
+        const node = document.createElement('div');
+        const payload = panelPayload({});
+        payload.rows[0].deadline = Date.now() / 1000 + secondsLeft;
+        battle.renderPanel(node, payload);
+        return node.querySelector('.zanju-crt-prow-clock').className;
+    };
+    const warning = 'zanju-crt-prow-clock zanju-crt-prow-clock-warning';
+    assert.equal(classAt(125), 'zanju-crt-prow-clock');
+    assert.equal(classAt(62), 'zanju-crt-prow-clock');
+    assert.equal(classAt(60.5), warning);
+    assert.equal(classAt(30), warning);
+    assert.equal(classAt(-1), warning);
+});
+
+test('the clock takes the warning color while it counts, with no new render', () => {
+    const node = document.createElement('div');
+    const payload = panelPayload({});
+    payload.rows[0].deadline = Date.now() / 1000 + 125;
+    battle.renderPanel(node, payload);
+    const clock = node.querySelector('.zanju-crt-prow-clock');
+    assert.equal(clock.className, 'zanju-crt-prow-clock');
+    clock._zanjuDeadline = Date.now() / 1000 + 30;
+    battle.refreshClocks(node, payload);
+    assert.equal(clock.className, 'zanju-crt-prow-clock zanju-crt-prow-clock-warning');
+});
+
+test('a time limit that does not run yet has no warning color, whatever its length', () => {
+    const node = document.createElement('div');
+    const payload = panelPayload({});
+    payload.rows[0].timeLimit = 45;
+    battle.renderPanel(node, payload);
+    assert.equal(node.querySelector('.zanju-crt-prow-clock').className, 'zanju-crt-prow-clock');
+});
+
 test('a time limit that ran out closes a condition that is not met', () => {
     const node = document.createElement('div');
     const payload = panelPayload({});
@@ -777,6 +817,140 @@ test('after a reconnect, a row has no figures, but its time limit runs and never
     assert.equal(node.querySelector('.zanju-crt-prow-figures'), null);
     assert.equal(node.querySelector('.zanju-crt-prow-clock').textContent, '0:00');
     assert.equal(node.querySelectorAll('.zanju-crt-prow-closed').length, 0);
+});
+
+test('with a time limit in one row, every bar keeps a clock column, and the bars end together', () => {
+    const counted = (extra) => Object.assign({ text: 'Cause damage', icon: 'hurt_vehicles', set: 0, live: true,
+        state: 'open', ratio: 0.5, valueText: '10', targetText: '20' }, extra);
+    const node = document.createElement('div');
+    battle.renderPanel(node, panelPayload({ rows: [counted({ timeLimit: 300 }), counted({})] }));
+    assert.deepEqual(node.querySelectorAll('.zanju-crt-prow-meter').map((meter) => meter.children.map(
+        (child) => child.className)), [
+        ['zanju-crt-prow-bar', 'zanju-crt-prow-figures', 'zanju-crt-prow-clock'],
+        ['zanju-crt-prow-bar', 'zanju-crt-prow-figures', 'zanju-crt-prow-noclock'],
+    ]);
+    const none = document.createElement('div');
+    battle.renderPanel(none, panelPayload({ rows: [counted({}), counted({})] }));
+    assert.equal(none.querySelector('.zanju-crt-prow-noclock'), null);
+});
+
+test('a row with a clock and no bar keeps the clock in the clock column', () => {
+    const node = document.createElement('div');
+    const row = { text: 'Cause 2,500 HP within 5 minutes', set: 0, live: false, timeLimit: 300 };
+    battle.renderPanel(node, panelPayload({ rows: [row] }));
+    assert.deepEqual(node.querySelector('.zanju-crt-prow-meter').children.map((child) => child.className),
+        ['zanju-crt-prow-gap', 'zanju-crt-prow-clock']);
+});
+
+test('the figures can show only the current value, and it counts past the required value', () => {
+    const row = { text: 'Cause damage', live: true, state: 'met', ratio: 1, valueText: '3,500', targetText: '3,000' };
+    const both = document.createElement('div');
+    battle.renderPanel(both, panelPayload({ rows: [row] }));
+    assert.equal(both.querySelector('.zanju-crt-prow-figures').textContent, '3,500 / 3,000');
+    assert.equal(both.className, 'zanju-crt-panel');
+    const value = document.createElement('div');
+    battle.renderPanel(value, panelPayload({ figures: 'value', rows: [row] }));
+    assert.equal(value.querySelector('.zanju-crt-prow-figures').textContent, '3,500');
+    assert.equal(value.className, 'zanju-crt-panel zanju-crt-panel-value');
+});
+
+test('the round style has the clock on top of the dial, the figures below it and the text on its right', () => {
+    const node = document.createElement('div');
+    battle.renderPanel(node, panelPayload({ style: 'round' }));
+    assert.equal(node.className, 'zanju-crt-panel zanju-crt-panel-round');
+    assert.equal(node.querySelector('.zanju-crt-prow-bar'), null);
+    const row = node.querySelector('.zanju-crt-prow');
+    assert.equal(row.className, 'zanju-crt-prow zanju-crt-prow-round');
+    assert.deepEqual(row.children.map((child) => child.className), ['zanju-crt-gauge', 'zanju-crt-prow-side']);
+    assert.deepEqual(node.querySelector('.zanju-crt-gauge').children.map((child) => child.className),
+        ['zanju-crt-prow-clock', 'zanju-crt-dial', 'zanju-crt-prow-figures zanju-crt-prow-figures-cells']);
+    assert.deepEqual(node.querySelector('.zanju-crt-dial').children.map((child) => child.className),
+        ['zanju-crt-dial-track', 'zanju-crt-dial-fill', 'zanju-crt-dial-icon']);
+    assert.equal(node.querySelector('.zanju-crt-dial-icon').style.backgroundImage,
+        "url('R.images.gui.maps.icons.userMissions.challenges.missionIcons.c_32.hurt_vehicles')");
+    assert.deepEqual(node.querySelector('.zanju-crt-prow-figures').children.map((child) => child.textContent),
+        ['1,250', '/', '2,500']);
+    const text = node.querySelector('.zanju-crt-prow-side').children[0];
+    assert.equal(text.className, 'zanju-crt-prow-text');
+    assert.match(text.textContent, /^Cause 2,500 HP/);
+});
+
+test('the arc of a dial covers its ratio of three quarters of a circle, and never more', () => {
+    const arcOf = (ratio) => {
+        const node = document.createElement('div');
+        const row = { text: 'x', icon: 'top', live: true, state: 'open', ratio: ratio, valueText: '1', targetText: '2' };
+        battle.renderPanel(node, panelPayload({ style: 'round', rows: [row] }));
+        return node.querySelector('.zanju-crt-dial').style['--zanju-crt-arc'];
+    };
+    assert.equal(arcOf(0), '0.0%');
+    assert.equal(arcOf(0.5), '37.5%');
+    assert.equal(arcOf(1), '75.0%');
+    assert.equal(arcOf(1.4), '75.0%');
+});
+
+test('without the full information, the round style shows no text, also for a condition with nothing to count', () => {
+    const counted = { text: 'Cause 3,000 HP of damage', icon: 'hurt_vehicles', set: 0, live: true, state: 'open',
+        ratio: 0.1, valueText: '300', targetText: '3,000' };
+    const top = { text: 'Be among the top 5 players of the team by damage', icon: 'top', set: 1, live: false };
+    const node = document.createElement('div');
+    battle.renderPanel(node, panelPayload({ style: 'round', full: false, group: 'or', rows: [counted, top] }));
+    assert.equal(node.className, 'zanju-crt-panel zanju-crt-panel-round zanju-crt-panel-dials');
+    assert.equal(node.querySelector('.zanju-crt-panel-head'), null);
+    assert.equal(node.querySelector('.zanju-crt-prow-text'), null);
+    assert.equal(node.querySelector('.zanju-crt-prow-side'), null);
+    assert.equal(node.querySelectorAll('.zanju-crt-panel-or').length, 1);
+});
+
+test('a condition with nothing to count has an empty ring and no figures, with and without the full information', () => {
+    const top = { text: 'Be among the top 5 players of the team by damage', icon: 'top', live: false };
+    [true, false].forEach((full) => {
+        const node = document.createElement('div');
+        battle.renderPanel(node, panelPayload({ style: 'round', full: full, rows: [top] }));
+        const gauge = node.querySelector('.zanju-crt-gauge');
+        assert.deepEqual(gauge.children.map((child) => child.className), ['zanju-crt-dial']);
+        assert.deepEqual(gauge.children[0].children.map((child) => child.className),
+            ['zanju-crt-dial-track', 'zanju-crt-dial-icon']);
+    });
+});
+
+test('the round style with only the current value is the narrowest form', () => {
+    const node = document.createElement('div');
+    battle.renderPanel(node, panelPayload({ style: 'round', figures: 'value', full: false }));
+    assert.equal(node.className, ['zanju-crt-panel', 'zanju-crt-panel-value', 'zanju-crt-panel-round',
+        'zanju-crt-panel-dials'].join(' '));
+    assert.equal(node.querySelector('.zanju-crt-prow-figures').textContent, '1,250');
+    assert.equal(node.querySelector('.zanju-crt-prow-figures').className, 'zanju-crt-prow-figures');
+});
+
+test('the widest figures come from the longest figure of the panel, with the widest digit', () => {
+    const counted = (valueText, targetText) => ({ live: true, valueText: valueText, targetText: targetText });
+    assert.equal(battle.widestFigures(panelPayload({ rows: [counted('0', '500'), counted('480', '1,000')] })),
+        '8,888 / 8,888');
+    assert.equal(battle.widestFigures(panelPayload({ figures: 'value', rows: [counted('446', '1,500')] })), '8,888');
+});
+
+test('the widest figures stay the same while the panel counts, until a value has more digits than the target', () => {
+    const widest = (valueText) => battle.widestFigures(panelPayload({ rows: [
+        { live: true, valueText: valueText, targetText: '1,500' }] }));
+    assert.equal(widest('0'), '8,888 / 8,888');
+    assert.equal(widest('9,999'), '8,888 / 8,888');
+    assert.equal(widest('10,000'), '88,888 / 88,888');
+});
+
+test('the widest figures keep the separator of the language, and are empty with nothing to count', () => {
+    assert.equal(battle.widestFigures(panelPayload({ rows: [
+        { live: true, valueText: '0', targetText: '1 500' }] })), '8 888 / 8 888');
+    assert.equal(battle.widestFigures(panelPayload({ rows: [{ text: 'x', icon: 'top', live: false }] })), '');
+    assert.equal(battle.widestFigures(null), '');
+});
+
+test('a time limit that ran out closes the row of a dial too', () => {
+    const node = document.createElement('div');
+    const payload = panelPayload({ style: 'round' });
+    payload.rows[0].deadline = Date.now() / 1000 - 1;
+    battle.renderPanel(node, payload);
+    assert.equal(node.querySelector('.zanju-crt-prow-clock').textContent, '0:00');
+    assert.equal(node.querySelectorAll('.zanju-crt-prow-closed').length, 1);
 });
 
 test('the panel draws one or separator between two sets', () => {

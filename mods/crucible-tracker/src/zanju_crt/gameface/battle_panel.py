@@ -195,7 +195,8 @@ class Panel(object):
         self._push()
 
     def _serialize(self):
-        return json.dumps(dict(self.content, full=show_full(self.details, self.extended)))
+        return json.dumps(dict(self.content, full=show_full(self.details, self.extended),
+                               style=config.panel_style(), figures=config.panel_figures()))
 
     def _push(self):
         text = self._serialize()

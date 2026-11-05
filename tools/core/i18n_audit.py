@@ -8,7 +8,8 @@ Two concerns, deliberately weighted differently:
 - translation coverage (informational): non-English <lang>.yml files are maintained by external
   translators and may lag behind en.yml. That is expected, never a build failure. Instead each
   mod's README carries an auto-generated coverage table (see write_readme_coverage), and the
-  main README carries one more over all mods (see write_root_readme_coverage).
+  main README carries one more over all mods, with the shared strings in a row of their own
+  (see overview_rows).
 
 en.yml is the single source of truth for the key set; the runtime merges it as the base layer
 under the client language, so a key present in en.yml is the stable English fallback.
@@ -17,8 +18,8 @@ Strings that several mods use, such as the units of a time left, have one author
 mods-common/i18n/, in the same layout as the i18n/ folder of a mod. A mod takes a shared key when
 its code, or a shared module that it takes, uses the key. Nothing else declares it, the same as
 for the shared modules (see mods_common). `zwm build` adds the shared keys that a mod takes to the
-language files in its package (see shared_lines_for), and the coverage of a mod counts them as
-strings of the mod. A key is in the en.yml of a mod or in the shared one, never in both.
+language files in its package (see shared_lines_for), and the table in the README of a mod counts
+them as strings of the mod. A key is in the en.yml of a mod or in the shared one, never in both.
 """
 
 from __future__ import print_function
@@ -77,6 +78,8 @@ _OVERVIEW_SECTION = re.compile(re.escape(_OVERVIEW_START) + r".*?" + re.escape(_
 _ROOT_README = os.path.join(REPO_ROOT, "README.md")
 # Every mod's meta.xml name starts with this. The table drops it to stay narrow.
 _MOD_NAME_PREFIX = "Zanju's "
+# The row of the shared strings in that table, after the mods.
+_SHARED_LABEL = "[Shared strings](mods-common/i18n/)"
 _COMPLETE = "🟢"
 _PARTIAL = "🟡"
 _MISSING = "🔴"
@@ -264,7 +267,7 @@ def audit_code_key_coverage():
 
 def compute_translation_coverage():
     """Return {mod_name: {'reference_count', 'shared_count', 'languages': [ {code, present, total, missing,
-    extra, own_file} ]}}.
+    extra} ]}}.
 
     The strings of a mod are its own keys and the shared keys that it takes. A shared language file thus
     counts for each mod that takes keys from it, also for a mod without its own file in that language.
@@ -298,7 +301,6 @@ def compute_translation_coverage():
                     "missing": sorted(reference - present),
                     # A shared key in the file of a mod counts here too: the shared file holds it.
                     "extra": sorted(lang_keys - own_keys),
-                    "own_file": code in own_files,
                 }
             )
         coverage[mod_name] = {
@@ -472,33 +474,55 @@ def _display_name(mod_name):
     return name or mod_name
 
 
-def _overview_cell(mod_name, code, lang, reference_count):
-    """One mod in one language: a mark, then translated out of total, linked to the file of the mod if any.
+def overview_rows():
+    """The rows of the main README's table: each mod with its own strings, then the shared strings.
 
-    The shared strings alone can give a mod a language with no file of its own. That cell has no link.
+    A mod row counts only the keys of the en.yml of the mod. The shared strings have a row of their
+    own. Thus each cell links to the one file that holds what it counts. A translator found the old
+    form confusing. There, a mod with no file in a language showed the shared strings in that column.
     """
-    if lang is None:
-        return "{0} 0/{1}".format(_MISSING, reference_count)
-    present = lang["present"]
-    total = lang["total"]
+    rows = []
+    for mod_name, i18n_dir in _iter_mod_i18n_dirs():
+        if os.path.isfile(_reference_path(i18n_dir)):
+            label = "[{0}](mods/{1}/README.md)".format(_display_name(mod_name), mod_name)
+            rows.append(_overview_row(label, "mods/{0}/i18n".format(mod_name), i18n_dir))
+    if os.path.isfile(_reference_path(SHARED_I18N_DIR)):
+        rows.append(_overview_row(_SHARED_LABEL, "mods-common/i18n", SHARED_I18N_DIR))
+    return rows
+
+
+def _overview_row(label, folder, i18n_dir):
+    """One row: its label, its folder from the repository root, its key count, and per language the keys present."""
+    keys = _load_yaml_keys(_reference_path(i18n_dir))
+    files = _language_files(i18n_dir)
+    files.pop(_REFERENCE_LANGUAGE, None)
+    present = {code: len(_load_yaml_keys(path) & keys) for code, path in files.items()}
+    return {"label": label, "folder": folder, "total": len(keys), "present": present}
+
+
+def _overview_cell(row, code):
+    """One row in one language: a mark, then translated out of total, linked to the file if there is one."""
+    total = row["total"]
+    present = row["present"].get(code)
+    if present is None:
+        return "{0} 0/{1}".format(_MISSING, total)
     if present >= total:
         mark = _COMPLETE
     elif present:
         mark = _PARTIAL
     else:
         mark = _MISSING
-    if not lang.get("own_file", True):
-        return "{0} {1}/{2}".format(mark, present, total)
-    return "{0} [{1}/{2}](mods/{3}/i18n/{4}.yml)".format(mark, present, total, mod_name, code)
+    return "{0} [{1}/{2}]({3}/{4}.yml)".format(mark, present, total, row["folder"], code)
 
 
-def render_overview_section(coverage):
-    """Render the main README's coverage table, markers included: a row per mod, a column per language.
+def render_overview_section(rows):
+    """Render the main README's coverage table, markers included: a row per mod and one for the shared
+    strings, a column per language.
 
-    The columns are every language that any mod has. A mod without one of them therefore shows a
+    The columns are every language that any row has. A row without one of them therefore shows a
     gap in that column, which is what tells a translator where their language is still missing.
     """
-    codes = sorted({lang["code"] for mod_coverage in coverage.values() for lang in mod_coverage["languages"]})
+    codes = sorted({code for row in rows for code in row["present"]})
     # Blank lines around the content, so that no renderer reads a marker as part of the table.
     lines = [_OVERVIEW_START, ""]
     if not codes:
@@ -506,20 +530,15 @@ def render_overview_section(coverage):
         return "\n".join(lines)
     lines.append("| Mod | " + " | ".join("`{0}`".format(code) for code in codes) + " |")
     lines.append("| --- |" + " --- |" * len(codes))
-    for mod_name, mod_coverage in sorted(coverage.items()):
-        by_code = {lang["code"]: lang for lang in mod_coverage["languages"]}
-        cells = [
-            _overview_cell(mod_name, code, by_code.get(code), mod_coverage["reference_count"]) for code in codes
-        ]
-        lines.append(
-            "| [{0}](mods/{1}/README.md) | {2} |".format(_display_name(mod_name), mod_name, " | ".join(cells))
-        )
+    for row in rows:
+        cells = [_overview_cell(row, code) for code in codes]
+        lines.append("| {0} | {1} |".format(row["label"], " | ".join(cells)))
     lines += ["", _OVERVIEW_END]
     return "\n".join(lines)
 
 
 def _render_root_readme(text):
-    section = render_overview_section(compute_translation_coverage())
+    section = render_overview_section(overview_rows())
     return _OVERVIEW_SECTION.sub(lambda _match: section, text, count=1)
 
 

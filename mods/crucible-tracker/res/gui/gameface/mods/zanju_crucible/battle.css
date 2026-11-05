@@ -35,7 +35,8 @@ html[lang=th] body {
     letter-spacing: 0;
 }
 
-/* A fixed width: the condition texts wrap, and the panel grows down. */
+/* A fixed width: the condition texts wrap, and the panel grows down. Only the round style without
+   the full information has a narrower width, at the end of this file. */
 .zanju-crt-panel {
     display: flex;
     flex-direction: column;
@@ -172,20 +173,182 @@ html[lang=th] body {
     border-radius: 2rem;
 }
 
+/* The figures and the clock stand in columns of a fixed width, so a bar keeps its width while the
+   text changes, and all bars of the panel have one width. No figure passes 5 digits, because the
+   HP of a whole enemy team stays under 100,000. The widths come from the advance widths in the
+   client's fonts, at 13rem, and Warhelios is the wider font: 78rem for "88,888 / 88,888" (67rem
+   in PFDINMax), 35rem for "88,888" (29rem) and 29rem for "88:88" (24rem). Right-aligned text keeps
+   the required value in one place, and the current value grows to the left. */
 .zanju-crt-prow-figures {
     display: block;
-    flex: 0 0 auto;
+    flex: 0 0 80rem;
     margin-left: 8rem;
     font-size: 13rem;
+    text-align: right;
+    white-space: nowrap;
     color: #f0f2f5;
 }
 
-.zanju-crt-prow-clock {
+.zanju-crt-panel-value .zanju-crt-prow-figures {
+    flex: 0 0 36rem;
+}
+
+.zanju-crt-prow-clock,
+.zanju-crt-prow-noclock {
     display: block;
-    flex: 0 0 auto;
+    flex: 0 0 30rem;
     margin-left: 8rem;
     font-size: 13rem;
+    text-align: right;
+    white-space: nowrap;
+    color: #f0f2f5;
+}
+
+/* The last minute of a time limit that runs. A met or a closed condition keeps its own color. */
+.zanju-crt-prow-clock-warning {
     color: #f0cf74;
+}
+
+/* A row with a clock and no bar, after a reconnect: this takes the space of the bar. */
+.zanju-crt-prow-gap {
+    display: block;
+    flex: 1 1 auto;
+}
+
+/* The round style: a column with the dial, and the text on its right. The column is as wide as
+   the figures, or as the dial when the figures fit under it. battle_panel.js writes the width of
+   the figures on the panel. Both forms of the panel have this column and this side padding, so
+   the full information moves the dial only down. */
+body {
+    --zanju-crt-figures-width: 0rem;
+}
+
+.zanju-crt-panel-round {
+    padding-left: 8rem;
+    padding-right: 8rem;
+}
+
+.zanju-crt-prow-round {
+    display: flex;
+    align-items: center;
+}
+
+.zanju-crt-gauge {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 0 0 auto;
+    width: var(--zanju-crt-figures-width);
+    min-width: 50rem;
+}
+
+.zanju-crt-prow-side {
+    display: block;
+    flex: 1 1 auto;
+    margin-left: 10rem;
+}
+
+.zanju-crt-prow-side .zanju-crt-prow-rule {
+    margin-left: 0;
+}
+
+.zanju-crt-gauge .zanju-crt-prow-clock {
+    flex: 0 0 auto;
+    width: 100%;
+    margin-left: 0;
+    margin-bottom: 1rem;
+    text-align: center;
+}
+
+.zanju-crt-gauge .zanju-crt-prow-figures {
+    flex: 0 0 auto;
+    width: 100%;
+    margin-left: 0;
+    text-align: center;
+}
+
+/* Two equal cells with the slash between them, so the slash stays on the axis of the dial. The
+   padding holds half of the slash and one space: the text that the probe measures, at the end of
+   this file. */
+.zanju-crt-prow-figures-cells {
+    display: flex;
+    position: relative;
+}
+
+.zanju-crt-prow-figures-value {
+    display: block;
+    flex: 0 0 50%;
+    padding-right: 0.35em;
+    text-align: right;
+}
+
+.zanju-crt-prow-figures-slash {
+    display: block;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    text-align: center;
+}
+
+.zanju-crt-prow-figures-target {
+    display: block;
+    flex: 0 0 50%;
+    padding-left: 0.35em;
+    text-align: left;
+}
+
+/* The ring is 50rem, and its cut-out leaves its lowest 7rem empty. The dial ends above that, so
+   the figures rise into the cut-out and the ring stands out of the dial. */
+.zanju-crt-dial {
+    display: block;
+    position: relative;
+    flex: 0 0 43rem;
+    width: 50rem;
+    height: 43rem;
+}
+
+/* The ring is the shape of the client's search spinner in the platoon button: a conic gradient as
+   the background, in a radial mask. The mask has a soft edge of 0.5rem on each side, because a hard
+   stop draws a jagged circle at this size. */
+.zanju-crt-dial-track,
+.zanju-crt-dial-fill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 50rem;
+    height: 50rem;
+    mask-image: radial-gradient(farthest-side, transparent 20.5rem, #000 21rem, #000 24.5rem, transparent 25rem);
+    mask-repeat: no-repeat;
+}
+
+/* The gradient starts at the lower left and turns clockwise. 75% of a turn ends at the lower right. */
+.zanju-crt-dial-track {
+    background-image: conic-gradient(from 225deg at 50% 50%, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.14) 75%, transparent 75%);
+}
+
+.zanju-crt-dial-fill {
+    background-image: conic-gradient(from 225deg at 50% 50%, #d7dbe0 0%, #d7dbe0 var(--zanju-crt-arc), transparent var(--zanju-crt-arc));
+}
+
+.zanju-crt-prow-met .zanju-crt-dial-fill {
+    background-image: conic-gradient(from 225deg at 50% 50%, #9ccb68 0%, #9ccb68 var(--zanju-crt-arc), transparent var(--zanju-crt-arc));
+}
+
+.zanju-crt-prow-closed .zanju-crt-dial-fill {
+    background-image: conic-gradient(from 225deg at 50% 50%, #cc6b5a 0%, #cc6b5a var(--zanju-crt-arc), transparent var(--zanju-crt-arc));
+}
+
+/* The image is 32 pixels, so this size shows it pixel for pixel at interface scale 1. */
+.zanju-crt-dial-icon {
+    position: absolute;
+    left: 9rem;
+    top: 9rem;
+    width: 32rem;
+    height: 32rem;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
 }
 
 .zanju-crt-prow-met .zanju-crt-prow-fill {
@@ -197,15 +360,15 @@ html[lang=th] body {
     color: #9ccb68;
 }
 
-/* The condition can no longer be met in this battle. */
+/* The condition can no longer be met in this battle. It has the red of a broken rule. */
 .zanju-crt-prow-closed .zanju-crt-prow-text,
 .zanju-crt-prow-closed .zanju-crt-prow-figures,
 .zanju-crt-prow-closed .zanju-crt-prow-clock {
-    color: #7d848b;
+    color: #cc6b5a;
 }
 
 .zanju-crt-prow-closed .zanju-crt-prow-fill {
-    background: #7d848b;
+    background: #cc6b5a;
 }
 
 .zanju-crt-panel-or {
@@ -213,4 +376,30 @@ html[lang=th] body {
     margin-left: 24rem;
     font-size: 13rem;
     color: #9ca4ab;
+}
+
+.zanju-crt-panel-round .zanju-crt-panel-or {
+    margin-left: 0;
+    width: var(--zanju-crt-figures-width);
+    min-width: 50rem;
+    text-align: center;
+}
+
+/* Round and without the full information: only the dials. The panel is as wide as the column of
+   the dial and the frame of this form, 18rem. */
+.zanju-crt-panel-dials {
+    width: calc(var(--zanju-crt-figures-width) + 18rem);
+    min-width: 68rem;
+    padding: 4rem 8rem 4rem 8rem;
+}
+
+/* The hidden text that battle_panel.js measures, in the font of the language and the size of the
+   figures. */
+.zanju-crt-panel-probe {
+    position: absolute;
+    left: 0;
+    top: 0;
+    visibility: hidden;
+    font-size: 13rem;
+    white-space: nowrap;
 }

@@ -40,6 +40,12 @@ class ConfigTest(unittest.TestCase):
         self.assertEqual(config.from_menu({'traySide': 7}), {})
         self.assertEqual(config.from_menu({'traySide': 'x'}), {})
 
+    def test_the_template_carries_the_author_the_version_and_the_link(self):
+        template = config.menu_template()
+        self.assertEqual(template['modAuthor'], config.MOD_AUTHOR)
+        self.assertEqual(template['modVersion'], config.MOD_VERSION)
+        self.assertEqual(template['modUrl'], config.MOD_URL)
+
     def test_the_template_carries_the_defaults_not_the_current_values(self):
         config.apply({'traySide': 'left'})
         template = config.menu_template()

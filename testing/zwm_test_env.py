@@ -91,6 +91,10 @@ def _install_mod_meta(package, mod_id, mod_name):
     module = types.ModuleType(str(full_name))
     module.MOD_ID = mod_id
     module.MOD_NAME = mod_name
+    # Placeholders: a test compares with these names, so a new release changes no test.
+    module.MOD_VERSION = "<stub:version>"
+    module.MOD_AUTHOR = "<stub:author>"
+    module.MOD_URL = "<stub:url>"
     sys.modules[full_name] = module
 
 

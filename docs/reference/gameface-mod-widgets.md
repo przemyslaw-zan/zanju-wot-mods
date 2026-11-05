@@ -320,7 +320,7 @@ Confirmed by the game's own stylesheets never using them, and by live warnings:
 | `font-variant-numeric`, `font-feature-settings` | Ignored — tabular figures unavailable even though PFDINMax ships `tnum` |
 | `align-items: baseline` | Rejected outright: *"Trying to set alignItems property to invalid value"* |
 | `display: inline`, `display: inline-block`, `ch` units | Effectively unavailable — see "Text wraps by flex line" below |
-| `width: max-content`, and by extension `fit-content` | Dropped — the width falls back to `auto`, so a block-level box silently stays as wide as its surface. Measured in `campaign-tracker`: the declaration changed nothing at all. There is therefore no way to size a box from its own content in a document the mod owns, which leaves a stated width as the only option. |
+| `width: max-content`, and by extension `fit-content` | Dropped — the width falls back to `auto`, so a block-level box silently stays as wide as its surface. Measured in `campaign-tracker`: the declaration changed nothing at all. There is therefore no way to size a box from its own content in a document the mod owns, which leaves a stated width as the only option in CSS. A script can measure the width instead: see [Fixed Text Columns](#fixed-text-columns). |
 | `display: flex`, `min-width`, `text-align`, `letter-spacing` | Used heavily by the game; safe |
 
 **Blockify flex items yourself.** A flex item is supposed to be blockified automatically, so a
@@ -341,6 +341,8 @@ Copy the client's spelling exactly. It writes `mask-image`, `mask-repeat`, `mask
 
 Know the failure mode before trying it, because it is loud rather than silent. A mask the renderer will not load leaves the `background-color` filling the whole box. A broken icon therefore appears as a solid rectangle rather than as nothing at all.
 
+**Draw a ring or an arc with gradients.** The client has both parts, in garage documents. The search spinner of its platoon button (`mono/hangar/chunks/widget2.css`) is a ring. It has `background-image: conic-gradient(from 90deg at 50% 50%, #fff 0deg, transparent 360deg)` and `mask: radial-gradient(farthest-side, transparent 2rem, #000 0)`. `ArcProgressbar` of its pet screen (`mono/pet_system/pet_storage/pet_storage.css`) fills an arc. A stop of its `conic-gradient` reads `var(--progressbarMaskPercentage)`, and the script sets that property on the parent element. The client's React wrapper sets a custom property with `style.setProperty`. The dial of `crucible-tracker` combines the two forms with hard stops. A hard stop in a radial mask draws a jagged circle at this size. Thus each edge of the dial's mask has a ramp of 0.5rem. The client's battle stylesheets use `radial-gradient` and `mask-image`, but none uses `conic-gradient`. The form still works there: a battle on 2.4.1.1 showed the ring and its arc in the panel window of the mod.
+
 **Prefer drawing a small mark to typing it.** `text-align: center` centres a glyph's *advance
 width*, not its ink, so a character with uneven side bearings (`!` is the classic) sits visibly
 off inside a round badge. Two positioned boxes are centred by arithmetic, come out identical
@@ -354,6 +356,24 @@ container here is untested — do not treat them as known-broken.
 
 To monospace digits without a monospace font, lay each digit out in a fixed-width flex cell
 sized from a measured probe (see `header_patch.js` in `premium-time`).
+
+## Fixed Text Columns
+
+A flex item with `flex: 0 0 auto` takes the width of its text. Thus a counter beside a flexible bar moves the bar on each change. The renderer has no `ch` unit and no `max-content`. So state the width of the column in `rem`, from the longest text it can hold. Take the widths from the `hmtx` table of the font. The fonts are in `gui/gameface/fonts/` in the GUI packages. These are the advance widths in em on EU 2.4.1.0:
+
+| Glyph | `PFDINMax-CompressedRegular` | `Warhelios-Regular` |
+| --- | --- | --- |
+| `0`, `3`, `4`, `5`, `6`, `8`, `9` | 0.380 | 0.480 |
+| `2` | 0.363 | 0.480 |
+| `7` | 0.322 | 0.480 |
+| `1` | 0.310 | 0.480 |
+| comma, colon | 0.193 | 0.240 |
+| space | 0.195 | 0.240 |
+| slash | 0.256 | 0.266 |
+
+The inherited `letter-spacing: 0.02em` adds 0.02 em per glyph in PFDINMax. The languages that use Warhelios have no letter spacing. Warhelios has tabular digits and PFDINMax does not. Thus a text of the same length can change its width in PFDINMax. Right-align the text in the column when the end of the text does not change. Then only the characters that change move. In `crucible-tracker`, `88,888 / 88,888` at 13rem is 67rem in PFDINMax and 78rem in Warhelios, and the column is 80rem.
+
+**Measure a column that must follow the font.** A stated width must hold the widest font, so it wastes space in the other fonts. The dial column of `crucible-tracker` measures instead. A hidden probe holds the widest text of the figures, with `8` for each digit. The probe has `position: absolute`, `visibility: hidden` and `white-space: nowrap`, as the digit probe of `premium-time` does. A `ResizeObserver` on the probe writes the width to a custom property of the panel. The column has `width: var(--zanju-crt-figures-width)`, and `min-width` keeps the width of the ring. Without the full information, the panel has `width: calc(var(--zanju-crt-figures-width) + 18rem)`, which adds the frame. The custom property stays on the panel through a new render, so the panel has no flash of another width. The client's battle stylesheets have `width: calc(var(--card-width) - 4rem)`, but no `var()` in `flex`. Thus put the property in `width`. A battle on 2.4.1.1 showed the form without the full information in PFDINMax. With a required value of 2,500, the panel was 75rem wide, the width that the table above gives.
 
 ## A Standalone Document Inherits None Of The Game's Base Styling
 

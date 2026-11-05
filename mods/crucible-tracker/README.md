@@ -11,17 +11,17 @@
 - **Available Crucibles** — with no Crucible active, the banner counts the not yet completed Crucibles that end the soonest, and shows the time left. The count reads **free** / **credits** / **gold**: how many you can attempt for free, and how many restart for credits or for gold. When you complete all of them, the banner moves on to the Crucibles that end next. The tooltip lists every Crucible that is currently available.
 - **Active Crucible** — the banner shows your remaining shields, the current mission and the time left. The tooltip shows all missions of the active Crucible, with their conditions.
 - **Progress in battle** — a movable panel shows each condition of the current mission. Under a countable condition there is a progress bar with a numeric counter. A time limit such as "within the first 5 minutes of battle" counts down. Alternative conditions are shown after an "OR". The panel shows only when a Crucible is active and the vehicle is eligible for it.
-- **Configurable** — in the game's settings window, you can turn the garage banner and the battle panel on or off. The battle panel can show the mission details always, only while you hold Alt, or never. Without them, each condition shows only its icon, bar and counter. You can also put the banner on the left or the right side of the vehicle name.
+- **Configurable** — in the game's settings window, you can turn the garage banner and the battle panel on or off. The battle panel can show the mission details always, only while you hold Alt, or never. Without them, each condition shows only its icon, bar and counter. The progress can be a flat bar or a round dial with the condition text on its right. The counter can show the current and the required value, or only the current value. You can also put the banner on the left or the right side of the vehicle name.
 
 ## Translations
 
-Reference language `en` defines 24 strings, 8 of them in the [shared strings](../../mods-common/i18n/). Translations are community-maintained and may lag behind; see [Translating](../../docs/translating.md) to add or update one, then regenerate this table with `zwm lint i18n`.
+Reference language `en` defines 32 strings, 8 of them in the [shared strings](../../mods-common/i18n/). Translations are community-maintained and may lag behind; see [Translating](../../docs/translating.md) to add or update one, then regenerate this table with `zwm lint i18n`.
 
 | Language | Coverage | Missing |
 | --- | --- | --- |
-| `pl` | 100% (24/24) | 0 |
-| `ru` | 100% (24/24) | 0 |
-| `zh_cn` | 17% (4/24) | 20 |
+| `pl` | 100% (32/32) | 0 |
+| `ru` | 75% (24/32) | 8 |
+| `zh_cn` | 12% (4/32) | 28 |
 
 ## Install And Use
 

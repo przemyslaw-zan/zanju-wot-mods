@@ -3,9 +3,10 @@ from __future__ import print_function, unicode_literals
 
 from gui.Scaleform.daapi.settings.views import VIEW_ALIAS
 
-# MOD_ID / MOD_NAME come from meta.xml via the build-generated _mod_meta module
-# (see tools/build.py). meta.xml is the single authored source of these values.
-from ._mod_meta import MOD_ID, MOD_NAME  # noqa: F401
+# MOD_ID / MOD_NAME / MOD_VERSION come from meta.xml via the build-generated _mod_meta module
+# (see tools/commands/build.py). meta.xml is the single authored source of these values.
+# MOD_AUTHOR / MOD_URL come from tools/core/mod_meta.py, because meta.xml has no field for them.
+from ._mod_meta import MOD_AUTHOR, MOD_ID, MOD_NAME, MOD_URL, MOD_VERSION  # noqa: F401
 
 MOD_CONFIG_DIR_NAME = 'research-progress-bar'
 SCALEFORM_VIEW_ALIAS = 'ResearchProgressBarLobby'

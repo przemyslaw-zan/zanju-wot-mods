@@ -515,6 +515,13 @@ def uninstall(logger):
 
 def on_settings_changed(keys):
     """Close the panel of this battle when the settings turn it off. Turned on again, it opens
-    with the next battle."""
+    with the next battle. A panel that stays open takes its style and figures at once."""
     if not config.battle_enabled():
         _end()
+        return
+    session = _state['session']
+    if session is not None and ('panelStyle' in keys or 'panelFigures' in keys):
+        try:
+            session.push()
+        except Exception:
+            _state['logger'].exception('Failed to update the battle panel')

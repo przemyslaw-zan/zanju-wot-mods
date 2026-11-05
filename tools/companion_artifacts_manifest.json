@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-10-14T08:09:46Z",
+  "updatedAt": "2026-11-05T17:48:39Z",
   "bundles": {
     "research-progress-bar": {
       "description": "In-game settings window and Gameface runtime for Research Progress Bar.",
@@ -41,11 +41,11 @@
       "displayName": "Aslain's Mod Menu",
       "provider": "github-release-api",
       "project": "Aslain/modmenu",
-      "releaseTag": "v2.1.04",
-      "version": "2.1.04",
-      "filename": "aslain.modmenu_2.1.04.wotmod",
-      "downloadUrl": "https://github.com/Aslain/modmenu/releases/download/v2.1.04/aslain.modmenu_2.1.04.wotmod",
-      "sha256": "674f95cf3526e646cea64be55767a9bfe51b19b109326e8c4132881a7a76a5b4",
+      "releaseTag": "v2.1.12",
+      "version": "2.1.12",
+      "filename": "aslain.modmenu_2.1.12.wotmod",
+      "downloadUrl": "https://github.com/Aslain/modmenu/releases/download/v2.1.12/aslain.modmenu_2.1.12.wotmod",
+      "sha256": "a7bf18469dce72e6405ba4bd64dacef1476258a58cdac6c8973706a7b25bae60",
       "notes": "In-game settings window for research-progress-bar, campaign-tracker and crucible-tracker. Needs OpenWG Gameface 1.1.6 or newer."
     },
     "openwg_gameface": {

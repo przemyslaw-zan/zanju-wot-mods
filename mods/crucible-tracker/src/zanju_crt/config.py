@@ -8,6 +8,10 @@
 - `panelDetails` is when the battle panel shows its full information: always, while the key of
   the extended vehicle markers is held (Alt by default), or never. Without it, the panel shows
   only the icon, the bar and the figures of each condition. See gameface/battle_panel.py.
+- `panelStyle` is how the battle panel shows the progress of a condition: a flat bar, or a round
+  dial with the text on its right. See battle.js.
+- `panelFigures` is what the figures of the battle panel show: the current and the required
+  value, or only the current value.
 - `panelPosition` is where the player last dragged the battle panel to, or None for the default
   place. Mod Menu does not show it.
 
@@ -22,7 +26,7 @@ import json
 import os
 
 from . import mod_menu
-from .constants import MOD_CONFIG_DIR_NAME, MOD_NAME
+from .constants import MOD_AUTHOR, MOD_CONFIG_DIR_NAME, MOD_NAME, MOD_URL, MOD_VERSION
 from .localization import get_text as _loc
 from .localization import get_wg_text
 from .localization import make_tooltip as _loc_tooltip
@@ -44,7 +48,20 @@ _DETAILS_LABELS = (
     ('#settings:feedback/tab/damageLogPanel/details/byAlt', 'Press Alt to display'),
     ('#settings:feedback/tab/damageLogPanel/details/hide', 'Do not display'),
 )
+STYLE_FLAT = 'flat'
+STYLE_ROUND = 'round'
+_STYLES = (STYLE_FLAT, STYLE_ROUND)
+FIGURES_BOTH = 'both'
+FIGURES_VALUE = 'value'
+_FIGURES = (FIGURES_BOTH, FIGURES_VALUE)
 _FLAGS = ('enabled', 'garageEnabled', 'battleEnabled')
+# The settings with a fixed set of values, each with its values in the order of the menu.
+_CHOICES = (
+    ('traySide', _SIDES),
+    ('panelDetails', _DETAILS),
+    ('panelStyle', _STYLES),
+    ('panelFigures', _FIGURES),
+)
 
 _FILE_NAME = 'config.json'
 _CONFIG_VERSION = 1
@@ -55,6 +72,8 @@ DEFAULTS = {
     'battleEnabled': True,
     'traySide': SIDE_LEFT,
     'panelDetails': DETAILS_ALWAYS,
+    'panelStyle': STYLE_FLAT,
+    'panelFigures': FIGURES_BOTH,
     'panelPosition': None,
 }
 
@@ -83,6 +102,14 @@ def tray_side():
 
 def panel_details():
     return _state['panelDetails']
+
+
+def panel_style():
+    return _state['panelStyle']
+
+
+def panel_figures():
+    return _state['panelFigures']
 
 
 def panel_position():
@@ -119,10 +146,9 @@ def sanitize(values):
     for key in _FLAGS:
         if key in values:
             clean[key] = bool(values[key])
-    if 'traySide' in values and values['traySide'] in _SIDES:
-        clean['traySide'] = values['traySide']
-    if 'panelDetails' in values and values['panelDetails'] in _DETAILS:
-        clean['panelDetails'] = values['panelDetails']
+    for key, names in _CHOICES:
+        if key in values and values[key] in names:
+            clean[key] = values[key]
     if 'panelPosition' in values:
         # None, or anything that is not a valid position, puts the panel back in its default place.
         clean['panelPosition'] = _sanitize_position(values['panelPosition'])
@@ -187,15 +213,15 @@ def menu_values(state=None):
     """The menu's form of the settings. The menu stores a radio group as an index."""
     state = _state if state is None else state
     values = dict((key, bool(state[key])) for key in _FLAGS)
-    values['traySide'] = _SIDES.index(state['traySide']) if state['traySide'] in _SIDES else 0
-    values['panelDetails'] = _DETAILS.index(state['panelDetails']) if state['panelDetails'] in _DETAILS else 0
+    for key, names in _CHOICES:
+        values[key] = names.index(state[key]) if state[key] in names else 0
     return values
 
 
 def from_menu(settings):
     """The config form of what the menu sent. Keys the menu did not send stay out."""
     changes = dict((key, bool(settings[key])) for key in _FLAGS if key in settings)
-    for key, names in (('traySide', _SIDES), ('panelDetails', _DETAILS)):
+    for key, names in _CHOICES:
         if key in settings:
             try:
                 changes[key] = names[int(settings[key])]
@@ -211,6 +237,9 @@ def menu_template():
     # The garage in the left column, the battle in the right one, each under its own switch.
     return {
         'modDisplayName': MOD_NAME,
+        'modAuthor': MOD_AUTHOR,
+        'modVersion': MOD_VERSION,
+        'modUrl': MOD_URL,
         'enabled': values['enabled'],
         'column1': [
             {
@@ -247,6 +276,28 @@ def menu_template():
                 'options': [{'label': get_wg_text(key, default)} for key, default in _DETAILS_LABELS],
                 'value': values['panelDetails'],
                 'varName': 'panelDetails',
+            },
+            {
+                'type': 'RadioButtonGroup',
+                'text': _loc('SETTING_PANEL_STYLE'),
+                'tooltip': _loc_tooltip('SETTING_PANEL_STYLE', 'TOOLTIP_PANEL_STYLE_BODY'),
+                'options': [
+                    {'label': _loc('SETTING_PANEL_STYLE_FLAT')},
+                    {'label': _loc('SETTING_PANEL_STYLE_ROUND')},
+                ],
+                'value': values['panelStyle'],
+                'varName': 'panelStyle',
+            },
+            {
+                'type': 'RadioButtonGroup',
+                'text': _loc('SETTING_PANEL_FIGURES'),
+                'tooltip': _loc_tooltip('SETTING_PANEL_FIGURES', 'TOOLTIP_PANEL_FIGURES_BODY'),
+                'options': [
+                    {'label': _loc('SETTING_PANEL_FIGURES_BOTH')},
+                    {'label': _loc('SETTING_PANEL_FIGURES_VALUE')},
+                ],
+                'value': values['panelFigures'],
+                'varName': 'panelFigures',
             },
         ],
     }
