@@ -1,0 +1,70 @@
+# Auto-generated translation template -- regenerate with `zwm lint i18n`; do not edit by hand.
+#
+# To start a new language, copy this file to `<language-code>.yml` (the code the WoT client
+# uses: `pl`, `de`, `fr`, `ru`, ...) and fill in the values. Each key's English source text is
+# in the `# en:` comment above it. Keys left empty ("") simply fall back to English in-game,
+# so partial translations are fine.
+
+# Hover card
+# en: "No active Crucible"
+LABEL_NO_ACTIVE: "没有已激活的熔炉试炼"
+# {stage} is the number of the current mission, {total} the number of missions in the Crucible.
+# en: "Mission {stage} of {total}"
+LABEL_MISSION: "任务 {stage}/{total}"
+# Above the conditions of one mission in the list of the active Crucible. {stage} is the number of the mission.
+# en: "Mission {stage}"
+LABEL_MISSION_NUMBER: "任务 {stage}"
+# {done} is how many times the player completed the Crucible, {allowed} how many times the Crucible allows.
+# en: "Completions: {done} / {allowed}"
+LABEL_COMPLETIONS: "完成次数：{done} / {allowed}"
+# The Crucible can be started.
+# en: "Available"
+LABEL_AVAILABLE: "可激活"
+# The Crucible ran out of shields, and the next restart costs nothing.
+# en: "Free restart available"
+LABEL_FREE_RESTART: "可免费重新开始"
+# The Crucible ran out of shields. The price and the currency icon follow this text.
+# en: "Restart available for:"
+LABEL_RESTART_FOR: "重新开始需要："
+# Above a list of vehicle names, one per line.
+# en: "Vehicles in battle:"
+LABEL_IN_BATTLE: "战斗中的坦克："
+# A vehicle that can play the Crucible is in a battle that has not ended yet. The same text shows with a Crucible active and with none active.
+# en: "The result of a battle that is still in progress completes or fails the current mission if a Crucible is active when the battle ends."
+LABEL_IN_BATTLE_WARNING: "若熔炉试炼在战斗结束时处于激活状态，仍在进行中的战斗，其结果将决定当前任务是完成还是失败。"
+# The last line of the hover card.
+# en: "Click to open the Crucible menu"
+LABEL_HINT_OPEN: "点击打开熔炉试炼"
+
+# Settings, in Mod Menu
+# en: "Garage banner"
+SETTING_GARAGE: "车库横幅"
+# en: "Show the Crucible banner beside the vehicle name in the garage, with its hover card."
+TOOLTIP_GARAGE_BODY: "在车库的坦克名称旁显示熔炉试炼横幅，并附带悬停卡片。"
+# en: "Battle panel"
+SETTING_BATTLE: "战斗面板"
+# en: "Show the progress of the current Crucible mission in battle. Hold Ctrl and drag the panel to move it."
+TOOLTIP_BATTLE_BODY: "在战斗中显示当前熔炉试炼任务的进度。按住 Ctrl 拖动面板即可移动。"
+# The three choices come from the client's own setting for the details of the damage log: "Display always", "Press Alt to display", "Do not display".
+# en: "Battle panel details"
+SETTING_PANEL_DETAILS: "战斗面板详情"
+# en: "When the battle panel shows the full information instead of the essential only."
+TOOLTIP_PANEL_DETAILS_BODY: "战斗面板何时显示完整信息，而不是仅显示关键信息。"
+# How the battle panel shows the progress of each condition. The flat bar is the original look. The round dial is a circle with its bottom quarter cut out.
+# en: "Battle panel progress"
+SETTING_PANEL_STYLE: "战斗面板进度样式"
+# en: "Flat bar"
+SETTING_PANEL_STYLE_FLAT: "扁平进度条"
+# en: "Round dial"
+SETTING_PANEL_STYLE_ROUND: "圆环表盘"
+# en: "Style of the progress bar."
+TOOLTIP_PANEL_STYLE_BODY: "进度条的样式。"
+# What the numbers beside the progress of a condition show. "Current" is the value so far, "required" is the value that the condition asks for.
+# en: "Battle panel numbers"
+SETTING_PANEL_FIGURES: "战斗面板数值"
+# en: "Current and required"
+SETTING_PANEL_FIGURES_BOTH: "当前值与需求值"
+# en: "Current only"
+SETTING_PANEL_FIGURES_VALUE: "仅当前值"
+# en: "Which values the battle panel shows beside the progress of each condition."
+TOOLTIP_PANEL_FIGURES_BODY: "战斗面板在每个条件的进度旁显示哪些数值。"
