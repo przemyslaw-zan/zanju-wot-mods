@@ -21,7 +21,7 @@ Reference language `en` defines 32 strings, 8 of them in the [shared strings](..
 | --- | --- | --- |
 | `pl` | 100% (32/32) | 0 |
 | `ru` | 100% (32/32) | 0 |
-| `zh_cn` | 12% (4/32) | 28 |
+| `zh_cn` | 100% (32/32) | 0 |
 
 ## Install And Use
 

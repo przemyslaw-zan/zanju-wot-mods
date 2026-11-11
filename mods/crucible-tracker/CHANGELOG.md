@@ -1,6 +1,10 @@
 Changelog
 =========
 
+## Unreleased
+
+- New Simplified Chinese translation. Thank you [@becausemadoka](https://github.com/becausemadoka)!
+
 ## 1.1.0 (5 November 2026)
 
 - New setting: the battle panel can show the progress as a round dial. The dial has the condition icon in its middle, the time limit on top and the numbers below it, with the condition text on its right. Without the mission details, the panel shows only the dials and is only as wide as they need.

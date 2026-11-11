@@ -1,6 +1,10 @@
 Changelog
 =========
 
+## Unreleased
+
+- Updated Simplified Chinese translation. Thank you [@becausemadoka](https://github.com/becausemadoka)!
+
 ## 1.4.9 (5 November 2026)
 
 - The settings window now shows the author and the version of the mod, with a link to the page for bug reports.

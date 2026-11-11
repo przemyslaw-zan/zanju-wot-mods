@@ -7,3 +7,13 @@ UNIT_HOUR_SHORT: "时"
 UNIT_MINUTE_SHORT: "分"
 # en: "s"
 UNIT_SECOND_SHORT: "秒"
+
+# Settings, in Mod Menu: the side of the vehicle name for the banner row, which Campaign Tracker and Crucible Tracker share.
+# en: "Banner position"
+SETTING_TRAY_SIDE: "横幅位置"
+# en: "Right of the vehicle name"
+SETTING_TRAY_SIDE_RIGHT: "坦克名称右侧"
+# en: "Left of the vehicle name"
+SETTING_TRAY_SIDE_LEFT: "坦克名称左侧"
+# en: "The side of the vehicle name for the banners of this mod. The banners of all Zanju's mods on the same side share one row."
+TOOLTIP_TRAY_SIDE_BODY: "本模组横幅在坦克名称旁的显示侧。所有 Zanju's 模组显示在同一侧的横幅会共用一行。"
