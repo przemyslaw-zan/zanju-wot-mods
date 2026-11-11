@@ -1,23 +1,16 @@
-# Auto-generated translation template -- regenerate with `zwm lint i18n`; do not edit by hand.
-#
-# To start a new language, copy this file to `<language-code>.yml` (the code the WoT client
-# uses: `pl`, `de`, `fr`, `ru`, ...) and fill in the values. Each key's English source text is
-# in the `# en:` comment above it. Keys left empty ("") simply fall back to English in-game,
-# so partial translations are fine.
-
 # Widget states
 # Also shown when there is no vehicle in the garage at all, so keep the wording general.
 # en: "No mission for this vehicle"
-LABEL_NO_MISSION: "此车辆没有任务"
+LABEL_NO_MISSION: "此坦克没有任务"
 # en: "Mission on pause"
 LABEL_PAUSED: "任务已暂停"
 
 # Tooltip
 # "Locked" means the vehicle already completed this mission and cannot repeat it.
 # en: "Locked vehicles:"
-LABEL_LOCKED_VEHICLES: "已锁定车辆："
+LABEL_LOCKED_VEHICLES: "已锁定坦克："
 # en: "Vehicle locked"
-LABEL_VEHICLE_LOCKED: "车辆已锁定"
+LABEL_VEHICLE_LOCKED: "坦克已锁定"
 # An order is the game item that completes a primary condition. Stays singular for any number.
 # en: "Retrieving an order"
 LABEL_PAWNED: "正在取回指令"
