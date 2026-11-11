@@ -78,8 +78,13 @@ _OVERVIEW_SECTION = re.compile(re.escape(_OVERVIEW_START) + r".*?" + re.escape(_
 _ROOT_README = os.path.join(REPO_ROOT, "README.md")
 # Every mod's meta.xml name starts with this. The table drops it to stay narrow.
 _MOD_NAME_PREFIX = "Zanju's "
+# The first cell of each row starts with a mark: the same mark for each mod, and another mark for
+# the shared strings. The shared strings are also in lowercase and in italics, so they do not read
+# as the name of a mod.
+_MOD_MARK = "🧩"
+_SHARED_MARK = "📖"
 # The row of the shared strings in that table, after the mods.
-_SHARED_LABEL = "[Shared strings](mods-common/i18n/)"
+_SHARED_LABEL = "{0} [*shared strings*](mods-common/i18n/)".format(_SHARED_MARK)
 _COMPLETE = "🟢"
 _PARTIAL = "🟡"
 _MISSING = "🔴"
@@ -484,7 +489,7 @@ def overview_rows():
     rows = []
     for mod_name, i18n_dir in _iter_mod_i18n_dirs():
         if os.path.isfile(_reference_path(i18n_dir)):
-            label = "[{0}](mods/{1}/README.md)".format(_display_name(mod_name), mod_name)
+            label = "{0} [{1}](mods/{2}/README.md)".format(_MOD_MARK, _display_name(mod_name), mod_name)
             rows.append(_overview_row(label, "mods/{0}/i18n".format(mod_name), i18n_dir))
     if os.path.isfile(_reference_path(SHARED_I18N_DIR)):
         rows.append(_overview_row(_SHARED_LABEL, "mods-common/i18n", SHARED_I18N_DIR))
