@@ -1,9 +1,10 @@
 Changelog
 =========
 
-## Unreleased
+## 1.1.1 (12 November 2026)
 
 - New Simplified Chinese translation. Thank you [@becausemadoka](https://github.com/becausemadoka)!
+- Updated Russian translation. Thank you [@AVPromo](https://github.com/AVPromo)!
 
 ## 1.1.0 (5 November 2026)
 

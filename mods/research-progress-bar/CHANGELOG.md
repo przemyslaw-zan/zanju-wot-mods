@@ -1,7 +1,7 @@
 Changelog
 =========
 
-## Unreleased
+## 1.4.10 (12 November 2026)
 
 - Updated Simplified Chinese translation. Thank you [@becausemadoka](https://github.com/becausemadoka)!
 
