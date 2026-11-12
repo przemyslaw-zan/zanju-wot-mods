@@ -94,7 +94,7 @@ Source repository for World of Tanks mods, build tooling, and game-facing techni
 | Mod | `pl` | `ru` | `uk` | `zh_cn` |
 | --- | --- | --- | --- | --- |
 | 🧩 [Campaign Tracker](mods/campaign-tracker/README.md) | 🟢 [10/10](mods/campaign-tracker/i18n/pl.yml) | 🟢 [10/10](mods/campaign-tracker/i18n/ru.yml) | 🟢 [10/10](mods/campaign-tracker/i18n/uk.yml) | 🟢 [10/10](mods/campaign-tracker/i18n/zh_cn.yml) |
-| 🧩 [Crucible Tracker](mods/crucible-tracker/README.md) | 🟢 [24/24](mods/crucible-tracker/i18n/pl.yml) | 🟡 [16/24](mods/crucible-tracker/i18n/ru.yml) | 🔴 0/24 | 🟢 [24/24](mods/crucible-tracker/i18n/zh_cn.yml) |
+| 🧩 [Crucible Tracker](mods/crucible-tracker/README.md) | 🟢 [24/24](mods/crucible-tracker/i18n/pl.yml) | 🟢 [24/24](mods/crucible-tracker/i18n/ru.yml) | 🔴 0/24 | 🟢 [24/24](mods/crucible-tracker/i18n/zh_cn.yml) |
 | 🧩 [Directives Helper](mods/directives-helper/README.md) | 🟢 [10/10](mods/directives-helper/i18n/pl.yml) | 🟢 [10/10](mods/directives-helper/i18n/ru.yml) | 🔴 0/10 | 🟢 [10/10](mods/directives-helper/i18n/zh_cn.yml) |
 | 🧩 [Premium Time](mods/premium-time/README.md) | 🟢 [1/1](mods/premium-time/i18n/pl.yml) | 🟢 [1/1](mods/premium-time/i18n/ru.yml) | 🔴 0/1 | 🟢 [1/1](mods/premium-time/i18n/zh_cn.yml) |
 | 🧩 [Research Progress Bar](mods/research-progress-bar/README.md) | 🟢 [83/83](mods/research-progress-bar/i18n/pl.yml) | 🟢 [83/83](mods/research-progress-bar/i18n/ru.yml) | 🔴 0/83 | 🟢 [83/83](mods/research-progress-bar/i18n/zh_cn.yml) |
