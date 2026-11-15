@@ -1,6 +1,10 @@
 Changelog
 =========
 
+## 1.2.0 (15 November 2026)
+
+- The battle panel now counts the "Penetrate enemy armor X times" mission type.
+
 ## 1.1.1 (12 November 2026)
 
 - New Simplified Chinese translation. Thank you [@becausemadoka](https://github.com/becausemadoka)!

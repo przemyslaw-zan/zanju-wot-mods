@@ -38,6 +38,10 @@ EARLY_DAMAGE = _conditions(
 FULL_HEALTH_KILLS = _conditions(
     '[["vehicleKills", [["whileFullHealth", [["value", true]]], ["greaterOrEqual", [["value", 3.0]]]]]]')
 HIGH_CALIBER = _conditions('[["achievements", [["value", [228]]]]]')
+# Not from the dump: mission challenge:73:1 of 15 November 2026, "Penetrate enemy armor 10 times",
+# in the form that ChallengeBattleResultsFormatter reads for the key `piercingEnemyHits`.
+PENETRATIONS = _conditions(
+    '[["results", [["key", [["value", "piercingEnemyHits"]]], ["greaterOrEqual", [["value", 10.0]]]]]]')
 # Not from the dump: a choice of two sets of two conditions each, in the form the client parses an
 # `or` of `and` groups.
 TWO_SETS = _conditions(
@@ -45,6 +49,22 @@ TWO_SETS = _conditions(
     '["vehicleKills", [["whileFullHealth", [["value", true]]], ["greaterOrEqual", [["value", 1.0]]]]]]], '
     '["and", [["results", [["key", [["value", "damageAssistedRadio"]]], ["greaterOrEqual", [["value", 2500.0]]]]], '
     '["achievements", [["value", [228]]]]]]]]]')
+
+
+class HIT_FLAGS(object):
+    """The values of VEHICLE_HIT_FLAGS in constants.py that the panel reads, on 2.4.1.1."""
+    VEHICLE_KILLED = 1
+    VEHICLE_WAS_DEAD_BEFORE_ATTACK = 2
+    RICOCHET = 8
+    MATERIAL_WITH_POSITIVE_DF_PIERCED_BY_PROJECTILE = 16
+    MATERIAL_WITH_POSITIVE_DF_NOT_PIERCED_BY_PROJECTILE = 32
+    DEVICE_PIERCED_BY_PROJECTILE = 256
+    CHASSIS_DAMAGED_BY_PROJECTILE = 2048
+    MATERIAL_WITH_POSITIVE_DF_PIERCED_BY_EXPLOSION = 8192
+    ATTACK_IS_DIRECT_PROJECTILE = 1048576
+    ATTACK_IS_EXTERNAL_EXPLOSION = 2097152
+    MATERIAL_WITH_POSITIVE_DF_NOT_PIERCED_WITH_DAMAGE_BY_PROJECTILE = 33554432
+    IS_ANY_DAMAGE_MASK = 16 | 8192 | 256 | 33554432
 
 
 def _kinds(shapes):
@@ -85,6 +105,31 @@ class ConditionShapeTest(unittest.TestCase):
 
     def test_kills_at_full_health_are_counted_live(self):
         self.assertEqual(_kinds(crucible.post_battle(FULL_HEALTH_KILLS)[1]), [{'kind': 'kills', 'live': True}])
+
+    def test_penetrations_of_enemy_armor_are_counted_live(self):
+        self.assertEqual(_kinds(crucible.post_battle(PENETRATIONS)[1]), [{'kind': 'total', 'live': True}])
+        spec = crucible.parse_condition(*crucible.condition_sets(PENETRATIONS)[0][0])
+        self.assertEqual((spec['keys'], spec['target']), (['piercingEnemyHits'], 10.0))
+
+    def test_only_a_shell_that_pierces_the_armor_is_a_penetration(self):
+        f = HIT_FLAGS
+        direct = f.ATTACK_IS_DIRECT_PROJECTILE
+        pierced = direct | f.MATERIAL_WITH_POSITIVE_DF_PIERCED_BY_PROJECTILE
+        self.assertTrue(crucible.penetrated(pierced, f))
+        # The shot that destroys the enemy penetrates too.
+        self.assertTrue(crucible.penetrated(pierced | f.VEHICLE_KILLED, f))
+        # High explosive that does damage without a penetration, and the splash of a shell.
+        he_damage = direct | f.MATERIAL_WITH_POSITIVE_DF_NOT_PIERCED_WITH_DAMAGE_BY_PROJECTILE
+        self.assertFalse(crucible.penetrated(he_damage, f))
+        splash = f.ATTACK_IS_EXTERNAL_EXPLOSION | f.MATERIAL_WITH_POSITIVE_DF_PIERCED_BY_EXPLOSION
+        self.assertFalse(crucible.penetrated(splash, f))
+        # A ricochet, a shot that the armor stops, and a hit on the tracks only.
+        self.assertFalse(crucible.penetrated(direct | f.RICOCHET, f))
+        self.assertFalse(crucible.penetrated(direct | f.MATERIAL_WITH_POSITIVE_DF_NOT_PIERCED_BY_PROJECTILE, f))
+        tracks = direct | f.DEVICE_PIERCED_BY_PROJECTILE | f.CHASSIS_DAMAGED_BY_PROJECTILE
+        self.assertFalse(crucible.penetrated(tracks, f))
+        # A hit on a vehicle that was already destroyed.
+        self.assertFalse(crucible.penetrated(pierced | f.VEHICLE_WAS_DEAD_BEFORE_ATTACK, f))
 
     def test_an_award_waits_for_the_results(self):
         self.assertEqual(_kinds(crucible.post_battle(HIGH_CALIBER)[1]), [{'kind': 'achievement', 'live': False}])

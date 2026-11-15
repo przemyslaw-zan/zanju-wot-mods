@@ -16,7 +16,7 @@ import time
 import types
 import unittest
 
-from test_crucible import EARLY_DAMAGE, HIGH_CALIBER, TWO_SETS
+from test_crucible import EARLY_DAMAGE, HIGH_CALIBER, HIT_FLAGS, PENETRATIONS, TWO_SETS
 from zanju_crt import battle_record, battle_session, config, crucible, transport
 
 ACCOUNT = 500725877
@@ -175,6 +175,7 @@ class _Client(object):
                             getArenaDP=lambda: arena_dp)
         self.controller = _Ns(activeChallengeID=0, getChallengeProgress=lambda challenge_id: {})
         self.player_events = _Ns(onArenaPeriodChange=_Event(), onAvatarBecomeNonPlayer=_Event())
+        self.triggers = _Triggers()
 
     def install(self):
         client = self
@@ -199,7 +200,8 @@ class _Client(object):
         _module('BigWorld', serverTime=lambda: client.time, player=lambda: client.player, entity=entity)
         _module('BattleReplay', g_replayCtrl=_Ns(isPlaying=False))
         _module('PlayerEvents', g_playerEvents=self.player_events)
-        _module('constants', ARENA_PERIOD=_Ns(PREBATTLE=2, BATTLE=3))
+        _module('constants', ARENA_PERIOD=_Ns(PREBATTLE=2, BATTLE=3), VEHICLE_HIT_FLAGS=HIT_FLAGS)
+        _module('TriggersManager', g_manager=self.triggers, TRIGGER_TYPE=_Ns(AIM_AT_VEHICLE=9, PLAYER_SHOT_HIT=23))
         _module('BattleFeedbackCommon', BATTLE_EVENT_TYPE=BET)
         _module('gui.battle_control.battle_constants', FEEDBACK_EVENT_ID=FET, VEHICLE_VIEW_STATE=_Ns(HEALTH=4))
         _module('gui.impl.backport', getIntegralFormat=lambda value: '{0:,}'.format(value))
@@ -218,6 +220,27 @@ class _Client(object):
     def hit(self, damage, at):
         self.time = at
         self.feedback.onPlayerFeedbackReceived([_FeedbackEvent(FET.PLAYER_DAMAGED_HP_ENEMY, ENEMY, damage)])
+
+    def shot_result(self, target, flags):
+        """One vehicle in `showShotResults`, as the trigger manager sends it to its listeners."""
+        self.triggers.send({'type': 23, 'targetId': target, 'flags': flags, 'gunInstallationIndex': 0})
+
+
+class _Triggers(object):
+    """The client's TriggersManager: a set of listeners, each with onTriggerActivated."""
+
+    def __init__(self):
+        self.listeners = set()
+
+    def addListener(self, listener):
+        self.listeners.add(listener)
+
+    def delListener(self, listener):
+        self.listeners.discard(listener)
+
+    def send(self, params):
+        for listener in list(self.listeners):
+            listener.onTriggerActivated(dict(params))
 
 
 def _transport(conditions, rows):
@@ -410,6 +433,48 @@ class BattleSessionTest(unittest.TestCase):
         row = _Panel.instances[0].payloads[-1]['rows'][0]
         self.assertEqual((row['state'], row['rules']), ('closed', [{'key': 'noAllyHits', 'broken': True}]))
         self.assertTrue(any('hit the ally 11' in line for line in self.logger.lines))
+
+    def test_only_a_penetration_of_an_enemy_counts_and_each_shot_result_is_logged(self):
+        client = _Client()
+        session = self._open(client, PENETRATIONS, [{'text': 'Penetrate enemy armor 10 times', 'icon': 'hit'}])
+        self.assertEqual(client.triggers.listeners, {session.shot_listener})
+        f = HIT_FLAGS
+        pierced = f.ATTACK_IS_DIRECT_PROJECTILE | f.MATERIAL_WITH_POSITIVE_DF_PIERCED_BY_PROJECTILE
+        client.shot_result(ENEMY, pierced)
+        # The second enemy is not in the client's world: the player cannot see it.
+        client.shot_result(21, pierced | f.VEHICLE_KILLED)
+        # High explosive that does damage without a penetration.
+        he_damage = f.ATTACK_IS_DIRECT_PROJECTILE | f.MATERIAL_WITH_POSITIVE_DF_NOT_PIERCED_WITH_DAMAGE_BY_PROJECTILE
+        client.shot_result(ENEMY, he_damage)
+        client.shot_result(ALLY, pierced)
+        # The splash of the player's own shell on the player's vehicle.
+        splash = f.ATTACK_IS_EXTERNAL_EXPLOSION | f.MATERIAL_WITH_POSITIVE_DF_PIERCED_BY_EXPLOSION
+        client.shot_result(PLAYER_VEHICLE, splash)
+        # Another trigger of the manager.
+        client.triggers.send({'type': 9, 'vehicleId': ENEMY})
+        row = _Panel.instances[0].payloads[-1]['rows'][0]
+        self.assertEqual((row['live'], row['valueText'], row['targetText'], row['state']), (True, '2', '10', 'open'))
+        shots = [line for line in self.logger.lines if line.startswith('Shot result on ')]
+        self.assertEqual(shots, [
+            'Shot result on 20: penetration True, in the client world True, flags 1048592 '
+            '(MATERIAL_WITH_POSITIVE_DF_PIERCED_BY_PROJECTILE, ATTACK_IS_DIRECT_PROJECTILE)',
+            'Shot result on 21: penetration True, in the client world False, flags 1048593 '
+            '(VEHICLE_KILLED, MATERIAL_WITH_POSITIVE_DF_PIERCED_BY_PROJECTILE, ATTACK_IS_DIRECT_PROJECTILE)',
+            'Shot result on 20: penetration False, in the client world True, flags 34603008 '
+            '(ATTACK_IS_DIRECT_PROJECTILE, MATERIAL_WITH_POSITIVE_DF_NOT_PIERCED_WITH_DAMAGE_BY_PROJECTILE)',
+        ])
+        battle_session._end()
+        self.assertEqual(client.triggers.listeners, set())
+        self.assertTrue(any(line.endswith('totals: piercingEnemyHits 2') for line in self.logger.lines))
+        self.assertEqual(self.logger.exceptions, [])
+
+    def test_a_failure_on_a_shot_result_stays_in_the_listener(self):
+        client = _Client()
+        self._open(client, PENETRATIONS, [{'text': 'Penetrate enemy armor 10 times', 'icon': 'hit'}])
+        # A client without the hit flags makes the import fail.
+        del sys.modules['constants'].VEHICLE_HIT_FLAGS
+        client.shot_result(ENEMY, HIT_FLAGS.MATERIAL_WITH_POSITIVE_DF_PIERCED_BY_PROJECTILE)
+        self.assertEqual(self.logger.exceptions, ['Failed to follow a shot result'])
 
     def test_the_panel_logs_its_figures_at_the_end_of_the_battle(self):
         client = _Client()

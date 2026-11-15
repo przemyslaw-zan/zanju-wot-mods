@@ -52,7 +52,23 @@ LIVE_RESULT_KEYS = frozenset((
     'damageBlockedByArmor',
     'damageReceived',
     'critsCount',
+    'piercingEnemyHits',
 ))
+
+
+def penetrated(flags, hit_flags):
+    """Whether one shot result of the player is a penetration of the armor of an enemy.
+
+    `flags` are the hit flags of one vehicle in `PlayerAvatar.showShotResults`, and `hit_flags` is
+    the client's `VEHICLE_HIT_FLAGS`. The client plays its "penetration" sound on the same flag.
+    Damage from a high-explosive shell that does not penetrate has its own flag, and the splash
+    of a shell is an external explosion. These do not count, and neither does a hit on a vehicle
+    that was already destroyed.
+    """
+    if flags & (hit_flags.VEHICLE_WAS_DEAD_BEFORE_ATTACK | hit_flags.ATTACK_IS_EXTERNAL_EXPLOSION):
+        return False
+    return bool(flags & hit_flags.MATERIAL_WITH_POSITIVE_DF_PIERCED_BY_PROJECTILE)
+
 
 # The shapes of a condition. Each one says what a battle panel counts for it.
 KIND_TOTAL = 'total'                    # one result key at or above a target

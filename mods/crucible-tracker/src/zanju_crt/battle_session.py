@@ -13,6 +13,8 @@ The tracker (see progress) counts each condition from the client's battle contro
 - Radio and track assist: `PLAYER_ASSIST_TO_KILL_ENEMY`, told apart by the battle event type.
 - Stun assist, blocked damage and crits: `PLAYER_ASSIST_TO_STUN_ENEMY`, `PLAYER_USED_ARMOR` and
   `PLAYER_DAMAGED_DEVICE_ENEMY`.
+- A penetration of an enemy: the trigger `PLAYER_SHOT_HIT`. The client fires it once for each
+  vehicle in the shot results that the server sends to the player (see crucible.penetrated).
 - Damage received and full HP: the HP of the player's vehicle, read on each change of it.
 - The battle summary of the server: the totals of damage, assist and blocked damage. The panel
   takes a total from it when the total is higher.
@@ -73,6 +75,8 @@ class _Session(object):
         self.tracker = progress.Tracker([('postBattle', active.get('postBattle') or [])], collector.award_name)
         self.panel = battle_panel.Panel(logger)
         self.subscriptions = []
+        self.shot_listener = _ShotListener(self, logger)
+        self.triggers = None
         self.hit_logs = 0
         self.summary_logged = False
         self.time_offset = 0.0
@@ -80,6 +84,7 @@ class _Session(object):
         # Hits and kills are logged only for the conditions that the log can check.
         self.log_hits = any(spec.get('distance') is not None or spec.get('timeLimit') is not None
                             or spec.get('fullHealth') or spec.get('classes') or spec.get('eventCount')
+                            or 'piercingEnemyHits' in (spec.get('keys') or ())
                             for spec in self.tracker.specs if spec.get('live'))
 
     # -- life ---------------------------------------------------------------------------------
@@ -92,6 +97,7 @@ class _Session(object):
         self._subscribe(shared.feedback.onPlayerSummaryFeedbackReceived, self._on_summary)
         self._subscribe(shared.vehicleState.onVehicleStateUpdated, self._on_vehicle_state)
         self._subscribe(g_playerEvents.onArenaPeriodChange, self._on_period)
+        self._listen_to_shots()
         # The JavaScript counts the time limit down against its own clock.
         self.time_offset = round(BigWorld.serverTime() - time.time(), 1)
         self.labels = {'mission': _loc('LABEL_MISSION'), 'or': _client_text(_OR_KEY, self.logger),
@@ -113,7 +119,26 @@ class _Session(object):
                 event -= handler
             except Exception:
                 self.logger.exception('Failed to unsubscribe from a battle event')
+        if self.triggers is not None:
+            try:
+                self.triggers.delListener(self.shot_listener)
+            except Exception:
+                self.logger.exception('Failed to stop the listener of the shot results')
+            self.triggers = None
         self.panel.close()
+
+    def _listen_to_shots(self):
+        # Without the shot results, only the penetrations are lost, and the panel still opens.
+        try:
+            import TriggersManager
+            manager = TriggersManager.g_manager
+            if manager is None:
+                self.logger.error('The client has no trigger manager, so the panel cannot count penetrations')
+                return
+            manager.addListener(self.shot_listener)
+            self.triggers = manager
+        except Exception:
+            self.logger.exception('Failed to listen to the shot results; the panel cannot count penetrations')
 
     def _subscribe(self, event, handler):
         def guarded(*args, **kwargs):
@@ -200,6 +225,29 @@ class _Session(object):
         self.tracker.on_ally_hit()
         self.logger.info('A direct shot of the player hit the ally %s', target_id)
         self.push()
+
+    def on_shot_result(self, target_id, flags):
+        """The server sent the result of a shot of the player on one vehicle."""
+        import BigWorld
+        from constants import VEHICLE_HIT_FLAGS
+        if target_id is None or target_id == getattr(BigWorld.player(), 'playerVehicleID', None):
+            return
+        try:
+            is_ally = self.provider.getArenaDP().isAlly(target_id)
+        except Exception:
+            return
+        if is_ally:
+            return
+        pierced = crucible.penetrated(flags, VEHICLE_HIT_FLAGS)
+        if pierced:
+            self.tracker.add_result('piercingEnemyHits', 1)
+        # Whether the target is in the client's world shows if the server also sends the result
+        # of a shot on an enemy that the player cannot see.
+        self._log_hit('Shot result on %s: penetration %s, in the client world %s, flags %s (%s)',
+                      target_id, pierced, BigWorld.entity(target_id) is not None, flags,
+                      ', '.join(_flag_names(flags, VEHICLE_HIT_FLAGS)))
+        if pierced:
+            self.push()
 
     def _on_kill(self, target):
         vehicle_class = self._vehicle_class(target)
@@ -296,6 +344,42 @@ class _Session(object):
         except Exception:
             highest = _DEFAULT_MAX_VIEW_RANGE
         return min(float(radius), float(highest))
+
+
+class _ShotListener(object):
+    """A listener of the client's TriggersManager, for the trigger PLAYER_SHOT_HIT.
+
+    `PlayerAvatar.showShotResults` fires this trigger for each vehicle that a shot of the player
+    hit, with the hit flags of that vehicle. The manager sends its triggers to the listeners
+    every 0.05 s, only in the period BATTLE.
+    """
+
+    def __init__(self, session, logger):
+        self.session = session
+        self.logger = logger
+
+    def onTriggerActivated(self, params):
+        # The manager drops its pending triggers only after it sent all of them. An exception
+        # here thus sends them again on the next update, and a shot would count twice.
+        try:
+            from TriggersManager import TRIGGER_TYPE
+            if params.get('type') == TRIGGER_TYPE.PLAYER_SHOT_HIT:
+                self.session.on_shot_result(params.get('targetId'), params.get('flags') or 0)
+        except Exception:
+            self.logger.exception('Failed to follow a shot result')
+
+    def onTriggerDeactivated(self, params):
+        pass
+
+
+def _flag_names(flags, hit_flags):
+    """The names of the single hit flags in `flags`, for the log. The masks are left out."""
+    names = []
+    for name in dir(hit_flags):
+        value = getattr(hit_flags, name)
+        if name.isupper() and isinstance(value, int) and value and not value & (value - 1) and flags & value:
+            names.append((value, name))
+    return [name for _, name in sorted(names)]
 
 
 def _enemy_health(player):

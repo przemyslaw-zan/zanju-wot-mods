@@ -2,7 +2,7 @@
 
 Reference notes for `crucible-tracker`. How the client models the Crucible, where it keeps the progress of a series, what the conditions of a mission look like, why a battle has to read them from a file, and how the battle panel counts them.
 
-Checked against WoT client **2.4.1.0** on 14 October 2026. The sources were the shipped scripts and a probe mod in the garage and in seven battles. No series was active during the probe runs. From 16 October 2026, battles with series 56 active, and with a test mission, measured the parts that the sections below date to those days.
+Checked against WoT client **2.4.1.0** on 14 October 2026. The sources were the shipped scripts and a probe mod in the garage and in seven battles. No series was active during the probe runs. From 16 October 2026, battles with series 56 active, and with a test mission, measured the parts that the sections below date to those days. The parts on penetrations come from client **2.4.1.1**, on 15 November 2026.
 
 ## Vocabulary
 
@@ -55,6 +55,8 @@ The post-battle part of the 21 current missions used these shapes:
 | `or` of the shapes above | each child is a row, and one row completes the mission | per row |
 
 "Live" means that a battle panel can count the condition while the battle runs. The client has no damage figure for any other player during a battle, so "top N" waits for the results. An award is live only when the mod has a rule for it, see [Awards](#awards). `limittedTime` is spelled that way in the data. `crucible.py` in `crucible-tracker` holds the classification and its tests, with these conditions verbatim.
+
+Mission 1 of series 73, on 15 November 2026, used one more shape: `results` `piercingEnemyHits` `greaterOrEqual` 10. Its text is "Penetrate enemy armor 10 times". The panel counts it from the shot results, see [Penetrations](#penetrations).
 
 ### Sets of conditions
 
@@ -153,6 +155,7 @@ The panel counts each condition from the battle controllers of `sessionProvider.
 | the start of the battle | `arena.periodEndTime - arena.periodLength` in the period `BATTLE` |
 | the view range | `feedback.getVehicleAttrs()['circularVisionRadius']`, capped at `arenaVisitor.getVisibilityMaxRadius()`, as the minimap caps it |
 | the total HP of the enemy team | the sum of `maxHealth` in `arena.vehicles` for the other team |
+| penetrations of enemies | the trigger `PLAYER_SHOT_HIT` of `TriggersManager`, see [Penetrations](#penetrations) |
 
 `personalEfficiencyCtrl` is not a source. Its damage total also adds damage to destructible objects, and it has no split of radio and track assist.
 
@@ -164,6 +167,7 @@ The figures are an estimate, and the battle results decide the mission. These ar
 - **Reconnect.** The client loses the events from before a reconnect, so no figure is sure after it. The panel then shows the conditions with no bars and no figures, and a time limit still counts down. A reconnect is an entry into an arena that the same vehicle first entered more than 30 s before. `battle_record` keeps the time of the first entry for this. In the battle of 16 October 2026, the battle page populated 4.3 s before `onAvatarReady` wrote the record. Thus at a first entry, the record of this arena is not there yet when the panel opens, and at a reconnect, the record of the first entry is.
 - **Summary.** The server sends a battle summary (`onPlayerSummaryFeedbackReceived`) with the totals of damage, assist, blocked damage and stun. The panel takes a total from it when the total is higher, and logs the first summary beside its own totals. In two battles on 16 October 2026, the summary came once, about 1 s after `onAvatarReady` and before the battle started, with every total at 0, and never during the battle. In a normal battle it thus changes nothing. It can matter only after a reconnect, where the counters are off anyway.
 - **Crits.** The panel adds the crits count of each event. No battle has compared that sum with `critsCount` in the results yet.
+- **Penetrations.** The rule comes from the client's sound code, and one battle measured it, see [Penetrations](#penetrations). Two cases are still open. A hit that pierces only a module, such as the tracks, does not count in the panel. Nothing shows yet whether the server counts it. Also, the server can send no result for a shot on an enemy that the player cannot see.
 
 **Measured on 16 October 2026.** Series 56, mission 1 asked for 2,500 HP of damage dealt. The panel counted the damage while the battle ran, the server completed the mission, and the next garage showed mission 2 with no shield lost. The panel opened at the position that the player had dragged it to in an earlier session. Mission 2, among the top 5 players of the team by damage, then completed too. The panel showed its text only, as it does for every condition that it cannot count. Mission 3 asked for 3,000 HP of damage within the view range. The panel counted three hits of 527, 485 and 454 HP, at 22 to 26 m, against the capped view range of 445 m: 1,466 HP. The server failed the mission and took a shield, which agrees. No hit came from beyond the view range, so that battle did not test that case. The test mission below did, on the side of the panel.
 
@@ -173,7 +177,22 @@ The battle results screen gives no figure for a Crucible condition. `ChallengesM
 
 The time limit counts down in the panel's own JavaScript. Python sends the deadline in the clock of `BigWorld.serverTime()`, with the offset of that clock from the system clock. Before the battle starts, the panel shows the whole limit. The clock has the color of the figures. A limit that runs takes the warning color at 1:00. A met condition is green and a closed condition is red, and the clock follows these colors.
 
-The mod logs the first 40 hits and kills of a battle when a condition has a distance, a time limit, a class or full HP. Each line has the distance, the view range and the time into the battle. At the end of every battle with the panel, the line `Battle panel at the end:` gives the figure of each condition and the totals. Compare the log with the result of the mission to make sure that the panel counts right.
+The mod logs the first 40 hits and kills of a battle when a condition has a distance, a time limit, a class or full HP, or counts penetrations. With penetrations, it also logs each shot result on an enemy: the flags, whether they are a penetration, and whether the target was in the client's world. Each line of a hit has the distance, the view range and the time into the battle. At the end of every battle with the panel, the line `Battle panel at the end:` gives the figure of each condition and the totals. Compare the log with the result of the mission to make sure that the panel counts right.
+
+### Penetrations
+
+The server sends the player the result of each shot, through `PlayerAvatar.showShotResults`. The result has one entry for each vehicle that the shot hit, with its hit flags from `VEHICLE_HIT_FLAGS` in `scripts/common/constants.py`. For each entry, the client fires the trigger `PLAYER_SHOT_HIT` of `TriggersManager`, with `targetId` and `flags`. The panel is a listener of the manager, so it needs no patch. The manager turns on at the start of every battle, in `Avatar.__onInitStepCompleted`. It sends its triggers to the listeners every 0.05 s, and only in the period `BATTLE`.
+
+A penetration is an entry for an enemy with the flag `MATERIAL_WITH_POSITIVE_DF_PIERCED_BY_PROJECTILE`. The client plays its "penetration" sound on the same flag, in `gui/battle_control/controllers/sound_ctrls/common.py`. `crucible.penetrated` holds the rule. These entries do not count:
+
+- Damage from a high-explosive shell without a penetration, with `MATERIAL_WITH_POSITIVE_DF_NOT_PIERCED_WITH_DAMAGE_BY_PROJECTILE`. The player says that this damage does not count for the mission.
+- The splash of a shell, with `ATTACK_IS_EXTERNAL_EXPLOSION`.
+- A hit on a vehicle that was already destroyed, with `VEHICLE_WAS_DEAD_BEFORE_ATTACK`.
+- A hit on an ally, or on the player's own vehicle.
+
+The manager drops its pending triggers only after it sent all of them to every listener. If a listener raises an exception, the manager sends the same triggers again 0.05 s later. Thus the listener of the panel catches every exception, or a shot could count twice.
+
+**Measured on 15 November 2026.** Mission 1 of series 73 asked for 10 penetrations. The log listed 16 shot results on four enemies, and every target was in the client's world. 11 results had the flag of a penetration, and each of them came with a hit for HP damage. The panel ended at 11 of 10, and the server completed the mission with no shield lost. The shot that destroyed an enemy had `VEHICLE_KILLED` with the flag of a penetration, so the panel counts it. One hit pierced only a module, with `DEVICE_PIERCED_BY_PROJECTILE`. It did no damage and did not count. No result had the flag of high-explosive damage without a penetration.
 
 ## Related Reading
 
