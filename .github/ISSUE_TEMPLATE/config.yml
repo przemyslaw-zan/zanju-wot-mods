@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Translate a mod
+    url: https://github.com/przemyslaw-zan/zanju-wot-mods/blob/master/docs/translating.md
+    about: Translations come as pull requests. This guide shows how to make one.

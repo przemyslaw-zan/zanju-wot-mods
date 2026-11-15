@@ -19,6 +19,8 @@ from .paths import MODS_DIR
 # has no field for them.
 MOD_AUTHOR = "Zanju"
 MOD_URL = "https://github.com/przemyslaw-zan/zanju-wot-mods/issues"
+# The brand at the start of each <name>. A list of the mods leaves it out, because every row has it.
+_MOD_NAME_PREFIX = "Zanju's "
 
 
 def meta_path_for(mod_name):
@@ -32,3 +34,11 @@ def read_meta(mod_name):
         "version": root.findtext("version", "0.0.0.0").strip(),
         "name": root.findtext("name", "").strip(),
     }
+
+
+def display_name(mod_name):
+    """The name of a mod in a list of the mods: its <name> without the brand, or the folder name."""
+    name = read_meta(mod_name)["name"]
+    if name.startswith(_MOD_NAME_PREFIX):
+        name = name[len(_MOD_NAME_PREFIX) :]
+    return name or mod_name

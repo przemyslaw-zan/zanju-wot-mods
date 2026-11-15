@@ -19,6 +19,7 @@ from ..core.i18n_audit import (
     write_root_readme_coverage,
     write_templates,
 )
+from ..core.issue_forms import check_issue_forms, write_issue_forms
 from ..core.paths import REPO_ROOT
 
 try:
@@ -42,6 +43,8 @@ COMMAND_CHOICES = (
     "py27-format-check",
     "i18n",
     "i18n-check",
+    "issue-forms",
+    "issue-forms-check",
 )
 ALIAS_COMMANDS = {
     "py3-check": ("check", {"py3_only": True}),
@@ -398,6 +401,26 @@ def run_i18n_write(verbose=False):
     _report_translation_coverage(verbose=verbose)
 
 
+def run_issue_forms_check():
+    section("Issue forms")
+    problems = check_issue_forms()
+    if problems:
+        message = ["The lists of mods in the issue forms are out of date:"]
+        message.extend("  - {0}".format(problem) for problem in problems)
+        message.append("Run `zwm lint issue-forms` and commit the updated files.")
+        raise RuntimeError("\n".join(message))
+    success("Lists of mods in the issue forms up to date")
+
+
+def run_issue_forms_write():
+    section("Issue forms")
+    updated = write_issue_forms()
+    if updated:
+        success("Refreshed the list of mods in: {0}".format(", ".join(updated)))
+    else:
+        success("Lists of mods in the issue forms already up to date")
+
+
 def parse_args(argv):
     parser = argparse.ArgumentParser(
         prog="zwm lint",
@@ -418,6 +441,8 @@ def parse_args(argv):
             "  py27-format-check            Alias for: py27-format --check\n"
             "  i18n                          Regenerate the README coverage tables and the i18n templates.\n"
             "  i18n-check                    Verify key coverage and that generated i18n files are current.\n"
+            "  issue-forms                   Regenerate the lists of mods in the GitHub issue forms.\n"
+            "  issue-forms-check             Verify that the lists of mods in the issue forms are current.\n"
             "\n"
             "Examples:\n"
             "  zwm lint\n"
@@ -516,6 +541,7 @@ def run_check(args):
         run_py27_format(check=True, verbose=args.verbose)
 
     run_i18n_check(verbose=args.verbose)
+    run_issue_forms_check()
 
 
 def run_fix(args):
@@ -569,6 +595,14 @@ def _main(argv=None):
 
     if args.command == "i18n-check":
         run_i18n_check(verbose=args.verbose)
+        return 0
+
+    if args.command == "issue-forms":
+        run_issue_forms_write()
+        return 0
+
+    if args.command == "issue-forms-check":
+        run_issue_forms_check()
         return 0
 
     raise RuntimeError("Unsupported command: {}".format(args.command))

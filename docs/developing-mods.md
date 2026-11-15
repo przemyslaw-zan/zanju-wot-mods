@@ -73,6 +73,9 @@ That command is the current default gate locally and in CI for:
 - Python 3 lint with Ruff.
 - Python 2.7 lint with Flake8 3.9.x.
 - Python 2.7 conservative format check with autopep8 diff mode.
+- The lists of mods in the GitHub issue forms.
+
+GitHub reads an issue form as a static file, so a form in `.github/ISSUE_TEMPLATE/` cannot load its list of mods from another file. `zwm lint issue-forms` writes each list from the `<name>` in the `meta.xml` of each mod, between the two `mod-list` comments of the form. When you add a mod or change its name, run that command and commit the forms. Otherwise the check fails.
 
 The Python 2.7 Flake8 gate also enforces a McCabe complexity limit so new changes do not keep pushing large runtime functions upward unchecked.
 
@@ -88,6 +91,8 @@ zwm lint py3-format-check
 zwm lint py27-lint
 zwm lint py27-format-check
 zwm lint py27-format
+zwm lint issue-forms
+zwm lint issue-forms-check
 ```
 
 The Python 2.7 autopep8 path is intentionally conservative. It only applies low-risk whitespace, indentation, and blank-line fixes. CI checks that surface in diff mode, while local rewriting stays an explicit reviewed step via `zwm lint py27-format`.
