@@ -1,6 +1,10 @@
 Changelog
 =========
 
+## Unreleased
+
+- Fixed misaligned numbers under the dials when the battle panel opens. The slash sat too close to the required value until the numbers changed.
+
 ## 1.2.0 (15 November 2026)
 
 - The battle panel now counts the "Penetrate enemy armor X times" mission type.

@@ -15,6 +15,7 @@ const CLOCK_INTERVAL_MS = 1000;
 let lastSize = '';
 let lastPayload = '';
 let currentPayload = null;
+let figuresWidth = -1;
 let dragging = false;
 
 function panelNode() {
@@ -52,11 +53,24 @@ function render() {
 // reads the hidden probe, and battle.css gives the column that width. The observer also calls back
 // for a new font or a new interface scale. The value stays on the panel through a new render and
 // through a change of form, so the column has its width before the first layout of that form.
+//
+// A new width also renders the panel again. When the column gets a new width, the renderer does
+// not size the cells under a dial again. They keep half of the old width, and only the slash moves
+// to the new axis. On 15 November 2026, the first render of a battle showed "0 /1,000", with the
+// slash against the "1", until the next payload.
 function followFigures() {
     const probe = probeNode();
     new ResizeObserver(function () {
         const width = Math.ceil(probe.getBoundingClientRect().width);
-        panelNode().style.setProperty('--zanju-crt-figures-width', width + 'px');
+        if (width === figuresWidth) {
+            return;
+        }
+        figuresWidth = width;
+        const node = panelNode();
+        node.style.setProperty('--zanju-crt-figures-width', width + 'px');
+        if (currentPayload) {
+            renderPanel(node, currentPayload);
+        }
     }).observe(probe);
 }
 
