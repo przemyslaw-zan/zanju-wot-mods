@@ -16,7 +16,7 @@ import time
 import types
 import unittest
 
-from test_crucible import EARLY_DAMAGE, HIGH_CALIBER, HIT_FLAGS, PENETRATIONS, TWO_SETS
+from test_crucible import DUELIST, EARLY_DAMAGE, HIGH_CALIBER, HIT_FLAGS, PENETRATIONS, TWO_SETS, _conditions
 from zanju_crt import battle_record, battle_session, config, crucible, transport
 
 ACCOUNT = 500725877
@@ -24,6 +24,14 @@ PLAYER_VEHICLE = 10
 ENEMY = 20
 ALLY = 11
 ARENA = 2420717383125650945
+# The client strings that the tests read by their text. Every other string reads "OR".
+CLIENT_TEXTS = {
+    '#achievements:warrior_descr': 'Destroy enemy vehicles:',
+    '#achievements:warrior_condition_text': ' and more',
+    '#achievements:fighter_descr': 'Destroy four or five enemy vehicles in one battle.',
+    '#achievements:duelist_descr':
+        'Destroy at least 2 enemy vehicles that caused damage to your vehicle in the battle.',
+}
 VEHICLE_CD = 8049
 
 
@@ -83,6 +91,9 @@ class FET(object):
     PLAYER_ASSIST_TO_KILL_ENEMY = 5
     PLAYER_ASSIST_TO_STUN_ENEMY = 6
     PLAYER_USED_ARMOR = 7
+    PLAYER_SPOTTED_ENEMY = 8
+    ENEMY_DAMAGED_HP_PLAYER = 9
+    ENEMY_DAMAGED_DEVICE_PLAYER = 10
 
 
 class BET(object):
@@ -206,11 +217,16 @@ class _Client(object):
         _module('gui.battle_control.battle_constants', FEEDBACK_EVENT_ID=FET, VEHICLE_VIEW_STATE=_Ns(HEALTH=4))
         _module('gui.impl.backport', getIntegralFormat=lambda value: '{0:,}'.format(value))
         _module('gui.shared.utils', getPlayerDatabaseID=lambda: ACCOUNT)
-        _module('helpers', dependency=_Ns(instance=instance), i18n=_Ns(makeString=lambda key: 'OR'),
+        _module('helpers', dependency=_Ns(instance=instance),
+                i18n=_Ns(makeString=lambda key: CLIENT_TEXTS.get(key, 'OR'),
+                         doesTextExist=lambda key: key in CLIENT_TEXTS),
                 getClientLanguage=lambda: 'en')
         _module('skeletons.gui.battle_session', IBattleSessionProvider=IBattleSessionProvider)
         _module('skeletons.gui.challenges', IChallengesController=IChallengesController)
-        _module('dossiers2.custom.records', DB_ID_TO_RECORD={228: ('achievements', 'mainGun')})
+        _module('dossiers2.custom.records', DB_ID_TO_RECORD={228: ('achievements', 'mainGun'),
+                                                             34: ('achievements', 'warrior'),
+                                                             522: ('achievements', 'fighter'),
+                                                             523: ('achievements', 'duelist')})
 
     def start_battle(self):
         self.arena.period, self.arena.periodEndTime, self.arena.periodLength = 3, 1900.0, 900.0
@@ -383,6 +399,15 @@ class BattleSessionTest(unittest.TestCase):
         self.assertEqual([row['set'] for row in payload['rows']], [0, 0, 1, 1])
         self.assertEqual(self.logger.exceptions, [])
 
+    def test_a_spotted_enemy_reaches_the_totals_once(self):
+        client = _Client()
+        session = self._open(client, TWO_SETS, [{'text': text, 'live': True} for text in 'abcd'])
+        client.feedback.onPlayerFeedbackReceived([_FeedbackEvent(FET.PLAYER_SPOTTED_ENEMY, ENEMY),
+                                                  _FeedbackEvent(FET.PLAYER_SPOTTED_ENEMY, ENEMY),
+                                                  _FeedbackEvent(FET.PLAYER_SPOTTED_ENEMY, ENEMY + 1)])
+        self.assertEqual(session.tracker.totals['spotted'], 2)
+        self.assertEqual(self.logger.exceptions, [])
+
     def test_a_kill_and_the_health_reach_the_tracker(self):
         client = _Client()
         session = self._open(client, TWO_SETS, [{'text': text, 'live': True} for text in 'abcd'])
@@ -421,6 +446,49 @@ class BattleSessionTest(unittest.TestCase):
         self.assertEqual((row['live'], row['valueText'], row['targetText']), (True, '450', '1,000'))
         self.assertEqual(row['rules'], [{'key': 'noAllyHits', 'broken': False}])
         self.assertTrue(_Panel.instances[0].payloads[-1]['labels']['noAllyHits'])
+        self.assertEqual(self.logger.exceptions, [])
+
+    def test_duelist_counts_the_kills_of_enemies_that_damaged_the_player(self):
+        client = _Client()
+        session = self._open(client, DUELIST, [{'text': 'Earn the Duelist award', 'icon': 'achievement'}])
+        client.feedback.onPlayerFeedbackReceived([
+            _FeedbackEvent(FET.ENEMY_DAMAGED_HP_PLAYER, ENEMY, 0),
+            _FeedbackEvent(FET.PLAYER_KILLED_ENEMY, ENEMY),
+            _FeedbackEvent(FET.PLAYER_KILLED_ENEMY, ENEMY + 1),
+        ])
+        # Damage of 0 HP is no damage.
+        self.assertEqual(session.tracker.totals['killsOfAttackers'], 0)
+        client.feedback.onPlayerFeedbackReceived([_FeedbackEvent(FET.ENEMY_DAMAGED_DEVICE_PLAYER, ENEMY + 1, crits=1),
+                                                  _FeedbackEvent(FET.ENEMY_DAMAGED_HP_PLAYER, ENEMY, 250)])
+        payload = _Panel.instances[0].payloads[-1]
+        row = payload['rows'][0]
+        self.assertEqual((row['valueText'], row['targetText'], row['state']), ('2', '2', 'met'))
+        self.assertEqual(row['rules'], [{'key': 'duelist_descr', 'broken': False}])
+        self.assertEqual(payload['labels']['duelist_descr'], CLIENT_TEXTS['#achievements:duelist_descr'])
+        self.assertEqual(self.logger.exceptions, [])
+
+    def test_fighter_shows_its_description_and_the_line_of_the_mod_on_its_limit(self):
+        client = _Client()
+        fighter = _conditions('[["achievements", [["value", [522]]]]]')
+        # The tests have no string files of the mod: this shows the key and the count it gets.
+        saved_loc = battle_session._loc
+        battle_session._loc = lambda key, **values: '{0} {1}'.format(key, values)
+        try:
+            self._open(client, fighter, [{'text': 'Earn the Fighter award', 'icon': 'achievement'}])
+        finally:
+            battle_session._loc = saved_loc
+        labels = _Panel.instances[0].payloads[-1]['labels']
+        self.assertEqual(labels['fighter_descr'], 'Destroy four or five enemy vehicles in one battle.')
+        self.assertEqual(labels['fighter_maximum'], "LABEL_MAX_KILLS {'count': 5}")
+        self.assertEqual(self.logger.exceptions, [])
+
+    def test_top_gun_shows_its_description_with_the_value_and_no_game_modes(self):
+        client = _Client()
+        top_gun = _conditions('[["achievements", [["value", [34]]]]]')
+        self._open(client, top_gun, [{'text': 'Earn the Top Gun award', 'icon': 'achievement'}])
+        payload = _Panel.instances[0].payloads[-1]
+        self.assertEqual(payload['rows'][0]['rules'], [{'key': 'warrior_descr', 'broken': False}])
+        self.assertEqual(payload['labels']['warrior_descr'], 'Destroy enemy vehicles: 6 and more')
         self.assertEqual(self.logger.exceptions, [])
 
     def test_a_direct_shot_on_an_ally_breaks_the_rule_and_a_hit_on_an_enemy_does_not(self):

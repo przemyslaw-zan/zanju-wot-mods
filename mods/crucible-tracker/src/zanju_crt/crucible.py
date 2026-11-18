@@ -53,6 +53,7 @@ LIVE_RESULT_KEYS = frozenset((
     'damageReceived',
     'critsCount',
     'piercingEnemyHits',
+    'spotted',
 ))
 
 
@@ -73,7 +74,7 @@ def penetrated(flags, hit_flags):
 # The shapes of a condition. Each one says what a battle panel counts for it.
 KIND_TOTAL = 'total'                    # one result key at or above a target
 KIND_SUM = 'sum'                        # several result keys added together
-KIND_HEALTH_MULTIPLE = 'healthMultiple'  # damage dealt as a multiple of the vehicle's own HP
+KIND_HEALTH_MULTIPLE = 'healthMultiple'  # damage dealt or blocked as a multiple of the vehicle's own HP
 KIND_TOP = 'top'                        # among the best N players by a result
 KIND_DAMAGE = 'damage'                  # damage to vehicles, with a distance or time limit
 KIND_KILLS = 'kills'                    # vehicles destroyed, with a limit such as full health
@@ -130,13 +131,26 @@ AWARD_RULES = {
     # with no direct shot on an ally.
     'mainGun': {'keys': ['damageDealt'], 'enemyHealthShare': 0.2, 'minimum': 1000.0, 'noAllyHits': True},
     # Top Gun: at least 6 kills.
-    'warrior': {'keys': ['kills'], 'target': 6.0},
+    'warrior': {'keys': ['kills'], 'target': 6.0, 'description': True},
+    # Fighter: 4 or 5 kills. A 6th kill ends the award, because Fighter is for 4 or 5 kills only.
+    'fighter': {'keys': ['kills'], 'target': 4.0, 'maximum': 5.0, 'description': True},
+    # Duelist: at least 2 kills of enemies that damaged the player's vehicle, its HP or its modules.
+    # The server judges the award after the battle, from the kills and the damage, so the order of
+    # the two does not matter.
+    'duelist': {'keys': ['killsOfAttackers'], 'target': 2.0, 'description': True},
 }
+# `description` shows the client's description of the award (`#achievements:<award>_descr`) under
+# the condition, in the language of the client. battle_session writes the text. A figure above
+# `maximum` closes the condition, and a line of the mod under the description says why.
 
 # The fields of a condition that the panel knows how to count. A condition with any other field
 # shows its text and no progress, because the panel could count it wrong.
 _DAMAGE_FIELDS = frozenset(('greaterOrEqual', 'distance', 'limittedTime', 'eventCount', 'attackReason'))
-_KILL_FIELDS = frozenset(('greaterOrEqual', 'whileFullHealth', 'classes', 'attackReason'))
+_KILL_FIELDS = frozenset(('greaterOrEqual', 'whileFullHealth', 'classes', 'classesDiversity', 'attackReason'))
+
+# The vehicle classes as the arena names them, in the order of the client's class filters
+# (VEHICLE_TYPES_ORDER): light, medium, heavy, tank destroyer and SPG.
+VEHICLE_CLASSES = ('lightTank', 'mediumTank', 'heavyTank', 'AT-SPG', 'SPG')
 _RESULT_FIELDS = frozenset(('key', 'plus', 'greaterOrEqual', 'compareWithMaxHealth'))
 
 
@@ -153,22 +167,23 @@ def parse_condition(name, value, award_name=None):
     Always holds `kind` and `live`. A live condition also holds `target`, and what it counts:
 
     - total, sum: `keys`, the result keys added together.
-    - healthMultiple: `keys` and `multiplier`, damage dealt against the vehicle's own HP.
+    - healthMultiple: `keys` and `multiplier`, damage dealt or blocked against the vehicle's own HP.
     - damage: `distance` (0 is the view range, more is at least that far, less than 0 is at most
       that far, None is any), `timeLimit` (seconds from the battle start, or None), `eventCount`
       (count the hits, not the HP) and `attackReason`.
     - kills: `fullHealth` (only the kills while the vehicle has all its HP count), `classes` (the
-      vehicle classes that count, empty for all) and `attackReason`.
-    - achievement: `award`, `keys`, `target` or `enemyHealthShare` with `minimum`, and
-      `noAllyHits`, from AWARD_RULES.
+      vehicle classes that count, empty for all), `diversity` (how many different classes the
+      kills must cover, or None) and `attackReason`.
+    - achievement: `award`, `keys`, `target` or `enemyHealthShare` with `minimum`, `maximum`,
+      `noAllyHits` and `description`, from AWARD_RULES.
 
     `attackReason` is None when the condition names no reason, and then every reason counts.
     `award_name(record_id)` gives the dossier record name of an award, or None. Without it, no
     award is live.
 
     The client formatter reads the same fields (ChallengeVehicleListFormatter). A form that it
-    names and the panel cannot count, such as damage to an enemy that the player cannot see, or
-    kills of several classes, shows its text and no progress.
+    names and the panel cannot count, such as damage to an enemy that the player cannot see,
+    shows its text and no progress.
     """
     node = node_dict(value)
     target = _number(leaf(node.get('greaterOrEqual')))
@@ -191,6 +206,7 @@ def parse_condition(name, value, award_name=None):
             'kind': KIND_KILLS, 'live': True, 'target': target,
             'fullHealth': bool(leaf(node.get('whileFullHealth'), False)),
             'classes': [_class_name(item) for item in (leaf(node.get('classes'), []) or [])],
+            'diversity': _diversity(node),
             'attackReason': _attack_reason(node),
         }
     if name == 'achievements':
@@ -206,6 +222,12 @@ def _attack_reason(node):
     return None if reason is None else int(reason)
 
 
+def _diversity(node):
+    # "Destroy 2 enemy vehicles of 2 different types": the number of classes, or None.
+    count = leaf(node.get('classesDiversity'), None)
+    return None if count is None else int(count)
+
+
 def _parse_award(value, award_name):
     """An award condition. Only one award with a rule in AWARD_RULES is live."""
     ids = leaf(value, None)
@@ -217,7 +239,7 @@ def _parse_award(value, award_name):
         return {'kind': KIND_ACHIEVEMENT, 'live': False, 'award': record}
     spec = {'kind': KIND_ACHIEVEMENT, 'live': True, 'award': record, 'keys': list(rule['keys']),
             'target': rule.get('target')}
-    for key in ('enemyHealthShare', 'minimum', 'noAllyHits'):
+    for key in ('enemyHealthShare', 'minimum', 'maximum', 'noAllyHits', 'description'):
         if key in rule:
             spec[key] = rule[key]
     return spec
@@ -240,7 +262,8 @@ def _parse_results(node, target):
         return {'kind': KIND_SUM, 'live': live, 'target': target, 'keys': keys}
     key = leaf(node.get('key'))
     if leaf(node.get('compareWithMaxHealth'), False):
-        return {'kind': KIND_HEALTH_MULTIPLE, 'live': key == 'damageDealt' and target is not None,
+        # The client has a text for damage dealt and for damage blocked by armor.
+        return {'kind': KIND_HEALTH_MULTIPLE, 'live': key in LIVE_RESULT_KEYS and target is not None,
                 'keys': [key], 'multiplier': target, 'target': target}
     if target is not None:
         return {'kind': KIND_TOTAL, 'live': key in LIVE_RESULT_KEYS, 'target': target, 'keys': [key]}

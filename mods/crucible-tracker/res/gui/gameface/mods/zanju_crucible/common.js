@@ -43,6 +43,12 @@ function conditionImage(iconKey) {
     return 'gui.maps.icons.userMissions.challenges.missionIcons.c_32.' + iconKey;
 }
 
+// The small icon of a vehicle class, which the client's own class filters use. The resource name
+// has an underscore for the hyphen of the class name, as in the client: `AT-SPG` is `AT_SPG`.
+function classImage(vehicleClass) {
+    return 'gui.maps.icons.vehicleTypes.extraSmall.' + vehicleClass.replace('-', '_');
+}
+
 // The client ships an icon for each currency it prices in: credits, gold, crystal (bonds) and a
 // few more. Empty for a currency it has no icon for, and the price then stands alone.
 const CURRENCIES_WITH_ICONS = ['credits', 'gold', 'crystal', 'equipCoin', 'freeXP'];
@@ -82,6 +88,7 @@ export {
     SHIELD_IMAGE,
     SHIELD_LEFT_IMAGE,
     SHIELD_SPENT_IMAGE,
+    classImage,
     clientImage,
     conditionImage,
     currencyImage,

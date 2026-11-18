@@ -19,6 +19,10 @@ LABEL_IN_BATTLE_WARNING: "The result of a battle that is still in progress compl
 # The last line of the hover card.
 LABEL_HINT_OPEN: "Click to open the Crucible menu"
 
+# Battle panel
+# A line under the mission condition "Earn the Fighter award", below the game's own description of the award: "Destroy four or five enemy vehicles in one battle." The line turns red when the player destroys one vehicle too many. {count} is the most vehicles that still earn the award.
+LABEL_MAX_KILLS: "If you destroy more than {count} enemy vehicles, you do not get this award."
+
 # Settings, in Mod Menu
 SETTING_GARAGE: "Garage banner"
 TOOLTIP_GARAGE_BODY: "Show the Crucible banner beside the vehicle name in the garage, with its hover card."

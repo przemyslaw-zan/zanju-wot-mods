@@ -685,6 +685,20 @@ test('a rule of a condition stands above its figures, and turns red once broken'
         'zanju-crt-prow-rule zanju-crt-prow-rule-broken');
 });
 
+test('the description of an award stands under its text, and a rule with no text has no line', () => {
+    const row = { text: 'Earn the Duelist award', icon: 'achievement', live: true, state: 'open', ratio: 0.5,
+        valueText: '1', targetText: '2', rules: [{ key: 'duelist_descr', broken: false }] };
+    const labels = { duelist_descr: 'Destroy at least 2 enemy vehicles that caused damage to your vehicle in the battle.' };
+    [{ style: 'round' }, {}].forEach((form) => {
+        const node = document.createElement('div');
+        battle.renderPanel(node, panelPayload(Object.assign({ labels: labels, rows: [row] }, form)));
+        assert.deepEqual(node.querySelectorAll('.zanju-crt-prow-rule').map((n) => n.textContent), [labels.duelist_descr]);
+        const bare = document.createElement('div');
+        battle.renderPanel(bare, panelPayload(Object.assign({ labels: {}, rows: [row] }, form)));
+        assert.equal(bare.querySelector('.zanju-crt-prow-rule'), null);
+    });
+});
+
 test('a payload without the number of all shields shows the shields left alone', () => {
     const node = document.createElement('div');
     battle.renderPanel(node, panelPayload({ series: { name: 'Spark', stage: 1, total: 3, shields: 3 } }));
@@ -920,6 +934,55 @@ test('the round style with only the current value is the narrowest form', () => 
         'zanju-crt-panel-dials'].join(' '));
     assert.equal(node.querySelector('.zanju-crt-prow-figures').textContent, '1,250');
     assert.equal(node.querySelector('.zanju-crt-prow-figures').className, 'zanju-crt-prow-figures');
+});
+
+// A condition with different classes: 2 kills of 2 classes, with a heavy and a tank destroyer destroyed.
+function diverseRow(classes) {
+    return { text: 'Destroy 2 enemy vehicles of 2 different types', icon: 'kill_vehicles', set: 0, live: true,
+        state: 'met', ratio: 1, valueText: '2', targetText: '2', classes: classes };
+}
+
+test('under a dial, the icons of the classes destroyed stand below the figures, in the order given', () => {
+    const node = document.createElement('div');
+    battle.renderPanel(node, panelPayload({ style: 'round', rows: [diverseRow(['heavyTank', 'AT-SPG'])] }));
+    assert.deepEqual(node.querySelector('.zanju-crt-gauge').children.map((child) => child.className),
+        ['zanju-crt-dial', 'zanju-crt-prow-figures zanju-crt-prow-figures-cells', 'zanju-crt-prow-classes']);
+    const icons = node.querySelector('.zanju-crt-prow-classes').children;
+    assert.deepEqual(icons.map((child) => child.className),
+        ['zanju-crt-prow-class', 'zanju-crt-prow-class zanju-crt-prow-class-next']);
+    assert.deepEqual(icons.map((child) => child.style.backgroundImage), [
+        "url('R.images.gui.maps.icons.vehicleTypes.extraSmall.heavyTank')",
+        "url('R.images.gui.maps.icons.vehicleTypes.extraSmall.AT_SPG')"]);
+});
+
+test('before the first kill, the line of the class icons is there and empty, so the row keeps its height', () => {
+    [{ style: 'round' }, {}].forEach((form) => {
+        const node = document.createElement('div');
+        battle.renderPanel(node, panelPayload(Object.assign({ rows: [diverseRow([])] }, form)));
+        assert.equal(node.querySelector('.zanju-crt-prow-classes').children.length, 0);
+    });
+});
+
+test('in the bar style, the class icons end under the end of the figures, before the clock column', () => {
+    const node = document.createElement('div');
+    battle.renderPanel(node, panelPayload({ rows: [diverseRow(['lightTank'])] }));
+    assert.deepEqual(node.querySelector('.zanju-crt-prow').children.map((child) => child.className),
+        ['zanju-crt-prow-line', 'zanju-crt-prow-meter', 'zanju-crt-prow-classes-line']);
+    assert.deepEqual(node.querySelector('.zanju-crt-prow-classes-line').children.map((child) => child.className),
+        ['zanju-crt-prow-gap', 'zanju-crt-prow-classes']);
+    const timed = Object.assign(panelPayload({}).rows[0], { set: 1 });
+    const clocked = document.createElement('div');
+    battle.renderPanel(clocked, panelPayload({ full: false, rows: [diverseRow(['lightTank']), timed] }));
+    assert.deepEqual(clocked.querySelector('.zanju-crt-prow-classes-line').children.map((child) => child.className),
+        ['zanju-crt-prow-gap', 'zanju-crt-prow-classes', 'zanju-crt-prow-noclock']);
+});
+
+test('a condition without different classes has no line of class icons', () => {
+    [{ style: 'round' }, {}].forEach((form) => {
+        const node = document.createElement('div');
+        battle.renderPanel(node, panelPayload(form));
+        assert.equal(node.querySelector('.zanju-crt-prow-classes'), null);
+    });
 });
 
 test('the widest figures come from the longest figure of the panel, with the widest digit', () => {

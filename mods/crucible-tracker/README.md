@@ -15,13 +15,13 @@
 
 ## Translations
 
-Reference language `en` defines 32 strings, 8 of them in the [shared strings](../../mods-common/i18n/). Translations are community-maintained and may lag behind; see [Translating](../../docs/translating.md) to add or update one, then regenerate this table with `zwm lint i18n`.
+Reference language `en` defines 33 strings, 8 of them in the [shared strings](../../mods-common/i18n/). Translations are community-maintained and may lag behind; see [Translating](../../docs/translating.md) to add or update one, then regenerate this table with `zwm lint i18n`.
 
 | Language | Coverage | Missing |
 | --- | --- | --- |
-| `pl` | 100% (32/32) | 0 |
-| `ru` | 100% (32/32) | 0 |
-| `zh_cn` | 100% (32/32) | 0 |
+| `pl` | 100% (33/33) | 0 |
+| `ru` | 97% (32/33) | 1 |
+| `zh_cn` | 97% (32/33) | 1 |
 
 ## Install And Use
 

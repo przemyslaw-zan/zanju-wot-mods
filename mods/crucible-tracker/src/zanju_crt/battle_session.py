@@ -13,6 +13,9 @@ The tracker (see progress) counts each condition from the client's battle contro
 - Radio and track assist: `PLAYER_ASSIST_TO_KILL_ENEMY`, told apart by the battle event type.
 - Stun assist, blocked damage and crits: `PLAYER_ASSIST_TO_STUN_ENEMY`, `PLAYER_USED_ARMOR` and
   `PLAYER_DAMAGED_DEVICE_ENEMY`.
+- A spotted enemy: `PLAYER_SPOTTED_ENEMY`. Each enemy counts once.
+- A vehicle that damaged the player's vehicle, for Duelist: `ENEMY_DAMAGED_HP_PLAYER` and
+  `ENEMY_DAMAGED_DEVICE_PLAYER`. Their target is the attacker, as in the client's damage log.
 - A penetration of an enemy: the trigger `PLAYER_SHOT_HIT`. The client fires it once for each
   vehicle in the shot results that the server sends to the player (see crucible.penetrated).
 - Damage received and full HP: the HP of the player's vehicle, read on each change of it.
@@ -83,8 +86,9 @@ class _Session(object):
         self.labels = {}
         # Hits and kills are logged only for the conditions that the log can check.
         self.log_hits = any(spec.get('distance') is not None or spec.get('timeLimit') is not None
-                            or spec.get('fullHealth') or spec.get('classes') or spec.get('eventCount')
-                            or 'piercingEnemyHits' in (spec.get('keys') or ())
+                            or spec.get('fullHealth') or spec.get('classes') or spec.get('diversity')
+                            or spec.get('eventCount')
+                            or set(spec.get('keys') or ()) & {'piercingEnemyHits', 'spotted', 'killsOfAttackers'}
                             for spec in self.tracker.specs if spec.get('live'))
 
     # -- life ---------------------------------------------------------------------------------
@@ -102,6 +106,7 @@ class _Session(object):
         self.time_offset = round(BigWorld.serverTime() - time.time(), 1)
         self.labels = {'mission': _loc('LABEL_MISSION'), 'or': _client_text(_OR_KEY, self.logger),
                        'noAllyHits': _ally_rule(self.logger)}
+        self.labels.update(_award_labels(self.tracker.specs, self.logger))
         self._read_period()
         self._read_health()
         self.panel.open(self.payload())
@@ -192,6 +197,12 @@ class _Session(object):
                 self.tracker.add_result('damageBlockedByArmor', event.getExtra().getDamage())
             elif kind == FET.PLAYER_DAMAGED_DEVICE_ENEMY:
                 self.tracker.add_result('critsCount', event.getExtra().getCritsCount())
+            elif kind == FET.PLAYER_SPOTTED_ENEMY:
+                self._on_spot(event)
+            elif kind == FET.ENEMY_DAMAGED_HP_PLAYER:
+                self._on_damaged_by(event.getTargetID(), 'HP', event.getExtra().getDamage())
+            elif kind == FET.ENEMY_DAMAGED_DEVICE_PLAYER:
+                self._on_damaged_by(event.getTargetID(), 'crits', event.getExtra().getCritsCount())
         self._read_health()
         self.push()
 
@@ -248,6 +259,23 @@ class _Session(object):
                       ', '.join(_flag_names(flags, VEHICLE_HIT_FLAGS)))
         if pierced:
             self.push()
+
+    def _on_damaged_by(self, attacker, what, amount):
+        """A vehicle damaged the player's vehicle. In these events, as in the client's damage log,
+        the target is the attacker."""
+        if not amount:
+            return
+        self.tracker.on_damaged_by(attacker)
+        self._log_hit('Damage from %s: %s %s', attacker, amount, what)
+
+    def _on_spot(self, event):
+        target = event.getTargetID()
+        counted = self.tracker.on_spot(target)
+        # The flags of the event show if a spot that the panel counts can differ from the results.
+        extra = event.getExtra()
+        flags = [(name, getattr(extra, name, lambda: None)()) for name in ('isVisible', 'isDirect', 'isRoleAction')]
+        self._log_hit('Spot of %s: counted %s, %s', target, counted,
+                      ', '.join('%s %s' % pair for pair in flags))
 
     def _on_kill(self, target):
         vehicle_class = self._vehicle_class(target)
@@ -401,12 +429,50 @@ def _rejoined(logger):
     return entered is not None and time.time() - entered > _REJOIN_SECONDS
 
 
+def _award_labels(specs, logger):
+    """The lines that the panel shows under the condition of an award, in the language of the
+    client. The keys are the ones that `progress.panel_rows` gives the rules.
+
+    An award with a `maximum`, such as Fighter, also has a line of the mod on that limit. The
+    only such award counts kills, so the line speaks of destroyed vehicles.
+
+    The description of an award such as Top Gun ends before its value: "Destroy enemy vehicles:".
+    The client writes the value with `<award>_condition_text` after it, as `str(value)` and
+    " and more", in one line for each game mode (RegularExtAchievement). The panel writes that
+    value after the description, from the target of the rule, and leaves out the game modes.
+    """
+    labels = {}
+    for spec in specs:
+        if spec.get('description'):
+            award = spec['award']
+            text = _unicode(_client_text('#achievements:%s_descr' % award, logger)).strip()
+            more = _existing_client_text('#achievements:%s_condition_text' % award, logger)
+            if text and more and spec.get('target'):
+                text = '{0} {1}{2}'.format(text, int(spec['target']), _unicode(more))
+            labels[award + '_descr'] = text
+        if spec.get('maximum') is not None:
+            labels[spec['award'] + '_maximum'] = _loc('LABEL_MAX_KILLS', count=int(spec['maximum']))
+    return labels
+
+
+def _existing_client_text(key, logger):
+    """A client string, or '' when the client has no such string."""
+    try:
+        from helpers import i18n
+        return i18n.makeString(key) if i18n.doesTextExist(key) else ''
+    except Exception:
+        logger.exception('Failed to read the client string %s', key)
+        return ''
+
+
+def _unicode(text):
+    # The client can return UTF-8 bytes on Python 2, and its texts are not all ASCII.
+    return text.decode('utf-8', 'replace') if isinstance(text, bytes) else text
+
+
 def _ally_rule(logger):
     """The client's own words for the rule on hitting allies, in the language of the client."""
-    text = _client_text(_HIGH_CALIBER_TERMS_KEY, logger)
-    if isinstance(text, bytes):
-        # The client can return UTF-8 bytes on Python 2, and the bullet below is not ASCII.
-        text = text.decode('utf-8', 'replace')
+    text = _unicode(_client_text(_HIGH_CALIBER_TERMS_KEY, logger))
     lines = [line.strip().lstrip('\u2022').strip() for line in text.split('\n')]
     lines = [line for line in lines if line]
     return lines[_ALLY_RULE_LINE] if len(lines) > _ALLY_RULE_LINE else _ALLY_RULE_FALLBACK

@@ -58,6 +58,27 @@ The post-battle part of the 21 current missions used these shapes:
 
 Mission 1 of series 73, on 15 November 2026, used one more shape: `results` `piercingEnemyHits` `greaterOrEqual` 10. Its text is "Penetrate enemy armor 10 times". The panel counts it from the shot results, see [Penetrations](#penetrations).
 
+Mission 3 of "Flash", on 16 November 2026, used `vehicleKills` with `classesDiversity`. Its text is "Destroy 2 enemy vehicles of 2 different types". Nobody dumped its data, so the shape in the tests comes from the client formatter. The panel counts it from the class of each kill, see [Kills of different classes](#kills-of-different-classes).
+
+A mission on 18 November 2026 asked to "Cause 5 critical hits to internal or external modules of enemy vehicles", with the title "Immobilize". The client writes that title only for `results` `critsCount`. The panel counts it from the crits count of each crit event, see [In battle](#in-battle).
+
+### The conditions that the client can write
+
+`res/text/lc_messages/challenges.mo` holds the text of every condition that the Crucible screen can show, under `condition/`. A condition without a text there shows "Finding the most suitable mission...". On 2.4.1.1, the file had these texts that no mission above used:
+
+| Client text | Shape | Live in battle |
+| --- | --- | --- |
+| Block 2 times more damage than the HP of your vehicle | `results` `damageBlockedByArmor` `compareWithMaxHealth` | yes |
+| Spot 5 enemy vehicles | `results` `spotted` | yes, each enemy once, see [In battle](#in-battle) |
+| Spot 5 enemy vehicles while remaining unspotted | `results` `spottedBeforeWeBecameSpotted` | no |
+| Destroy 3 enemy vehicles while remaining unspotted | `vehicleKills` `whileInvisible` | no |
+| Cause 2,000 HP of damage to unspotted enemy vehicles | `vehicleDamage` `whileEnemyInvisible` | no |
+| Cause 30% of the total amount of damage caused by your team | `results` `percentFromTotalTeamDamage` | no |
+| Be among the top 3 players on both teams by damage caused | `results` `damageDealt` `max` with `total` | no |
+| Be among the top 3 players on your team by experience earned | `results` `xp` `max` | no |
+
+The "no" conditions need what only the server knows: whether it counts the player's vehicle or an enemy as spotted, and the damage or the experience of the other players. Thus the panel shows them as text only. The shapes come from the client formatter, because no mission with them was dumped.
+
 ### Sets of conditions
 
 A child of `or` can also be an `and` group, so a mission can offer a choice of two sets of conditions. All conditions of one set must be met. In the dump of 14 October 2026, each child of an `or` was a single condition, but the client packer also handles a group. `crucible.condition_sets` reads the conditions as a list of sets: an `or` of single conditions is one set per condition, and everything else is one set. The card and the panel put the "OR" of the client between two sets, not between two conditions of one set.
@@ -87,6 +108,22 @@ An `achievements` condition names an award by its dossier record ID. `DB_ID_TO_R
 | --- | --- | --- |
 | High Caliber | `mainGun` (228) | damage dealt of at least 20% of the total HP of the enemy team, and at least 1,000 HP, with no direct shot on an ally |
 | Top Gun | `warrior` (34) | at least 6 kills |
+| Fighter | `fighter` (522) | 4 or 5 kills. A 6th kill closes the condition. |
+| Duelist | `duelist` (523) | at least 2 kills of enemies that damaged the player's vehicle, its HP or its modules, in any order |
+
+The client's text of Duelist is "Destroy at least 2 enemy vehicles that caused damage to your vehicle in the battle". Two terms follow it: "Damage to modules is included" and "Ricochets and non-penetrating hits are not included". A ricochet or a hit that does no damage sends no damage event, so the panel does not see it.
+
+The player expects the server to judge the award after the battle, from the list of kills and the damage. Thus the panel takes no notice of the order. A kill counts also when the damage of that enemy comes after it. The panel shows the client's description of the award, `#achievements:duelist_descr`, in the line of a rule under the condition. The terms under it stay out.
+
+The panel also shows the description of Top Gun, but that text ends before its value: "Destroy enemy vehicles:". The client adds one line for each game mode, from `warrior_standard_descr` and `warrior_ext_descr`. Each line holds the value and `warrior_condition_text`, " and more", as `RegularExtAchievement` in `gui/shared/gui_items/dossier/achievements/abstract/regular_ext.py` writes it. The game modes in these lines are out of date: "Standard Battle, Assault, Encounter" and "Grand Battle".
+
+Thus the panel writes only the value after the description, from the target of the rule: "Destroy enemy vehicles: 6 and more". Every part of the text comes from the client, so the line needs no translation of the mod. Only the space between the description and the value is not from the client. The client starts a new line there.
+
+The client's text of Fighter is "Destroy four or five enemy vehicles in one battle." The player says that a 6th kill loses the award. Thus the rule has a `maximum` of 5, and a figure above it closes the condition. The panel shows the client's description of the award. Under it, a line of the mod says "If you destroy more than 5 enemy vehicles, you do not get this award." That line is `LABEL_MAX_KILLS` in the string files of the mod, and it turns red at the 6th kill.
+
+A mission of Fighter or Top Gun is met from the 4th kill on. At 4 or 5 kills, Fighter is met. At the 6th kill, Fighter closes and Top Gun is met.
+
+High Caliber shows no description, because "Cause the highest damage in a battle" does not agree with the figure that the panel counts.
 
 The terms of High Caliber are in the client's own text, `#achievements:mainGun_condition`. One direct shot on an ally ends the award, also with team damage off and a hit that does no damage. The panel shows the third line of that text, "The player must not hit any allies by direct shots", above the figures of the award, in the language of the client, and turns it red after such a hit. The condition then closes, whatever the damage.
 
@@ -156,6 +193,8 @@ The panel counts each condition from the battle controllers of `sessionProvider.
 | the view range | `feedback.getVehicleAttrs()['circularVisionRadius']`, capped at `arenaVisitor.getVisibilityMaxRadius()`, as the minimap caps it |
 | the total HP of the enemy team | the sum of `maxHealth` in `arena.vehicles` for the other team |
 | penetrations of enemies | the trigger `PLAYER_SHOT_HIT` of `TriggersManager`, see [Penetrations](#penetrations) |
+| spotted enemies | `PLAYER_SPOTTED_ENEMY`, each enemy once |
+| the vehicles that damaged the player's vehicle | `ENEMY_DAMAGED_HP_PLAYER` and `ENEMY_DAMAGED_DEVICE_PLAYER`. Their target is the attacker, as in the client's damage log. |
 
 `personalEfficiencyCtrl` is not a source. Its damage total also adds damage to destructible objects, and it has no split of radio and track assist.
 
@@ -167,6 +206,7 @@ The figures are an estimate, and the battle results decide the mission. These ar
 - **Reconnect.** The client loses the events from before a reconnect, so no figure is sure after it. The panel then shows the conditions with no bars and no figures, and a time limit still counts down. A reconnect is an entry into an arena that the same vehicle first entered more than 30 s before. `battle_record` keeps the time of the first entry for this. In the battle of 16 October 2026, the battle page populated 4.3 s before `onAvatarReady` wrote the record. Thus at a first entry, the record of this arena is not there yet when the panel opens, and at a reconnect, the record of the first entry is.
 - **Summary.** The server sends a battle summary (`onPlayerSummaryFeedbackReceived`) with the totals of damage, assist, blocked damage and stun. The panel takes a total from it when the total is higher, and logs the first summary beside its own totals. In two battles on 16 October 2026, the summary came once, about 1 s after `onAvatarReady` and before the battle started, with every total at 0, and never during the battle. In a normal battle it thus changes nothing. It can matter only after a reconnect, where the counters are off anyway.
 - **Crits.** The panel adds the crits count of each event. No battle has compared that sum with `critsCount` in the results yet.
+- **Spotting.** The client's "Spotted" ribbon counts each `PLAYER_SPOTTED_ENEMY` as one enemy, and reads none of the flags of the event: `isVisible`, `isDirect` and `isRoleAction`. The panel counts each enemy once, also if the server sends a second event for it. No battle has compared that figure with `spotted` in the results yet. The log has each spot with its flags.
 - **Penetrations.** The rule comes from the client's sound code, and one battle measured it, see [Penetrations](#penetrations). Two cases are still open. A hit that pierces only a module, such as the tracks, does not count in the panel. Nothing shows yet whether the server counts it. Also, the server can send no result for a shot on an enemy that the player cannot see.
 
 **Measured on 16 October 2026.** Series 56, mission 1 asked for 2,500 HP of damage dealt. The panel counted the damage while the battle ran, the server completed the mission, and the next garage showed mission 2 with no shield lost. The panel opened at the position that the player had dragged it to in an earlier session. Mission 2, among the top 5 players of the team by damage, then completed too. The panel showed its text only, as it does for every condition that it cannot count. Mission 3 asked for 3,000 HP of damage within the view range. The panel counted three hits of 527, 485 and 454 HP, at 22 to 26 m, against the capped view range of 445 m: 1,466 HP. The server failed the mission and took a shield, which agrees. No hit came from beyond the view range, so that battle did not test that case. The test mission below did, on the side of the panel.
@@ -177,7 +217,7 @@ The battle results screen gives no figure for a Crucible condition. `ChallengesM
 
 The time limit counts down in the panel's own JavaScript. Python sends the deadline in the clock of `BigWorld.serverTime()`, with the offset of that clock from the system clock. Before the battle starts, the panel shows the whole limit. The clock has the color of the figures. A limit that runs takes the warning color at 1:00. A met condition is green and a closed condition is red, and the clock follows these colors.
 
-The mod logs the first 40 hits and kills of a battle when a condition has a distance, a time limit, a class or full HP, or counts penetrations. With penetrations, it also logs each shot result on an enemy: the flags, whether they are a penetration, and whether the target was in the client's world. Each line of a hit has the distance, the view range and the time into the battle. At the end of every battle with the panel, the line `Battle panel at the end:` gives the figure of each condition and the totals. Compare the log with the result of the mission to make sure that the panel counts right.
+The mod logs the first 40 hits and kills of a battle when a condition has a distance, a time limit, a class, different classes or full HP, or counts penetrations, spotted enemies or Duelist. With spotted enemies, it logs each spot with the flags of the event. With Duelist, it logs each damage to the player's vehicle with its attacker. With penetrations, it also logs each shot result on an enemy: the flags, whether they are a penetration, and whether the target was in the client's world. Each line of a hit has the distance, the view range and the time into the battle. At the end of every battle with the panel, the line `Battle panel at the end:` gives the figure of each condition and the totals. Compare the log with the result of the mission to make sure that the panel counts right.
 
 ### Penetrations
 
@@ -193,6 +233,14 @@ A penetration is an entry for an enemy with the flag `MATERIAL_WITH_POSITIVE_DF_
 The manager drops its pending triggers only after it sent all of them to every listener. If a listener raises an exception, the manager sends the same triggers again 0.05 s later. Thus the listener of the panel catches every exception, or a shot could count twice.
 
 **Measured on 15 November 2026.** Mission 1 of series 73 asked for 10 penetrations. The log listed 16 shot results on four enemies, and every target was in the client's world. 11 results had the flag of a penetration, and each of them came with a hit for HP damage. The panel ended at 11 of 10, and the server completed the mission with no shield lost. The shot that destroyed an enemy had `VEHICLE_KILLED` with the flag of a penetration, so the panel counts it. One hit pierced only a module, with `DEVICE_PIERCED_BY_PROJECTILE`. It did no damage and did not count. No result had the flag of high-explosive damage without a penetration.
+
+### Kills of different classes
+
+A kill condition with `classesDiversity` asks for kills of different vehicle classes, for example "Destroy 2 enemy vehicles of 2 different types". The client formatter only writes the text from `greaterOrEqual` and `classesDiversity`. The server decides the mission, and its rule is not in the client. The panel expects at least `greaterOrEqual` kills that cover at least `classesDiversity` classes. When the two numbers are equal, as in the mission of 16 November 2026, every reading of the text gives the same result. Only a mission with more kills than classes can show the difference.
+
+The panel shows one figure: the kills that bring the condition closer. The kills that are still needed must cover the classes that are still needed. Thus a kill of a class that the kills already have counts only while enough kills are left for the missing classes. For 2 kills of 2 classes, a second heavy tank does not count. For 3 kills of 2 classes, it does. When the kills cover enough classes, every kill counts, also past the target. Thus heavy, heavy, medium for 2 kills of 2 classes reads 1/2, 1/2 and then 3/2. `Tracker._diverse_kills` in `progress.py` holds the rule.
+
+Under the figures, the panel shows the icons of the classes destroyed. They come in the order of `VEHICLE_TYPES_ORDER` in `gui/shared/gui_items/Vehicle.py`: light, medium, heavy, tank destroyer, SPG. The icons are `gui/maps/icons/vehicleTypes/extraSmall/`, the set of the client's crew filters. Each file is 9×12 pixels, with its glyph in the middle. The resource name has an underscore for the hyphen of `AT-SPG`, as the client looks it up: `R.images.gui.maps.icons.vehicleTypes.extraSmall.dyn(vehicleType.replace('-', '_'))`. The line of icons keeps its height before the first kill, so the row does not grow at that kill. At the end of the battle, `Battle panel at the end:` gives the kills of such a condition and their classes beside its figure.
 
 ## Related Reading
 

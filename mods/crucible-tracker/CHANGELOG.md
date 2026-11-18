@@ -1,8 +1,10 @@
 Changelog
 =========
 
-## Unreleased
+## 1.3.0 (18 November 2026)
 
+- The battle panel now counts five more mission types: "Destroy X enemy vehicles of Y different types", "Spot X enemy vehicles", "Block X times more damage than the HP of your vehicle", "Earn the Fighter award" and "Earn the Duelist award".
+- For the "Earn the Top Gun award" mission type, the battle panel now shows the description of the award.
 - Fixed misaligned numbers under the dials when the battle panel opens. The slash sat too close to the required value until the numbers changed.
 
 ## 1.2.0 (15 November 2026)

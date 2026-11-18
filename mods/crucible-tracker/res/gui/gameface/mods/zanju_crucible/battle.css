@@ -298,6 +298,35 @@ body {
     text-align: left;
 }
 
+/* The icons of the classes destroyed, under the figures: in the middle under a dial, and under the
+   end of the figures in the bar style. The client's icons are 9x12 pixels, so this size shows them
+   pixel for pixel at interface scale 1. The line keeps its height before the first kill, so the
+   row does not grow then. */
+.zanju-crt-prow-classes-line {
+    display: flex;
+}
+
+.zanju-crt-prow-classes {
+    display: flex;
+    flex: 0 0 auto;
+    height: 12rem;
+    margin-top: 1rem;
+}
+
+.zanju-crt-prow-class {
+    display: block;
+    flex: 0 0 9rem;
+    width: 9rem;
+    height: 12rem;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
+}
+
+.zanju-crt-prow-class-next {
+    margin-left: 2rem;
+}
+
 /* The ring is 50rem, and its cut-out leaves its lowest 7rem empty. The dial ends above that, so
    the figures rise into the cut-out and the ring stands out of the dial. */
 .zanju-crt-dial {

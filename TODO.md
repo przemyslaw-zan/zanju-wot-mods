@@ -23,7 +23,11 @@ Delete this section when it passes, and move any finding into the reference.
 See [Crucible](docs/reference/crucible.md#in-battle) for what the battle panel counts and what was measured.
 
 - A reconnect into a battle: the panel must show the conditions with no figures, and the log must say `a reconnect, so the counters are off`. No battle has dropped yet.
-- More award rules in `AWARD_RULES` of `crucible.py`, when a mission asks for an award other than High Caliber or Top Gun. Each rule needs the terms of the award from the player, and the record name from `DB_ID_TO_RECORD`.
+- More award rules in `AWARD_RULES` of `crucible.py`, when a mission asks for an award other than High Caliber, Top Gun, Fighter or Duelist. Each rule needs the terms of the award from the player, and the record name from `DB_ID_TO_RECORD`.
+- Spotted enemies: compare `spotted` in the totals of `Battle panel at the end:` with "Spotted" in the detailed battle results. Any battle with the panel open shows it.
+- Critical hits: compare `critsCount` in the same totals with "Critical hits" in the detailed battle results.
+- Duelist: a real mission must show that the server counts the kills of enemies that damaged the player, also when the damage came after the kill.
+- Kills of different classes: only a mission with more kills than classes, such as 3 kills of 2 classes, can show the rule of the server. The panel expects at least that many kills that cover at least that many classes.
 - Whether the server checks "within the view range of your vehicle" against the capped view range, as the panel does. Only a real mission that the hits beyond the range decide can show it.
 
 ## Testing Backlog

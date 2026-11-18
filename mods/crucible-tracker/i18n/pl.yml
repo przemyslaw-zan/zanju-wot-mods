@@ -10,6 +10,9 @@ LABEL_IN_BATTLE: "Pojazdy w bitwie:"
 LABEL_IN_BATTLE_WARNING: "Wynik trwającej bitwy rozstrzygnie bieżącą misję, jeśli w chwili zakończenia bitwy Tygiel będzie aktywny."
 LABEL_HINT_OPEN: "Kliknij, aby otworzyć menu Tygla"
 
+# Battle panel
+LABEL_MAX_KILLS: "Jeśli zniszczysz więcej niż {count} pojazdów wroga, nie otrzymasz tego odznaczenia."
+
 # Settings, in Mod Menu
 SETTING_GARAGE: "Baner w garażu"
 TOOLTIP_GARAGE_BODY: "Pokazuj baner Tygla obok nazwy pojazdu w garażu, z podpowiedzią po najechaniu kursorem."

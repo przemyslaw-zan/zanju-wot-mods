@@ -38,6 +38,9 @@ EARLY_DAMAGE = _conditions(
 FULL_HEALTH_KILLS = _conditions(
     '[["vehicleKills", [["whileFullHealth", [["value", true]]], ["greaterOrEqual", [["value", 3.0]]]]]]')
 HIGH_CALIBER = _conditions('[["achievements", [["value", [228]]]]]')
+# Not from the dump: "Earn the Duelist award" of 18 November 2026, in the form of High Caliber, with
+# the record ID that DB_ID_TO_RECORD of 2.4.1.1 gives `duelist`.
+DUELIST = _conditions('[["achievements", [["value", [523]]]]]')
 # Not from the dump: mission challenge:73:1 of 15 November 2026, "Penetrate enemy armor 10 times",
 # in the form that ChallengeBattleResultsFormatter reads for the key `piercingEnemyHits`.
 PENETRATIONS = _conditions(
@@ -87,6 +90,22 @@ class ConditionShapeTest(unittest.TestCase):
 
     def test_damage_against_own_health_is_counted_live(self):
         self.assertEqual(_kinds(crucible.post_battle(TWICE_HEALTH)[1]), [{'kind': 'healthMultiple', 'live': True}])
+
+    def test_blocked_damage_against_own_health_is_counted_live(self):
+        # "Block 2 times more damage than the HP of your vehicle": the client has the text, and
+        # nobody dumped such a mission yet.
+        blocked = _conditions(
+            '[["results", [["key", [["value", "damageBlockedByArmor"]]], ["greaterOrEqual", [["value", 2.0]]], '
+            '["compareWithMaxHealth", [["value", true]]]]]]')
+        [[(name, value)]] = crucible.condition_sets(blocked)
+        self.assertEqual(crucible.parse_condition(name, value),
+                         {'kind': 'healthMultiple', 'live': True, 'keys': ['damageBlockedByArmor'],
+                          'multiplier': 2.0, 'target': 2.0})
+
+    def test_spotted_enemies_are_counted_live(self):
+        # "Spot 5 enemy vehicles": the client has the text, and nobody dumped such a mission yet.
+        spotted = _conditions('[["results", [["key", [["value", "spotted"]]], ["greaterOrEqual", [["value", 5.0]]]]]]')
+        self.assertEqual(_kinds(crucible.post_battle(spotted)[1]), [{'kind': 'total', 'live': True}])
 
     def test_a_sum_of_dealt_blocked_and_received_damage_is_counted_live(self):
         self.assertEqual(_kinds(crucible.post_battle(DEALT_BLOCKED_RECEIVED)[1]), [{'kind': 'sum', 'live': True}])
@@ -159,7 +178,7 @@ class ConditionShapeTest(unittest.TestCase):
         self.assertEqual(only(EARLY_DAMAGE), {'kind': 'damage', 'live': True, 'target': 2500.0, 'distance': None,
                                               'timeLimit': 300.0, 'eventCount': False, 'attackReason': None})
         self.assertEqual(only(FULL_HEALTH_KILLS), {'kind': 'kills', 'live': True, 'target': 3.0, 'fullHealth': True,
-                                                   'classes': [], 'attackReason': None})
+                                                   'classes': [], 'diversity': None, 'attackReason': None})
         self.assertEqual(only(TWICE_HEALTH), {'kind': 'healthMultiple', 'live': True, 'keys': ['damageDealt'],
                                               'multiplier': 2.0, 'target': 2.0})
         self.assertEqual(only(DEALT_BLOCKED_RECEIVED)['keys'],
@@ -181,6 +200,13 @@ class ConditionShapeTest(unittest.TestCase):
                           'target': None, 'enemyHealthShare': 0.2, 'minimum': 1000.0, 'noAllyHits': True})
         top_gun = crucible.parse_condition('achievements', [['value', [34]]], names)
         self.assertEqual((top_gun['live'], top_gun['keys'], top_gun['target']), (True, ['kills'], 6.0))
+        fighter = crucible.parse_condition('achievements', [['value', [522]]], {522: 'fighter'}.get)
+        self.assertEqual((fighter['keys'], fighter['target'], fighter['maximum'], fighter['description']),
+                         (['kills'], 4.0, 5.0, True))
+        [[(_, duelist_value)]] = crucible.condition_sets(DUELIST)
+        duelist = crucible.parse_condition('achievements', duelist_value, {523: 'duelist'}.get)
+        self.assertEqual((duelist['live'], duelist['keys'], duelist['target'], duelist['description']),
+                         (True, ['killsOfAttackers'], 2.0, True))
         # An award with no rule, or with no name to look it up by, shows its text only.
         self.assertFalse(crucible.parse_condition('achievements', [['value', [36]]], names)['live'])
         self.assertFalse(crucible.parse_condition(name, value)['live'])
@@ -191,10 +217,17 @@ class ConditionShapeTest(unittest.TestCase):
                              '["greaterOrEqual", [["value", 1000.0]]]]]]')
         team = _conditions('[["results", [["key", [["value", "damageDealt"]]], ["total", [["value", true]]], '
                            '["greaterOrEqual", [["value", 9000.0]]]]]]')
-        diverse = _conditions('[["vehicleKills", [["classesDiversity", [["value", 3]]], '
-                              '["greaterOrEqual", [["value", 3.0]]]]]]')
-        for conditions in (unseen, team, diverse):
+        for conditions in (unseen, team):
             self.assertEqual([shape['live'] for shape in crucible.post_battle(conditions)[1]], [False])
+
+    def test_kills_of_different_classes_are_counted_live(self):
+        # The text of mission 3 of "Flash" on 16 November 2026 was "Destroy 2 enemy vehicles of 2
+        # different types". Nobody dumped its data: this is the shape that the client formatter reads.
+        diverse = _conditions('[["vehicleKills", [["classesDiversity", [["value", 2]]], '
+                              '["greaterOrEqual", [["value", 2.0]]]]]]')
+        [[(name, value)]] = crucible.condition_sets(diverse)
+        spec = crucible.parse_condition(name, value)
+        self.assertEqual((spec['live'], spec['target'], spec['diversity'], spec['classes']), (True, 2.0, 2, []))
 
     def test_tuples_from_the_client_read_like_the_lists_of_the_dump(self):
         result = [('key', [('value', 'kills')]), ('greaterOrEqual', [('value', 5.0)])]

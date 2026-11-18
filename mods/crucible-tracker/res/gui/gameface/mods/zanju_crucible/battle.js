@@ -14,7 +14,7 @@
 // the text on the right. A condition with nothing to count has an empty ring and no figures.
 // Without the full information, the round style shows no text at all.
 
-import { SHIELD_IMAGE, clientImage, conditionImage, el, fill, serverNow, startsSet } from './common.js';
+import { SHIELD_IMAGE, classImage, clientImage, conditionImage, el, fill, serverNow, startsSet } from './common.js';
 
 const STATE_CLASSES = {
     met: ' zanju-crt-prow-met',
@@ -91,6 +91,34 @@ function buildFigures(row, options) {
     return figures;
 }
 
+// The icons of the classes destroyed, for a condition with different classes. The payload gives
+// them in the order of the client's class filters. Each file has its glyph in the middle of the same
+// 9x12 pixels, so whole files in equal boxes put the glyphs on one line. The renderer has no
+// :first-child, so the icons after the first carry their gap in a class.
+function buildClasses(row) {
+    const box = el('div', 'zanju-crt-prow-classes');
+    (row.classes || []).forEach(function (vehicleClass, index) {
+        const name = 'zanju-crt-prow-class' + (index ? ' zanju-crt-prow-class-next' : '');
+        box.appendChild(icon(name, classImage(vehicleClass)));
+    });
+    return box;
+}
+
+// The line of the class icons in the bar style. The figures end at the clock column, so the icons
+// end there too, under the end of the figures.
+function appendClassesLine(parent, row, options) {
+    if (!row.live || !row.classes) {
+        return;
+    }
+    const line = el('div', 'zanju-crt-prow-classes-line');
+    line.appendChild(el('div', 'zanju-crt-prow-gap'));
+    line.appendChild(buildClasses(row));
+    if (options.clockColumn) {
+        line.appendChild(el('div', 'zanju-crt-prow-noclock'));
+    }
+    parent.appendChild(line);
+}
+
 function buildClock(row, rowNode) {
     const clock = el('div', 'zanju-crt-prow-clock');
     clock._zanjuDeadline = row.deadline || null;
@@ -148,21 +176,28 @@ function buildGauge(row, options, rowNode) {
     gauge.appendChild(dial);
     if (row.live) {
         gauge.appendChild(buildFigures(row, options));
+        if (row.classes) {
+            gauge.appendChild(buildClasses(row));
+        }
     }
     return gauge;
 }
 
 // A rule of the condition that the figures cannot show, such as "no direct shot on an ally" of
-// High Caliber, above the figures. Red once the rule is broken.
-function buildRule(rule, labels) {
-    return el('div', 'zanju-crt-prow-rule' + (rule.broken ? ' zanju-crt-prow-rule-broken' : ''),
-        labels[rule.key] || '');
+// High Caliber, or the description of an award such as Duelist, above the figures. Red once the
+// rule is broken.
+function buildRule(rule, text) {
+    return el('div', 'zanju-crt-prow-rule' + (rule.broken ? ' zanju-crt-prow-rule-broken' : ''), text);
 }
 
+// A rule with no text in the labels has no line: the client did not give its string.
 function appendRules(parent, row, labels) {
     const rules = row.rules || [];
     for (let i = 0; i < rules.length; i += 1) {
-        parent.appendChild(buildRule(rules[i], labels || {}));
+        const text = (labels || {})[rules[i].key];
+        if (text) {
+            parent.appendChild(buildRule(rules[i], text));
+        }
     }
 }
 
@@ -186,6 +221,7 @@ function buildRow(row, labels, options) {
     const rowIcon = icon('zanju-crt-prow-icon', row.icon ? conditionImage(row.icon) : '');
     if (!options.full && row.live) {
         node.appendChild(buildMeter(row, rowIcon, options, node));
+        appendClassesLine(node, row, options);
         return node;
     }
     const line = el('div', 'zanju-crt-prow-line');
@@ -196,6 +232,7 @@ function buildRow(row, labels, options) {
     if (row.live || row.timeLimit) {
         node.appendChild(buildMeter(row, null, options, node));
     }
+    appendClassesLine(node, row, options);
     return node;
 }
 
