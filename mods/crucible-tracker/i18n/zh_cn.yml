@@ -29,6 +29,9 @@ LABEL_IN_BATTLE_WARNING: "若战斗结束时有熔炉试炼处于激活状态，
 # en: "Click to open the Crucible menu"
 LABEL_HINT_OPEN: "点击打开熔炉试炼"
 
+# Battle panel
+LABEL_MAX_KILLS: "若击毁超过 {count} 辆敌方坦克，将无法获得该勋章。"
+
 # Settings, in Mod Menu
 # en: "Garage banner"
 SETTING_GARAGE: "车库横幅"
