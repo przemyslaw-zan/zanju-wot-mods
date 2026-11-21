@@ -1,6 +1,10 @@
 Changelog
 =========
 
+## Unreleased
+
+- Updated Simplified Chinese translation. Thank you [@becausemadoka](https://github.com/becausemadoka)!
+
 ## 1.3.0 (18 November 2026)
 
 - The battle panel now counts five more mission types: "Destroy X enemy vehicles of Y different types", "Spot X enemy vehicles", "Block X times more damage than the HP of your vehicle", "Earn the Fighter award" and "Earn the Duelist award".
