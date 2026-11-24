@@ -264,7 +264,8 @@ def _quest_mission(quest_id, logger):
     if quest is None:
         return None, None
     try:
-        conditions = quest.getData().get('conditions') or []
+        # Plain lists, also for the sets of the client: the battle transport goes to a JSON file.
+        conditions = crucible.plain(quest.getData().get('conditions') or [])
     except Exception:
         logger.exception('Failed to read the conditions of %s', quest_id)
         return None, None

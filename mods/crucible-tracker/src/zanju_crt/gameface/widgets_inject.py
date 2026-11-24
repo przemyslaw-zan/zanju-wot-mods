@@ -199,7 +199,12 @@ def _build_payload(logger):
     """The snapshot plus its labels, as JSON. Also writes the battle transport."""
     try:
         snapshot, conditions = collector.collect(logger)
-        _save_transport(snapshot, conditions, logger)
+        try:
+            _save_transport(snapshot, conditions, logger)
+        except Exception:
+            # The banner does not need the transport. Thus a transport error must not remove the
+            # banner too.
+            logger.exception('Failed to write the battle transport')
         _log_change(snapshot, logger)
         snapshot['labels'] = _labels()
         snapshot['layout'] = {'side': config.tray_side()}

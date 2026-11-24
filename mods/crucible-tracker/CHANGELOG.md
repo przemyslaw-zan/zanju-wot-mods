@@ -1,8 +1,9 @@
 Changelog
 =========
 
-## Unreleased
+## 1.3.1 (24 November 2026)
 
+- Fixed the mod not working in the garage and in battle for missions that require an award.
 - Updated Simplified Chinese translation. Thank you [@becausemadoka](https://github.com/becausemadoka)!
 
 ## 1.3.0 (18 November 2026)

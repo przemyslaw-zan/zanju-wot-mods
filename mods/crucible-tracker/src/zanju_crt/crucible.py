@@ -18,6 +18,9 @@ destroy 3 vehicles" is:
 
     [('or', [('results', [('key', [('value', 'damageDealt')]), ('greaterOrEqual', [('value', 3500.0)])]),
              ('results', [('key', [('value', 'kills')]), ('greaterOrEqual', [('value', 3.0)])])])]
+
+The client keeps some lists of IDs as a set, for example the award IDs of `achievements`. collector
+changes the conditions with `plain` first, so a set becomes a sorted list.
 """
 from __future__ import absolute_import, print_function, unicode_literals
 
@@ -111,6 +114,22 @@ def leaf(value, default=None):
 def node_dict(value):
     """The pairs of a node as a dict. A name that comes twice keeps its last value."""
     return dict(pairs(value))
+
+
+def plain(value):
+    """`value` in a form that JSON can hold: a list for a tuple, and a sorted list for a set.
+
+    The battle transport goes to a JSON file, and JSON has no set. A battle that reads the file
+    gets lists back. With plain data, the conditions from the client and from the file have one
+    form.
+    """
+    if isinstance(value, (set, frozenset)):
+        return sorted(plain(item) for item in value)
+    if isinstance(value, (list, tuple)):
+        return [plain(item) for item in value]
+    if isinstance(value, dict):
+        return dict((key, plain(item)) for key, item in value.items())
+    return value
 
 
 def _is_text(value):
@@ -231,6 +250,10 @@ def _diversity(node):
 def _parse_award(value, award_name):
     """An award condition. Only one award with a rule in AWARD_RULES is live."""
     ids = leaf(value, None)
+    if isinstance(ids, (set, frozenset)):
+        # The client keeps the award IDs as a set: `set([228])` for High Caliber on 24 November
+        # 2026. collector changes the set to a list, but raw data must give the same result.
+        ids = sorted(ids)
     if not isinstance(ids, (list, tuple)) or len(ids) != 1 or award_name is None:
         return {'kind': KIND_ACHIEVEMENT, 'live': False}
     record = award_name(ids[0])

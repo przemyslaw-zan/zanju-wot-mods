@@ -4,6 +4,9 @@
 The conditions below are verbatim from the client, dumped by a probe on 2.4.1.0 on
 14 October 2026. Only the token conditions of the pre-battle part are cut, because nothing here
 reads them.
+
+The dump is JSON, and JSON has no set. Thus a set of the client, such as the award IDs, is a list
+here. The tests with a set build the conditions in Python.
 """
 from __future__ import absolute_import, print_function, unicode_literals
 
@@ -211,6 +214,19 @@ class ConditionShapeTest(unittest.TestCase):
         self.assertFalse(crucible.parse_condition('achievements', [['value', [36]]], names)['live'])
         self.assertFalse(crucible.parse_condition(name, value)['live'])
         self.assertFalse(crucible.parse_condition('achievements', [['value', [228, 34]]], names)['live'])
+
+    def test_award_ids_in_a_set_are_live_as_in_a_list(self):
+        # Mission 2 of "Beacon" held set([228]), High Caliber, on 24 November 2026.
+        raw = [('postBattle', [('achievements', [('value', set([228]))])])]
+        names = {228: 'mainGun'}.get
+        [[(name, value)]] = crucible.condition_sets(raw)
+        self.assertTrue(crucible.parse_condition(name, value, names)['live'])
+        self.assertEqual(crucible.plain(raw), [['postBattle', [['achievements', [['value', [228]]]]]]])
+        self.assertFalse(crucible.parse_condition('achievements', [('value', set([228, 34]))], names)['live'])
+
+    def test_plain_data_has_lists_for_tuples_and_sets(self):
+        self.assertEqual(crucible.plain((1, set([3, 2]), frozenset([5, 4]), {'a': (6,)}, 'text', None)),
+                         [1, [2, 3], [4, 5], {'a': [6]}, 'text', None])
 
     def test_a_field_the_panel_cannot_count_turns_the_count_off(self):
         unseen = _conditions('[["vehicleDamage", [["whileEnemyInvisible", [["value", true]]], '
@@ -509,6 +525,14 @@ class TransportTest(unittest.TestCase):
         self.assertEqual(crucible.battle_mismatch(None, 1, 8), 'no active series')
         # A level the client could not read decides nothing.
         self.assertIsNone(crucible.battle_mismatch(active, 1, None))
+
+    def test_the_transport_of_plain_conditions_goes_to_json(self):
+        # On 24 November 2026, a mission with set([228]) stopped the transport and the banner.
+        raw = [('postBattle', [('achievements', [('value', set([228]))])])]
+        snapshot = crucible.build_snapshot(True, [_raw()], {'questID': 'challenge:70:2', 'rows': []}, 8)
+        data = crucible.transport(snapshot, crucible.plain(raw), 1, 2)
+        self.assertEqual(json.loads(json.dumps(data)), data)
+        self.assertEqual(data['active']['postBattle'], [['achievements', [['value', [228]]]]])
 
     def test_no_active_series_has_nothing_to_transport(self):
         snapshot = crucible.build_snapshot(True, [_raw(isActive=False)], None, 8)

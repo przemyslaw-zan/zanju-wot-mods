@@ -37,7 +37,7 @@ The controller events are `onChallengesSettingsChanged`, `onActiveChallengeChang
 
 ## Mission conditions
 
-`quest.getData()['conditions']` holds the conditions as nested `(name, value)` pairs. A leaf is a list with one `('value', x)` pair. Every mission on 14 October 2026 had the same pre-battle part: battle types 1 (`REGULAR`), 44 (`WINBACK`) and 46 (`RANDOM_NP2`), and vehicle tiers VI to XI.
+`quest.getData()['conditions']` holds the conditions as nested `(name, value)` pairs. A leaf is a list with one `('value', x)` pair. Some leaves hold a set: the award IDs of `achievements` were `set([228])` on 24 November 2026. JSON has no set, so `collector` changes the conditions with `crucible.plain` before anything reads them. A set becomes a sorted list. Every mission on 14 October 2026 had the same pre-battle part: battle types 1 (`REGULAR`), 44 (`WINBACK`) and 46 (`RANDOM_NP2`), and vehicle tiers VI to XI.
 
 The post-battle part of the 21 current missions used these shapes:
 
@@ -51,7 +51,7 @@ The post-battle part of the 21 current missions used these shapes:
 | `vehicleDamage` `limittedTime` 300 | Cause 2,500 HP of damage within the first 5 minutes of battle | yes, with the battle clock |
 | `vehicleKills` `whileFullHealth` | Destroy 3 enemy vehicles without receiving any damage | yes |
 | `results` `damageDealt` `max` N | Be among the top 5 players on your team by damage caused | no |
-| `achievements` `[228]` | Earn the High Caliber award | yes, by a rule for the award |
+| `achievements` `set([228])` | Earn the High Caliber award | yes, by a rule for the award |
 | `or` of the shapes above | each child is a row, and one row completes the mission | per row |
 
 "Live" means that a battle panel can count the condition while the battle runs. The client has no damage figure for any other player during a battle, so "top N" waits for the results. An award is live only when the mod has a rule for it, see [Awards](#awards). `limittedTime` is spelled that way in the data. `crucible.py` in `crucible-tracker` holds the classification and its tests, with these conditions verbatim.
@@ -110,6 +110,10 @@ An `achievements` condition names an award by its dossier record ID. `DB_ID_TO_R
 | Top Gun | `warrior` (34) | at least 6 kills |
 | Fighter | `fighter` (522) | 4 or 5 kills. A 6th kill closes the condition. |
 | Duelist | `duelist` (523) | at least 2 kills of enemies that damaged the player's vehicle, its HP or its modules, in any order |
+
+**Measured on 24 November 2026.** Before this date, no award mission was live in a real battle. The client gives the award IDs as a set, and the mod read only a list. The award mission showed as "not counted" in battle. While it was the current mission, the garage banner was also empty, because the battle transport failed with `TypeError: set([228]) is not JSON serializable`. The tests and the test mission of 16 October 2026 got their conditions from JSON, so they held lists only.
+
+With the fix, mission 2 of series 70 ("Beacon"), High Caliber, was live in one random battle. The target was 2,296 HP, which is 20% of the total HP of the enemy team. The panel counted 1,801 HP of damage dealt. One direct shot on an ally turned the rule line red and closed the condition. The server did not complete the mission.
 
 The client's text of Duelist is "Destroy at least 2 enemy vehicles that caused damage to your vehicle in the battle". Two terms follow it: "Damage to modules is included" and "Ricochets and non-penetrating hits are not included". A ricochet or a hit that does no damage sends no damage event, so the panel does not see it.
 
