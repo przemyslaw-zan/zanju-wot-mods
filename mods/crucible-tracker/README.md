@@ -20,7 +20,7 @@ Reference language `en` defines 33 strings, 8 of them in the [shared strings](..
 | Language | Coverage | Missing |
 | --- | --- | --- |
 | `pl` | 100% (33/33) | 0 |
-| `ru` | 97% (32/33) | 1 |
+| `ru` | 100% (33/33) | 0 |
 | `zh_cn` | 100% (33/33) | 0 |
 
 ## Install And Use
